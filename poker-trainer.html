@@ -109,6 +109,30 @@ h1{
 }
 .seat-act.aggro{color:var(--chip)}
 .seat-act.fold{color:var(--rose)}
+.seat-tag{
+  display:inline-block;margin-top:3px;
+  font-family:'IBM Plex Mono',monospace;font-size:8px;letter-spacing:.1em;
+  text-transform:uppercase;color:var(--faint);
+  border:1px solid var(--line);border-radius:999px;padding:1px 6px;
+  cursor:help;
+}
+.seat-tip{
+  display:none;position:absolute;left:50%;bottom:calc(100% + 8px);
+  transform:translateX(-50%);width:168px;z-index:20;
+  background:var(--panel-2);border:1px solid var(--line);border-radius:8px;
+  padding:8px 9px;box-shadow:0 10px 28px rgba(0,0,0,.55);
+  text-align:left;pointer-events:none;
+}
+.seat-tip::after{
+  content:'';position:absolute;left:50%;bottom:-5px;transform:translateX(-50%) rotate(45deg);
+  width:8px;height:8px;background:var(--panel-2);border-right:1px solid var(--line);border-bottom:1px solid var(--line);
+}
+.seat:hover .seat-tip,.seat.tip-open .seat-tip{display:block}
+.seat-tip.tip-below{bottom:auto;top:calc(100% + 8px)}
+.seat-tip.tip-below::after{bottom:auto;top:-5px;border-right:none;border-bottom:none;border-left:1px solid var(--line);border-top:1px solid var(--line)}
+.seat-tip .tip-name{font-size:11px;font-weight:600;color:var(--bone);margin-bottom:3px}
+.seat-tip .tip-body{font-size:11px;color:var(--muted);line-height:1.45}
+.seat-tip .tip-live{margin-top:5px;font-family:'IBM Plex Mono',monospace;font-size:9.5px;color:var(--bone-dim);line-height:1.4}
 .hole{display:flex;gap:3px;justify-content:center;margin-bottom:5px;min-height:44px}
 .bet{
   position:absolute;font-family:'IBM Plex Mono',monospace;font-size:11px;
@@ -754,11 +778,11 @@ const NAMES=['Vera','Oyelaran','Mikko','Priya','Dunn'];
 /* Fixed seat styles — real diversity so reads converge to something true.
    open/bet > 1 = looser/more aggressive; fold > 1 = folds more under pressure. */
 const BOT_STYLES=[
-  {open:0.85, bet:0.85, fold:1.15}, // Vera: tight
-  {open:1.00, bet:1.00, fold:1.00}, // Oyelaran: baseline
-  {open:1.15, bet:1.15, fold:0.85}, // Mikko: loose-aggressive
-  {open:0.90, bet:1.10, fold:0.95}, // Priya: selective but bets
-  {open:1.10, bet:0.90, fold:1.05}  // Dunn: loose-passive
+  {open:0.85, bet:0.85, fold:1.15, tag:'tight', blurb:'Opens a narrow range and folds more when pressured. Patient, not flashy.'},
+  {open:1.00, bet:1.00, fold:1.00, tag:'solid', blurb:'Balanced regular. Standard opens, standard aggression — a clean baseline.'},
+  {open:1.15, bet:1.15, fold:0.85, tag:'LAG', blurb:'Loose-aggressive. Plays more hands and keeps betting; harder to push off pots.'},
+  {open:0.90, bet:1.10, fold:0.95, tag:'selective', blurb:'Selective preflop, but bets firmly when involved. Not a calling station.'},
+  {open:1.10, bet:0.90, fold:1.05, tag:'loose', blurb:'Sees more flops than most, then plays them passively. Sticky, not spewy.'}
 ];
 const SB=1, BB=2, START=200;
 
@@ -769,6 +793,28 @@ let session={hands:0, net:0, vpip:0, hero:START, records:[], over:null};
 const opts={eq:true, chart:true, reason:false};
 
 function rosterOf(p){ return roster.find(x=>x.seat===p.seat); }
+
+/* Brief dossier for seat hover/tap — baked style + live reads when ready. */
+function playerBrief(p){
+  const r=rosterOf(p);
+  if(p.isHero){
+    const lab=r&&r.reads?readLabel('You', r.reads):null;
+    return {
+      tag:'you',
+      title:'You',
+      body:'Bots only see your public actions — not your cards. They adapt to how you play over the session.',
+      live: lab?lab.replace(/^You:\s*/,'So far: '):'So far: still gathering a read on you.'
+    };
+  }
+  const st=r&&r.style;
+  const lab=r&&r.reads?readLabel(p.name, r.reads):null;
+  return {
+    tag: st&&st.tag || 'bot',
+    title: p.name,
+    body: st&&st.blurb || 'Regular at this table.',
+    live: lab?lab.replace(new RegExp('^'+p.name+':\\s*'),'Session so far: '):'Session so far: not enough hands for a live read yet.'
+  };
+}
 
 /* Last to act among non-folded players = in position. */
 function isInPosition(idx){
@@ -1170,14 +1216,31 @@ function render(reveal){
     el.className='seat'+(p.folded?' out':'')+(!S.done && S.toAct===i && !p.folded?' turn':'');
     el.style.left=x+'%'; el.style.top=y+'%';
     const show = p.isHero || (reveal && !p.folded);
+    const brief=playerBrief(p);
+    const tipSide=y<36?' tip-below':'';
     el.innerHTML=`
+      <div class="seat-tip${tipSide}" role="tooltip">
+        <div class="tip-name">${brief.title}</div>
+        <div class="tip-body">${brief.body}</div>
+        <div class="tip-live">${brief.live}</div>
+      </div>
       <div class="hole">${p.cards.map(c=>cardEl(c,p.isHero,!show)).join('')}</div>
       <div class="seat-card">
         <div class="seat-name">${p.name}${i===S.btnPos?' ⏺':''}</div>
         <div class="seat-stack">${p.stack}${p.allIn?' · all in':''}</div>
         <div class="seat-pos">${p.pos}</div>
+        <span class="seat-tag">${brief.tag}</span>
         <div class="seat-act ${/raise|bet/.test(p.lastAct)?'aggro':/fold/.test(p.lastAct)?'fold':''}">${p.lastAct||'&nbsp;'}</div>
       </div>`;
+    const card=el.querySelector('.seat-card');
+    if(card&&card.addEventListener){
+      card.addEventListener('click',e=>{
+        e.stopPropagation();
+        const open=!el.classList.contains('tip-open');
+        felt.querySelectorAll('.seat').forEach(s=>s.classList.remove('tip-open'));
+        if(open) el.classList.add('tip-open');
+      });
+    }
     felt.appendChild(el);
 
     if(p.bet>0){
@@ -1189,6 +1252,10 @@ function render(reveal){
       felt.appendChild(b);
     }
   });
+  if(!felt._tipCloseBound && felt.addEventListener){
+    felt._tipCloseBound=true;
+    felt.addEventListener('click',()=>felt.querySelectorAll('.seat.tip-open').forEach(s=>s.classList.remove('tip-open')));
+  }
 
   document.getElementById('board').innerHTML=S.board.map(c=>cardEl(c,true,false)).join('');
   document.getElementById('potLabel').textContent='Pot '+S.pot;
