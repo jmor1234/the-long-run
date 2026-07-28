@@ -1,0 +1,1445 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Long Run — 6-max trainer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter+Tight:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --void:#100e17;
+  --table-hi:#2e2540;
+  --table-lo:#191325;
+  --rail:#0b0910;
+  --panel:#181521;
+  --panel-2:#211d2d;
+  --line:#2f2940;
+  --bone:#efe9dd;
+  --bone-dim:#cdc5b8;
+  --ink:#17131f;
+  --mint:#7fd6c1;      /* reserved: measurement layer only */
+  --mint-dim:#3f6e64;
+  --rose:#c4626b;
+  --chip:#d9a441;
+  --text:#d8d2e2;
+  --muted:#8a8298;
+  --faint:#5d5670;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{
+  background:var(--void);
+  color:var(--text);
+  font-family:'Inter Tight',system-ui,sans-serif;
+  font-size:14px;
+  -webkit-font-smoothing:antialiased;
+  overflow-x:hidden;
+}
+.mono{font-family:'IBM Plex Mono',monospace}
+.wrap{max-width:1180px;margin:0 auto;padding:18px 16px 40px}
+
+/* ---------- header ---------- */
+header{display:flex;align-items:baseline;gap:16px;flex-wrap:wrap;margin-bottom:14px}
+h1{
+  font-family:'Fraunces',serif;
+  font-weight:600;
+  font-size:22px;
+  letter-spacing:-.01em;
+  color:var(--bone);
+}
+.eyebrow{
+  font-family:'IBM Plex Mono',monospace;
+  font-size:10.5px;
+  letter-spacing:.16em;
+  text-transform:uppercase;
+  color:var(--faint);
+}
+.hdr-right{margin-left:auto;display:flex;gap:14px;align-items:center;flex-wrap:wrap}
+.stat{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--muted)}
+.stat b{color:var(--bone);font-weight:500}
+
+/* ---------- layout ---------- */
+.grid{display:grid;grid-template-columns:1fr 300px;gap:16px}
+@media (max-width:900px){.grid{grid-template-columns:1fr}}
+
+/* ---------- table ---------- */
+.felt{
+  position:relative;
+  aspect-ratio:1.52/1;
+  min-height:400px;
+  border-radius:200px/140px;
+  background:
+    radial-gradient(ellipse 70% 80% at 50% 42%, var(--table-hi) 0%, var(--table-lo) 68%, #120e1c 100%);
+  border:10px solid var(--rail);
+  box-shadow:
+    inset 0 0 70px rgba(0,0,0,.62),
+    inset 0 2px 0 rgba(255,255,255,.045),
+    0 22px 60px rgba(0,0,0,.55);
+}
+.felt::after{
+  content:'';position:absolute;inset:14px;border-radius:190px/132px;
+  border:1px solid rgba(255,255,255,.045);pointer-events:none;
+}
+
+/* ---------- seats ---------- */
+.seat{
+  position:absolute;transform:translate(-50%,-50%);
+  width:132px;text-align:center;transition:opacity .25s;
+}
+.seat.out{opacity:.32}
+.seat-card{
+  background:linear-gradient(180deg,var(--panel-2),var(--panel));
+  border:1px solid var(--line);border-radius:9px;
+  padding:6px 8px 7px;
+  box-shadow:0 5px 16px rgba(0,0,0,.45);
+  position:relative;
+}
+.seat.turn .seat-card{border-color:var(--mint-dim);box-shadow:0 0 0 1px var(--mint-dim),0 5px 20px rgba(127,214,193,.13)}
+.seat-name{font-size:11.5px;font-weight:600;color:var(--bone);letter-spacing:.01em}
+.seat-stack{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--chip);margin-top:1px}
+.seat-pos{
+  font-family:'IBM Plex Mono',monospace;font-size:8.5px;letter-spacing:.12em;
+  color:var(--faint);text-transform:uppercase;margin-top:2px;
+}
+.seat-act{
+  font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.08em;
+  text-transform:uppercase;margin-top:4px;min-height:12px;color:var(--muted);
+}
+.seat-act.aggro{color:var(--chip)}
+.seat-act.fold{color:var(--rose)}
+.hole{display:flex;gap:3px;justify-content:center;margin-bottom:5px;min-height:44px}
+.bet{
+  position:absolute;font-family:'IBM Plex Mono',monospace;font-size:11px;
+  color:var(--chip);background:rgba(10,8,16,.82);border:1px solid rgba(217,164,65,.32);
+  padding:1.5px 7px;border-radius:20px;white-space:nowrap;
+}
+
+/* ---------- cards ---------- */
+.card{
+  width:31px;height:44px;border-radius:4px;
+  background:linear-gradient(170deg,#fdfaf4,var(--bone));
+  color:var(--ink);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  font-family:'Fraunces',serif;font-weight:600;line-height:1;
+  box-shadow:0 2px 7px rgba(0,0,0,.5);
+  animation:deal .26s cubic-bezier(.2,.8,.3,1) backwards;
+}
+.card .r{font-size:15px}
+.card .s{font-size:12px;margin-top:1px}
+.card.red{color:#a8323f}
+.card.back{
+  background:
+    repeating-linear-gradient(45deg,#3a2f52 0 3px,#2c2340 3px 6px);
+  border:1px solid #4a3d68;
+}
+.card.big{width:44px;height:62px}
+.card.big .r{font-size:21px}
+.card.big .s{font-size:16px}
+@keyframes deal{from{opacity:0;transform:translateY(-16px) rotate(-5deg)}to{opacity:1}}
+@media (prefers-reduced-motion:reduce){.card{animation:none}}
+
+/* ---------- board ---------- */
+.center{
+  position:absolute;left:50%;top:44%;transform:translate(-50%,-50%);
+  text-align:center;width:100%;
+}
+.board{display:flex;gap:6px;justify-content:center;min-height:62px}
+.pot{
+  font-family:'IBM Plex Mono',monospace;font-size:12.5px;color:var(--chip);
+  margin-top:10px;letter-spacing:.04em;
+}
+.street{
+  font-family:'Fraunces',serif;font-size:11px;letter-spacing:.28em;
+  text-transform:uppercase;color:var(--faint);margin-bottom:9px;
+}
+
+/* ---------- signature: the decision strip ---------- */
+.strip{
+  margin-top:14px;background:var(--panel);border:1px solid var(--line);
+  border-radius:11px;padding:14px 16px;
+}
+.strip-head{
+  display:flex;justify-content:space-between;align-items:baseline;margin-bottom:11px;
+}
+.strip-title{
+  font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.17em;
+  text-transform:uppercase;color:var(--faint);
+}
+.verdict{font-family:'IBM Plex Mono',monospace;font-size:12px;font-weight:600}
+.verdict.good{color:var(--mint)}
+.verdict.bad{color:var(--rose)}
+.bar-row{display:flex;align-items:center;gap:11px;margin-bottom:7px}
+.bar-lab{
+  font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.08em;
+  color:var(--muted);width:104px;flex:none;text-transform:uppercase;
+}
+.bar-track{
+  flex:1;height:9px;background:#0e0b16;border-radius:5px;overflow:hidden;
+  border:1px solid #241f33;position:relative;
+}
+.bar-fill{height:100%;border-radius:5px;transition:width .4s cubic-bezier(.2,.8,.3,1)}
+.bar-fill.eq{background:linear-gradient(90deg,var(--mint-dim),var(--mint))}
+.bar-fill.need{background:linear-gradient(90deg,#5a4a3a,var(--chip))}
+.bar-val{
+  font-family:'IBM Plex Mono',monospace;font-size:11.5px;width:46px;text-align:right;flex:none;
+}
+.bar-val.eq{color:var(--mint)}
+.bar-val.need{color:var(--chip)}
+.strip-note{font-size:11.5px;color:var(--muted);margin-top:9px;line-height:1.55}
+.pf{
+  font-size:12.5px;line-height:1.55;color:var(--muted);
+  padding-bottom:11px;margin-bottom:11px;border-bottom:1px solid #241f33;display:none;
+}
+.pf b{font-family:'IBM Plex Mono',monospace;color:var(--bone);font-weight:500}
+.pf .ok{color:var(--mint);font-weight:600}
+.pf .no{color:var(--rose);font-weight:600}
+.strip.off{opacity:.35;filter:grayscale(.7)}
+
+/* ---------- actions ---------- */
+.actions{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
+button{
+  font-family:'Inter Tight',sans-serif;font-size:13px;font-weight:600;
+  padding:11px 17px;border-radius:8px;border:1px solid var(--line);
+  background:var(--panel-2);color:var(--text);cursor:pointer;
+  transition:.14s;letter-spacing:.01em;
+}
+button:hover:not(:disabled){background:#2b2539;border-color:#453c5e;transform:translateY(-1px)}
+button:disabled{opacity:.28;cursor:not-allowed}
+button:focus-visible{outline:2px solid var(--mint);outline-offset:2px}
+button .amt{font-family:'IBM Plex Mono',monospace;font-weight:400;color:var(--chip);margin-left:5px}
+.b-fold{border-color:rgba(196,98,107,.3)}
+.b-fold:hover:not(:disabled){background:rgba(196,98,107,.13);border-color:var(--rose)}
+.b-primary{background:var(--mint-dim);border-color:var(--mint-dim);color:#08120f}
+.b-primary:hover:not(:disabled){background:var(--mint);border-color:var(--mint)}
+.b-primary .amt{color:#08120f;font-weight:600}
+.b-ghost{background:transparent;font-size:12px;padding:8px 13px}
+
+/* ---------- side panel ---------- */
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:11px;padding:14px}
+.panel + .panel{margin-top:12px}
+.panel h2{
+  font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.17em;
+  text-transform:uppercase;color:var(--faint);font-weight:500;margin-bottom:10px;
+}
+.toggle{
+  display:flex;align-items:center;justify-content:space-between;gap:8px;
+  padding:7px 0;border-bottom:1px solid #221d30;font-size:12.5px;
+}
+.toggle:last-child{border-bottom:0}
+.toggle span{color:var(--text)}
+.toggle small{display:block;color:var(--faint);font-size:10.5px;margin-top:1px;line-height:1.4}
+.sw{
+  width:34px;height:19px;border-radius:11px;background:#241f33;border:1px solid var(--line);
+  position:relative;cursor:pointer;flex:none;transition:.18s;
+}
+.sw::after{
+  content:'';position:absolute;top:2px;left:2px;width:13px;height:13px;border-radius:50%;
+  background:var(--faint);transition:.18s;
+}
+.sw.on{background:var(--mint-dim);border-color:var(--mint-dim)}
+.sw.on::after{transform:translateX(15px);background:var(--bone)}
+
+.logbox{max-height:280px;overflow-y:auto;font-family:'IBM Plex Mono',monospace;font-size:10.5px;line-height:1.65}
+.logbox::-webkit-scrollbar{width:5px}
+.logbox::-webkit-scrollbar-thumb{background:#332c47;border-radius:3px}
+.le{color:var(--muted);padding:2px 0}
+.le b{color:var(--bone-dim);font-weight:500}
+.le.hero b{color:var(--mint)}
+.le.street{color:var(--faint);letter-spacing:.14em;text-transform:uppercase;margin-top:7px;font-size:9.5px}
+.le.win{color:var(--chip)}
+.reason{color:var(--faint);font-size:10px;padding-left:9px;border-left:1px solid #2a2439;margin:1px 0 4px}
+
+.chart{font-family:'IBM Plex Mono',monospace;font-size:10px;line-height:1.7}
+.chart div{display:flex;gap:8px}
+.chart .t{color:var(--mint);width:16px;flex:none}
+.chart .h{color:var(--bone-dim)}
+.fair{font-size:11px;color:var(--muted);line-height:1.6}
+.fair code{
+  display:block;font-family:'IBM Plex Mono',monospace;font-size:9.5px;color:var(--mint);
+  background:#0e0b16;border:1px solid #241f33;border-radius:6px;padding:8px;margin-top:8px;
+  white-space:pre-wrap;line-height:1.5;
+}
+
+/* ---------- showdown overlay ---------- */
+.review{
+  margin-top:12px;background:var(--panel);border:1px solid var(--mint-dim);
+  border-radius:11px;padding:14px 16px;
+}
+.review h2{
+  font-family:'Fraunces',serif;font-size:15px;color:var(--bone);margin-bottom:9px;font-weight:600;
+}
+.review p{font-size:12.5px;color:var(--muted);line-height:1.65;margin-bottom:8px}
+.review .k{color:var(--mint)}
+textarea{
+  width:100%;height:150px;background:#0e0b16;border:1px solid var(--line);border-radius:7px;
+  color:var(--bone-dim);font-family:'IBM Plex Mono',monospace;font-size:10px;padding:9px;
+  resize:vertical;line-height:1.5;margin-top:8px;
+}
+.toast{
+  position:fixed;bottom:22px;left:50%;transform:translateX(-50%);
+  background:var(--mint);color:#08120f;padding:9px 18px;border-radius:8px;
+  font-size:12.5px;font-weight:600;opacity:0;transition:.25s;pointer-events:none;z-index:50;
+}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(-6px)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <h1>The Long Run</h1>
+  <div class="eyebrow" id="handLabel">Hand 1 · 6-max</div>
+  <div class="hdr-right">
+    <div class="stat">Session <b id="sessTotal">0</b> bb</div>
+    <div class="stat">Hands <b id="sessHands">0</b></div>
+    <div class="stat">VPIP <b id="sessVpip">—</b></div>
+  </div>
+</header>
+
+<div class="grid">
+  <div>
+    <div class="felt" id="felt">
+      <div class="center">
+        <div class="street" id="streetLabel">Preflop</div>
+        <div class="board" id="board"></div>
+        <div class="pot" id="potLabel">Pot 0</div>
+      </div>
+    </div>
+
+    <!-- SIGNATURE ELEMENT: the whole game reduced to one comparison -->
+    <div class="strip" id="strip">
+      <div class="pf" id="pfLine"></div>
+      <div class="strip-head">
+        <div class="strip-title">Decision</div>
+        <div class="verdict" id="verdict">—</div>
+      </div>
+      <div class="bar-row">
+        <div class="bar-lab">Your equity</div>
+        <div class="bar-track"><div class="bar-fill eq" id="barEq" style="width:0%"></div></div>
+        <div class="bar-val eq" id="valEq">—</div>
+      </div>
+      <div class="bar-row">
+        <div class="bar-lab">Need to call</div>
+        <div class="bar-track"><div class="bar-fill need" id="barNeed" style="width:0%"></div></div>
+        <div class="bar-val need" id="valNeed">—</div>
+      </div>
+      <div class="strip-note" id="stripNote">Deal a hand to begin.</div>
+    </div>
+
+    <div class="actions" id="actions"></div>
+    <div id="reviewSlot"></div>
+  </div>
+
+  <aside>
+    <div class="panel">
+      <h2>Training wheels</h2>
+      <div class="toggle">
+        <div><span>Equity readout</span><small>Your live equity vs their inferred range</small></div>
+        <div class="sw on" id="sw-eq"></div>
+      </div>
+      <div class="toggle">
+        <div><span>Preflop guide</span><small>Whether your hand is playable from your seat</small></div>
+        <div class="sw on" id="sw-chart"></div>
+      </div>
+      <div class="toggle">
+        <div><span>Show their reasoning</span><small>Each bot's actual reason, live</small></div>
+        <div class="sw" id="sw-reason"></div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>Hand log</h2>
+      <div class="logbox" id="log"><div class="le">Waiting for the first hand.</div></div>
+    </div>
+
+    <div class="panel">
+      <h2>Table reads</h2>
+      <div class="fair" id="readsLine">Not enough hands yet to read anyone.</div>
+    </div>
+
+    <div class="panel">
+      <h2>Session record</h2>
+      <div class="fair" id="recCount">No hands finished yet.</div>
+      <div class="actions" style="margin-top:9px">
+        <button class="b-ghost" id="btnCopySession">Copy all hands</button>
+      </div>
+    </div>
+
+  </aside>
+</div>
+</div>
+
+<div class="toast" id="toast">Copied</div>
+
+<script>
+"use strict";
+/* ============================================================
+   CARDS
+   ============================================================ */
+const SUITS = ['s','h','d','c'];
+const SUIT_CH = {s:'♠',h:'♥',d:'♦',c:'♣'};
+const RANK_CH = {14:'A',13:'K',12:'Q',11:'J',10:'T',9:'9',8:'8',7:'7',6:'6',5:'5',4:'4',3:'3',2:'2'};
+
+function makeDeck(){
+  const d=[];
+  for(const s of SUITS) for(let r=2;r<=14;r++) d.push({r,s});
+  return d;
+}
+function shuffle(a){
+  for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}
+  return a;
+}
+const cardStr = c => RANK_CH[c.r]+c.s;
+const handStr = cs => cs.map(cardStr).join(' ');
+
+/* ============================================================
+   HAND EVALUATION  (7 cards -> {cat, tie[]})
+   ============================================================ */
+const CAT_NAME=['high card','a pair','two pair','three of a kind','a straight','a flush','a full house','four of a kind','a straight flush'];
+
+function straightHigh(ranks){
+  const u=[...new Set(ranks)].sort((a,b)=>b-a);
+  if(u[0]===14) u.push(1);
+  let run=1;
+  for(let i=1;i<u.length;i++){
+    if(u[i]===u[i-1]-1){ run++; if(run>=5) return u[i]+4; }
+    else run=1;
+  }
+  return 0;
+}
+
+function evaluate(cards){
+  const rc={}, bySuit={s:[],h:[],d:[],c:[]};
+  for(const c of cards){ rc[c.r]=(rc[c.r]||0)+1; bySuit[c.s].push(c.r); }
+  let flushSuit=null;
+  for(const s of SUITS) if(bySuit[s].length>=5) flushSuit=s;
+
+  if(flushSuit){
+    const sf=straightHigh(bySuit[flushSuit]);
+    if(sf) return {cat:8,tie:[sf]};
+  }
+  const ranks=Object.keys(rc).map(Number).sort((a,b)=>b-a);
+  const quads=ranks.filter(r=>rc[r]===4);
+  const trips=ranks.filter(r=>rc[r]===3);
+  const pairs=ranks.filter(r=>rc[r]===2);
+
+  if(quads.length){
+    const k=ranks.filter(r=>r!==quads[0])[0];
+    return {cat:7,tie:[quads[0],k]};
+  }
+  if(trips.length){
+    const pairCand=[...trips.slice(1),...pairs].sort((a,b)=>b-a);
+    if(pairCand.length) return {cat:6,tie:[trips[0],pairCand[0]]};
+  }
+  if(flushSuit){
+    return {cat:5,tie:bySuit[flushSuit].slice().sort((a,b)=>b-a).slice(0,5)};
+  }
+  const st=straightHigh(ranks);
+  if(st) return {cat:4,tie:[st]};
+  if(trips.length){
+    return {cat:3,tie:[trips[0],...ranks.filter(r=>r!==trips[0]).slice(0,2)]};
+  }
+  if(pairs.length>=2){
+    const k=ranks.filter(r=>r!==pairs[0]&&r!==pairs[1])[0];
+    return {cat:2,tie:[pairs[0],pairs[1],k]};
+  }
+  if(pairs.length){
+    return {cat:1,tie:[pairs[0],...ranks.filter(r=>r!==pairs[0]).slice(0,3)]};
+  }
+  return {cat:0,tie:ranks.slice(0,5)};
+}
+
+function cmpHand(a,b){
+  if(a.cat!==b.cat) return a.cat-b.cat;
+  const n=Math.max(a.tie.length,b.tie.length);
+  for(let i=0;i<n;i++){
+    const x=a.tie[i]||0, y=b.tie[i]||0;
+    if(x!==y) return x-y;
+  }
+  return 0;
+}
+
+/* ============================================================
+   HAND RANKING
+   All 169 starting hands ranked by equity vs a random hand,
+   adjusted for suitedness and connectedness. The number is the
+   cumulative percentile: AA=0.45 means AA sits in the top 0.45%.
+   ============================================================ */
+const HAND_PCT={};
+"AA:0.45,KK:0.9,QQ:1.36,JJ:1.81,AKs:2.11,TT:2.56,AQs:2.87,99:3.32,KQs:3.62,KJs:3.92,AJs:4.22,QJs:4.52,AKo:5.43,ATs:5.73,88:6.18,KTs:6.49,AQo:7.39,77:7.84,QTs:8.14,A9s:8.45,JTs:8.75,A8s:9.05,Q9s:9.35,A7s:9.65,A5s:9.95,A4s:10.26,KJo:11.16,K9s:11.46,AJo:12.37,A6s:12.67,KQo:13.57,ATo:14.48,J9s:14.78,T9s:15.08,Q8s:15.38,A3s:15.69,QJo:16.59,A9o:17.5,K8s:17.8,66:18.25,A2s:18.55,QTo:19.46,A8o:20.36,K7s:20.66,K6s:20.97,T8s:21.27,A7o:22.17,K5s:22.47,KTo:23.38,98s:23.68,Q7s:23.98,Q5s:24.28,K9o:25.19,J8s:25.49,K8o:26.4,K3s:26.7,A4o:27.6,JTo:28.51,K4s:28.81,55:29.26,A6o:30.17,Q6s:30.47,J7s:30.77,A3o:31.67,97s:31.98,J9o:32.88,A2o:33.79,Q4s:34.09,A5o:34.99,44:35.44,K2s:35.75,K7o:36.65,Q9o:37.56,Q8o:38.46,Q2s:38.76,K6o:39.67,Q3s:39.97,T7s:40.27,86s:40.57,T6s:40.87,87s:41.18,T8o:42.08,96s:42.38,K5o:43.29,J3s:43.59,J8o:44.49,K4o:45.4,T9o:46.3,J6s:46.61,K3o:47.51,76s:47.81,J2s:48.11,J4s:48.42,Q7o:49.32,J5s:49.62,95s:49.92,75s:50.23,Q6o:51.13,T5s:51.43,K2o:52.34,97o:53.24,Q4o:54.15,T4s:54.45,98o:55.35,T2s:55.66,85s:55.96,J7o:56.86,33:57.32,T3s:57.62,22:58.07,65s:58.37,J6o:59.28,Q5o:60.18,54s:60.48,94s:60.78,64s:61.09,93s:61.39,43s:61.69,84s:61.99,Q3o:62.9,Q2o:63.8,87o:64.71,J5o:65.61,T6o:66.52,53s:66.82,T7o:67.72,73s:68.02,74s:68.33,63s:68.63,92s:68.93,J4o:69.83,42s:70.14,T5o:71.04,82s:71.34,96o:72.25,J2o:73.15,76o:74.06,J3o:74.96,83s:75.26,86o:76.17,T4o:77.07,65o:77.98,32s:78.28,75o:79.19,52s:79.49,95o:80.39,62s:80.69,94o:81.6,T3o:82.5,85o:83.41,72s:83.71,93o:84.62,T2o:85.52,74o:86.43,54o:87.33,64o:88.24,84o:89.14,92o:90.05,43o:90.95,53o:91.86,83o:92.76,82o:93.67,63o:94.57,42o:95.48,73o:96.38,32o:97.29,72o:98.19,62o:99.1,52o:100".split(',').forEach(e=>{const[n,v]=e.split(':');HAND_PCT[n]=+v;});
+
+function handName(cards){
+  const [a,b]=cards.slice().sort((x,y)=>y.r-x.r);
+  if(a.r===b.r) return RANK_CH[a.r]+RANK_CH[b.r];
+  return RANK_CH[a.r]+RANK_CH[b.r]+(a.s===b.s?'s':'o');
+}
+function pctOf(cards){ const v=HAND_PCT[handName(cards)]; return v===undefined?100:v; }
+
+/* Hands well inside the range open always; hands near the edge open
+   only some of the time. The taper is what keeps them unexploitable. */
+function openFreq(pct,threshold){
+  const core=threshold*0.65;
+  if(pct<=core) return 1;
+  if(pct<=threshold) return 1-0.45*((pct-core)/(threshold-core));
+  if(pct<=threshold*1.18) return 0.18*(1-(pct-threshold)/(threshold*0.18));
+  return 0;
+}
+
+/* ============================================================
+   EQUITY  (Monte Carlo)
+   ============================================================ */
+/* How likely is a hand this strong to have fired a bet?
+   Mirrors the bots' own betting frequencies, so the estimate accounts
+   for the story their betting tells, not just what they'd have raised with. */
+function betLikelihood(hole, board){
+  if(!board.length) return 1;
+  const withHole=evaluate([...hole,...board]);
+  const boardOnly=evaluate(board);
+  if(cmpHand(withHole,boardOnly)===0) return 0.13;   // playing the board = air
+  if(withHole.cat>=3) return 0.80;                    // trips or better
+  if(withHole.cat===2) return 0.70;                   // two pair
+  if(withHole.cat===1) return 0.45;                   // a pair
+  return 0.13;
+}
+
+// equity of `mine` vs opponents described by {cap, aggr}
+function equity(mine, board, opps_, iters){
+  const tiers = opps_.map(o => typeof o==='number' ? {cap:o, aggr:0} : o);
+  iters = iters || 350;
+  const used = new Set([...mine,...board].map(cardStr));
+  const stub = makeDeck().filter(c=>!used.has(cardStr(c)));
+  let score=0, valid=0;
+
+  for(let it=0; it<iters; it++){
+    const d = stub.slice();
+    shuffle(d);
+    let ptr=0, ok=true;
+    const opps=[];
+    for(const o of tiers){
+      let found=null;
+      for(let t=0;t<40 && ptr+1<d.length;t++){
+        const h=[d[ptr],d[ptr+1]];
+        if(pctOf(h)<=o.cap){
+          // accept in proportion to how often this hand would have bet as it did
+          const w = o.aggr>0 ? Math.pow(betLikelihood(h,board)/0.80, o.aggr) : 1;
+          if(w>=1 || Math.random()<w){ found=h; ptr+=2; break; }
+        }
+        d.push(d.splice(ptr,1)[0]);
+      }
+      if(!found){ ok=false; break; }
+      opps.push(found);
+    }
+    if(!ok) continue;
+    const runout=[];
+    while(board.length+runout.length<5 && ptr<d.length) runout.push(d[ptr++]);
+    const full=[...board,...runout];
+
+    const my=evaluate([...mine,...full]);
+    let best=0, ties=1;
+    for(const o of opps){
+      const oe=evaluate([...o,...full]);
+      const c=cmpHand(my,oe);
+      if(c<0){ best=-1; break; }
+      if(c===0) ties++;
+    }
+    if(best===0) score += 1/ties;
+    valid++;
+  }
+  return valid? score/valid : 0.5;
+}
+
+// crude but fast: strength vs one random hand (used by bots for their own hand)
+function strengthVsRandom(mine, board, iters){
+  return equity(mine, board, [{cap:100,aggr:0}], iters||160);
+}
+
+function drawInfo(mine, board){
+  const all=[...mine,...board];
+  const suits={};
+  for(const c of all) suits[c.s]=(suits[c.s]||0)+1;
+  const flushDraw = board.length>=3 && board.length<5 && Object.values(suits).some(v=>v===4);
+  const ranks=[...new Set(all.map(c=>c.r))];
+  let oesd=false;
+  if(board.length>=3 && board.length<5){
+    const u=ranks.slice().sort((a,b)=>a-b);
+    for(let i=0;i<=u.length-4;i++){
+      if(u[i+3]-u[i]===3) oesd=true;
+    }
+  }
+  return {flushDraw,oesd,any:flushDraw||oesd};
+}
+
+/* ============================================================
+   READS  (public-action memory; never hole cards)
+   session.vpip = hero display counter (raw hands).
+   reads.*     = per-seat modeling rates with prior shrinkage.
+   ============================================================ */
+const READS_PRIOR = 20;
+const READS_MIN_HANDS = 30;
+const READS_PRIOR_VPIP = 0.28;
+const READS_PRIOR_PFR = 0.18;
+const READS_PRIOR_FOLD = 0.45;
+const READS_PRIOR_AF = 1.0;
+
+function freshReads(){
+  return {hands:0, vpipOpps:0, vpip:0, pfrOpps:0, pfr:0, agg:0, passive:0, foldToBetOpps:0, foldToBet:0};
+}
+function clampFreq(f){ return Math.max(0.05, Math.min(0.95, f)); }
+function readsRate(yes, opps, priorRate){
+  return (READS_PRIOR * priorRate + yes) / (READS_PRIOR + Math.max(0, opps));
+}
+function readsConf(opps){
+  return Math.max(0, opps) / (Math.max(0, opps) + READS_PRIOR);
+}
+function shrinkReads(rd){
+  if(!rd) return null;
+  const vpip = readsRate(rd.vpip, rd.vpipOpps, READS_PRIOR_VPIP);
+  const pfr = readsRate(rd.pfr, rd.pfrOpps, READS_PRIOR_PFR);
+  const foldToBet = readsRate(rd.foldToBet, rd.foldToBetOpps, READS_PRIOR_FOLD);
+  const af = (READS_PRIOR * READS_PRIOR_AF + rd.agg) / (READS_PRIOR + rd.agg + rd.passive);
+  const conf = readsConf(Math.max(rd.vpipOpps, rd.foldToBetOpps, rd.agg + rd.passive));
+  return {vpip, pfr, foldToBet, af, conf, hands:rd.hands};
+}
+function readLabel(name, rd){
+  if(!rd || rd.hands < READS_MIN_HANDS) return null;
+  const s = shrinkReads(rd);
+  const parts=[];
+  if(rd.vpipOpps >= 20){
+    if(s.vpip < 0.22) parts.push('tight');
+    else if(s.vpip > 0.35) parts.push('loose');
+  }
+  if(rd.foldToBetOpps >= 15){
+    if(s.foldToBet > 0.55) parts.push('folds often');
+    else if(s.foldToBet < 0.35) parts.push('sticky');
+  }
+  if(rd.agg + rd.passive >= 15){
+    if(s.af > 1.6) parts.push('aggressive');
+    else if(s.af < 0.7) parts.push('passive');
+  }
+  if(!parts.length) return null;
+  return name+': '+parts.join(' \u00b7 ');
+}
+
+/* Facing an aggressor: mild frequency nudges, scaled by sample confidence. */
+function facingNudge(facingReads, hadInitiative){
+  const blank = {callMult:1, raiseMult:1, note:''};
+  if(!facingReads) return blank;
+  const s = shrinkReads(facingReads);
+  if(!s || s.conf < 0.05) return blank;
+  const c = s.conf;
+  // Loose bettors → call a bit lighter; sticky callers → bluff-raise less.
+  let callMult = 1 + c * (s.vpip - READS_PRIOR_VPIP) * 0.5;
+  let raiseMult = 1 - c * (READS_PRIOR_FOLD - s.foldToBet) * 0.55;
+  if(hadInitiative) callMult *= 1 + c * 0.04;          // c-bet is common
+  else callMult *= 1 - c * 0.12;                        // lead without initiative → more respect
+  const tags=[];
+  if(s.vpip > 0.35) tags.push('loose');
+  else if(s.vpip < 0.22) tags.push('tight');
+  if(s.foldToBet > 0.55) tags.push('folds often');
+  else if(s.foldToBet < 0.35) tags.push('sticky');
+  return {
+    callMult, raiseMult,
+    note: tags.length ? ' Faces a '+tags.join('/')+' aggressor.' : ''
+  };
+}
+
+/* ============================================================
+   BOT POLICY
+   FAIRNESS: hero cards are NOT a parameter of this function.
+   Actions are drawn from frequencies, never fixed rules.
+   Style + public reads arrive only via ctx (never via S).
+   ============================================================ */
+function botDecide(ctx){
+  const {myCards, board, street, toCall, pot, myStack, position, raisedBefore} = ctx;
+  const style = ctx.style || {open:1, bet:1, fold:1};
+  const inPosition = !!ctx.inPosition;
+  const streetBets = ctx.streetBets || 0;
+  const nudge = facingNudge(ctx.facingReads, !!ctx.aggressorHadInitiative);
+  const roll = Math.random();
+  const potOdds = toCall>0 ? toCall/(pot+toCall) : 0;
+
+  /* ---- PREFLOP ---- */
+  if(street==='preflop'){
+    const pct = pctOf(myCards);
+    const thr = (ctx.openThr || 30) * style.open;
+    const nm  = handName(myCards);
+
+    if(!raisedBefore){
+      const f = clampFreq(openFreq(pct, thr));
+      if(roll < f){
+        const size = Math.min(myStack, Math.max(6, Math.round(pot*1.1)));
+        return {action:'raise', amount:size, pct,
+          reason:`${nm} is a top-${pct.toFixed(0)}% hand. ${position} opens ~${thr.toFixed(0)}%, so this one opens ${Math.round(f*100)}% of the time \u2014 roll ${roll.toFixed(2)} said open.`};
+      }
+      return {action: toCall>0?'fold':'check', pct,
+        reason:`${nm} is a top-${pct.toFixed(0)}% hand; ${position} opens ~${thr.toFixed(0)}%. Opens it ${Math.round(f*100)}% of the time \u2014 roll ${roll.toFixed(2)} said fold.`};
+    }
+
+    // facing a raise: continue with a tighter slice, plus a small bluff frequency.
+    const defend = thr * 0.55;
+    const threeBet = clampFreq(0.62 * style.bet * nudge.raiseMult);
+    const defendCall = clampFreq(0.72 / style.fold * nudge.callMult);
+    const spewCall = clampFreq(0.20 * nudge.callMult);
+    const bluff3 = clampFreq(0.038 * style.bet * nudge.raiseMult);
+
+    if(pct <= defend*0.30){
+      if(roll<threeBet) return {action:'raise', amount:Math.min(myStack,Math.round(pot*1.0)), pct,
+        reason:`${nm} \u2014 premium. 3-bets ${Math.round(threeBet*100)}% / calls the rest, roll ${roll.toFixed(2)}.${nudge.note}`};
+      return {action:'call', pct, reason:`${nm} \u2014 premium, flat-call branch. Roll ${roll.toFixed(2)}.${nudge.note}`};
+    }
+    if(pct <= defend) return roll<defendCall
+      ? {action:'call', pct, reason:`${nm} (top ${pct.toFixed(0)}%) inside the ${defend.toFixed(0)}% defend range \u2014 continues ${Math.round(defendCall*100)}%, roll ${roll.toFixed(2)}.${nudge.note}`}
+      : {action:'fold', pct, reason:`${nm} is inside the defend range but folds here. Roll ${roll.toFixed(2)}.${nudge.note}`};
+    if(pct <= defend*1.9 && roll<spewCall) return {action:'call', pct,
+      reason:`${nm} is outside the defend range \u2014 played ${Math.round(spewCall*100)}% so calls aren't all strong. Roll ${roll.toFixed(2)}.${nudge.note}`};
+    if(pct <= thr*1.3 && roll < bluff3) return {action:'raise', amount:Math.min(myStack,Math.round(pot*1.0)), pct,
+      reason:`${nm} 3-bet bluff \u2014 ${Math.round(bluff3*100)}% frequency. Roll ${roll.toFixed(2)}.${nudge.note}`};
+    return {action:'fold', pct, reason:`${nm} (top ${pct.toFixed(0)}%) is outside the ${defend.toFixed(0)}% defend range. Folds.${nudge.note}`};
+  }
+
+  /* ---- POSTFLOP ---- */
+  const s = strengthVsRandom(myCards, board, 150);
+  const dr = drawInfo(myCards, board);
+  const pct = Math.round(s*100);
+  let bucket = s>0.82?'strong' : s>0.62?'good' : s>0.45?'marginal' : 'weak';
+  const halfPot = Math.max(2, Math.round(pot*0.5));
+  const fullPot = Math.max(2, Math.round(pot*0.9));
+  // Position: IP bets/bluffs a bit more; OOP a bit less.
+  const posBet = inPosition ? 1.12 : 0.88;
+  const posCall = inPosition ? 1.06 : 0.94;
+  const multiway = streetBets >= 2 ? 0.85 : 1;
+
+  if(toCall===0){
+    let betFreq = bucket==='strong'?0.80 : bucket==='good'?0.55 : bucket==='marginal'?0.22 : (dr.any?0.35:0.13);
+    betFreq = clampFreq(betFreq * style.bet * posBet * multiway);
+    if(roll<betFreq){
+      const amt = Math.min(myStack, bucket==='strong'?fullPot:halfPot);
+      const why = bucket==='weak' && dr.any
+        ? `${dr.flushDraw?'Flush draw':'Open-ended draw'}, ${pct}% raw strength — semi-bluffs ${Math.round(betFreq*100)}%`
+        : `${bucket} (${pct}% vs a random hand) — bets ${Math.round(betFreq*100)}%${inPosition?' IP':''}`;
+      return {action:'bet', amount:amt, reason:`${why}. Roll ${roll.toFixed(2)} said bet.`};
+    }
+    return {action:'check', reason:`${bucket} (${pct}%) — checks ${Math.round((1-betFreq)*100)}% here. Roll ${roll.toFixed(2)}.`};
+  }
+
+  // facing a bet
+  const need = potOdds;
+  const effective = s + (dr.flushDraw?0.13:0) + (dr.oesd?0.10:0);
+  if(bucket==='strong'){
+    const raiseFreq = clampFreq(0.55 * style.bet * nudge.raiseMult);
+    if(roll<raiseFreq) return {action:'raise', amount:Math.min(myStack,Math.round(pot*0.9)+toCall),
+      reason:`Strong (${pct}%) — raises ${Math.round(raiseFreq*100)}%. Roll ${roll.toFixed(2)}.${nudge.note}`};
+    return {action:'call', reason:`Strong (${pct}%) — the slow branch. Roll ${roll.toFixed(2)}.${nudge.note}`};
+  }
+  const bluffRaise = clampFreq(0.07 * style.bet * nudge.raiseMult * (inPosition?1.15:0.85));
+  if(roll < bluffRaise && dr.any) return {action:'raise', amount:Math.min(myStack,Math.round(pot*0.8)+toCall),
+    reason:`Draw turned into a ${Math.round(bluffRaise*100)}% bluff-raise. Roll ${roll.toFixed(2)}.${nudge.note}`};
+
+  // fold pressure: style.fold > 1 folds more often (needs more equity edge to continue)
+  const edgeNeed = 0.02 * style.fold / nudge.callMult / posCall;
+  if(effective > need + edgeNeed){
+    return {action:'call',
+      reason:`${pct}% strength${dr.any?' + draw equity':''} = ~${Math.round(effective*100)}% vs ${Math.round(need*100)}% needed. Calls.${nudge.note}`};
+  }
+  return {action:'fold',
+    reason:`~${Math.round(effective*100)}% vs ${Math.round(need*100)}% needed. Folds.${nudge.note}`};
+}
+
+/* ============================================================
+   GAME STATE
+   ============================================================ */
+const NAMES=['Vera','Oyelaran','Mikko','Priya','Dunn'];
+/* Fixed seat styles — real diversity so reads converge to something true.
+   open/bet > 1 = looser/more aggressive; fold > 1 = folds more under pressure. */
+const BOT_STYLES=[
+  {open:0.85, bet:0.85, fold:1.15}, // Vera: tight
+  {open:1.00, bet:1.00, fold:1.00}, // Oyelaran: baseline
+  {open:1.15, bet:1.15, fold:0.85}, // Mikko: loose-aggressive
+  {open:0.90, bet:1.10, fold:0.95}, // Priya: selective but bets
+  {open:1.10, bet:0.90, fold:1.05}  // Dunn: loose-passive
+];
+const SB=1, BB=2, START=200;
+
+let S=null;
+let roster=null;        // persists between hands; players are removed when broke
+let buttonSeat=0;
+let session={hands:0, net:0, vpip:0, hero:START, records:[], over:null};
+const opts={eq:true, chart:true, reason:false};
+
+function rosterOf(p){ return roster.find(x=>x.seat===p.seat); }
+
+/* Last to act among non-folded players = in position. */
+function isInPosition(idx){
+  const order=[];
+  for(let k=1;k<=S.n;k++){
+    const i=(S.btnPos+k)%S.n;
+    if(!S.players[i].folded) order.push(i);
+  }
+  return order.length>0 && order[order.length-1]===idx;
+}
+
+/* Position name depends on how many are left. At a short table the
+   middle seats simply stop existing. Heads-up, the button IS the small blind. */
+function posName(offset,n){
+  if(n===2) return offset===0 ? 'BTN' : 'BB';
+  if(offset===0) return 'BTN';
+  if(offset===1) return 'SB';
+  if(offset===2) return 'BB';
+  if(offset===n-1) return 'CO';
+  if(offset===n-2 && n>=6) return 'HJ';
+  return 'UTG';
+}
+
+/* How many players still get to act after you, preflop. This — not the
+   seat's name — is what actually decides how wide you can open. */
+function behindCount(offset,n){
+  const first = n===2 ? 0 : 3;
+  const order=[];
+  for(let k=0;k<n;k++) order.push((first+k)%n);
+  return n-1-order.indexOf(offset);
+}
+
+function openThreshold(pos,behind,n){
+  if(n===2) return pos==='BTN' ? 85 : 100;   // heads-up: the button plays nearly everything
+  const byBehind=[45,45,45,28,21,16];
+  let t=byBehind[Math.min(behind,5)];
+  if(pos==='SB') t*=0.85;                     // acts first on every later street
+  return t;
+}
+
+function newSession(){
+  roster=[];
+  for(let i=0;i<6;i++)
+    roster.push({
+      seat:i,
+      name:i===0?'You':NAMES[i-1],
+      isHero:i===0,
+      stack:START,
+      style:i===0?null:BOT_STYLES[i-1],
+      reads:freshReads()
+    });
+  buttonSeat=Math.floor(Math.random()*6);
+  session={hands:0, net:0, vpip:0, hero:START, records:[], over:null};
+  document.getElementById('log').innerHTML='';
+  document.getElementById('reviewSlot').innerHTML='';
+  S=null;
+  updateSession();
+  newHand();
+}
+
+function newHand(){
+  const alive=roster.filter(p=>p.stack>0);
+  if(roster[0].stack<=0) return gameOver('busted');
+  if(alive.length<2)     return gameOver('won');
+
+  do { buttonSeat=(buttonSeat+1)%6; } while(roster[buttonSeat].stack<=0);
+
+  // hero always sits at index 0 so the rest of the app can rely on it
+  const seatOrder=[];
+  for(let k=0;k<6;k++){ const r=roster[k]; if(r.stack>0) seatOrder.push(r); }
+  const n=seatOrder.length;
+  const btnPos=seatOrder.findIndex(r=>r.seat===buttonSeat);
+
+  const deck=shuffle(makeDeck());
+  const players=seatOrder.map((r,i)=>{
+    const offset=(i-btnPos+n)%n;
+    const pos=posName(offset,n);
+    const behind=behindCount(offset,n);
+    return {
+      idx:i, seat:r.seat, name:r.name, isHero:r.isHero, stack:r.stack,
+      cards:[deck.pop(),deck.pop()],
+      folded:false, allIn:false, bet:0, invested:0,
+      acted:false, lastAct:'', inferredTier:100, aggr:0,
+      pos, behind, openThr:openThreshold(pos,behind,n)
+    };
+  });
+
+  S={
+    deck, players, n, btnPos, board:[], pot:0, street:'preflop',
+    currentBet:0, minRaise:BB, log:[], handNum:session.hands+1,
+    raisedBefore:false, done:false, heroVpip:false, decisions:[], heroRebuy:0,
+    streetBets:0, streetAggressor:null, preflopRaiser:null
+  };
+
+  const sbIdx = n===2 ? btnPos : (btnPos+1)%n;
+  const bbIdx = n===2 ? (btnPos+1)%n : (btnPos+2)%n;
+  postBlind(players[sbIdx],SB);
+  postBlind(players[bbIdx],BB);
+  S.currentBet=BB; S.minRaise=BB;
+  players[bbIdx].acted=false;
+
+  S.toAct = n===2 ? btnPos : (btnPos+3)%n;
+  logLine('street', `Hand ${S.handNum} — ${n}-handed, preflop`);
+  logLine('', `Blinds ${players[sbIdx].name} ${SB} · ${players[bbIdx].name} ${BB}`);
+
+  render();
+  step();
+}
+
+function postBlind(p,amt){
+  const a=Math.min(amt,p.stack);
+  p.stack-=a; p.bet=a; p.invested=a; S.pot+=a;
+  if(p.stack===0) p.allIn=true;
+}
+
+function gameOver(kind){
+  session.over=kind;
+  clearActions();
+  const slot=document.getElementById('reviewSlot');
+  const survivors=roster.filter(p=>p.stack>0);
+  slot.innerHTML=`
+    <div class="review">
+      <h2>${kind==='busted'?'You busted out':'You won the table'}</h2>
+      <p>${kind==='busted'
+        ? `You ran out of chips after ${session.hands} hands. ${survivors.map(p=>p.name+' has '+p.stack).join(' \u00b7 ')}.`
+        : `Everyone else is broke. You finished with ${roster[0].stack} chips over ${session.hands} hands.`}</p>
+      <div class="actions" style="margin-top:4px">
+        <button class="b-primary" id="btnNewSession">New session</button>
+        <button class="b-ghost" id="btnCopyAllEnd">Copy all ${session.records.length} hands</button>
+      </div>
+    </div>`;
+  document.getElementById('btnNewSession').onclick=()=>newSession();
+  document.getElementById('btnCopyAllEnd').onclick=()=>copyText(sessionRecord());
+  render(true);
+}
+
+function activePlayers(){ return S.players.filter(p=>!p.folded); }
+function canAct(){ return S.players.filter(p=>!p.folded && !p.allIn); }
+
+function bettingDone(){
+  const live=canAct();
+  if(activePlayers().length<=1) return true;
+  if(live.length===0) return true;
+  if(live.length===1 && live[0].bet>=S.currentBet && live[0].acted) return true;
+  return live.every(p=>p.acted && p.bet===S.currentBet);
+}
+
+function nextToAct(from){
+  for(let k=1;k<=S.n;k++){
+    const i=(from+k)%S.n, p=S.players[i];
+    if(!p.folded && !p.allIn) return i;
+  }
+  return -1;
+}
+
+function applyAction(p, d){
+  const toCall = S.currentBet - p.bet;
+  p.acted=true;
+  const rd = rosterOf(p)?.reads;
+
+  // Cross-hand reads from public actions only (no hole cards, no showdown).
+  if(rd){
+    if(S.street==='preflop' && !p._rdPre){
+      p._rdPre=true;
+      rd.vpipOpps++;
+      rd.pfrOpps++;
+    }
+    if(toCall>0){
+      rd.foldToBetOpps++;
+      if(d.action==='fold') rd.foldToBet++;
+    }
+    if(S.street==='preflop' && (d.action==='call' || d.action==='bet' || d.action==='raise')){
+      if(!p._rdVpip){ p._rdVpip=true; rd.vpip++; }
+      if((d.action==='bet' || d.action==='raise') && !p._rdPfr){ p._rdPfr=true; rd.pfr++; }
+    }
+    if(S.street!=='preflop'){
+      if(d.action==='bet' || d.action==='raise') rd.agg++;
+      else if(d.action==='call') rd.passive++;
+    }
+  }
+
+  if(d.action==='fold'){
+    p.folded=true; p.lastAct='fold';
+    logLine(p.isHero?'hero':'', `${p.name} folds`);
+  }
+  else if(d.action==='check'){
+    p.lastAct='check';
+    logLine(p.isHero?'hero':'', `${p.name} checks`);
+  }
+  else if(d.action==='call'){
+    const a=Math.min(toCall,p.stack);
+    p.stack-=a; p.bet+=a; p.invested+=a; S.pot+=a;
+    if(p.stack===0) p.allIn=true;
+    p.lastAct='call '+a;
+    logLine(p.isHero?'hero':'', `${p.name} calls ${a}`);
+    p.inferredTier=Math.min(p.inferredTier, S.street==='preflop'?55:60);
+  }
+  else { // bet / raise
+    let target = d.amount;
+    target = Math.max(target, S.currentBet + S.minRaise);
+    const put = Math.min(target - p.bet, p.stack);
+    p.stack-=put; p.bet+=put; p.invested+=put; S.pot+=put;
+    if(p.stack===0) p.allIn=true;
+    if(p.bet>S.currentBet){
+      const inc = p.bet - S.currentBet;
+      const fullRaise = inc >= S.minRaise;
+      S.currentBet = p.bet;
+      S.raisedBefore = true;
+      S.streetBets = (S.streetBets||0) + 1;
+      S.streetAggressor = p;
+      if(S.street==='preflop') S.preflopRaiser = p;
+      if(fullRaise){
+        // only a legal full raise resets the minimum and gives everyone another turn
+        S.minRaise = inc;
+        S.players.forEach(o=>{ if(o!==p && !o.folded && !o.allIn) o.acted=false; });
+      }
+    }
+    if(S.street!=='preflop') p.aggr++;
+    p.lastAct=(d.action==='bet'?'bet ':'raise ')+p.bet;
+    logLine(p.isHero?'hero':'', `${p.name} ${d.action}s to ${p.bet}`);
+    if(!p.isHero){
+      p.inferredTier = S.street==='preflop' ? Math.min(p.inferredTier, p.openThr||30) : Math.min(p.inferredTier,32);
+    }
+  }
+
+  if(d.reason && !p.isHero){
+    S.decisions.push({name:p.name, street:S.street, action:p.lastAct, reason:d.reason});
+    if(opts.reason) logReason(d.reason);
+  }
+  if(p.isHero && S.street==='preflop' && d.action!=='fold' && d.action!=='check') S.heroVpip=true;
+}
+
+function step(){
+  if(S.done) return;
+  render();
+
+  if(activePlayers().length<=1){ return endHand(); }
+
+  if(bettingDone()){
+    return setTimeout(advanceStreet, 420);
+  }
+
+  const p=S.players[S.toAct];
+  if(p.folded||p.allIn){ S.toAct=nextToAct(S.toAct); return step(); }
+
+  if(p.isHero){ renderActions(); return; }
+
+  clearActions();
+  setTimeout(()=>{
+    if(S.done) return;
+    const toCall=S.currentBet-p.bet;
+    const agg=S.streetAggressor;
+    const aggRoster=agg?rosterOf(agg):null;
+    const d=botDecide({
+      myCards:p.cards, board:S.board, street:S.street,
+      toCall, pot:S.pot, myStack:p.stack,
+      position:p.pos, raisedBefore:S.raisedBefore, openThr:p.openThr, tableSize:S.n,
+      inPosition:isInPosition(p.idx),
+      streetBets:S.streetBets||0,
+      facingReads: (toCall>0 && aggRoster) ? aggRoster.reads : null,
+      aggressorHadInitiative: !!(agg && S.preflopRaiser && agg.seat===S.preflopRaiser.seat),
+      style: rosterOf(p)?.style || {open:1, bet:1, fold:1}
+    });
+    applyAction(p,d);
+    S.toAct=nextToAct(S.toAct);
+    step();
+  }, 620);
+}
+
+function advanceStreet(){
+  S.players.forEach(p=>{ p.bet=0; p.acted=false; p.lastAct=''; });
+  S.currentBet=0; S.minRaise=BB; S.raisedBefore=false;
+  S.streetBets=0; S.streetAggressor=null;
+
+  if(S.street==='preflop'){ S.street='flop'; S.board.push(S.deck.pop(),S.deck.pop(),S.deck.pop()); }
+  else if(S.street==='flop'){ S.street='turn'; S.board.push(S.deck.pop()); }
+  else if(S.street==='turn'){ S.street='river'; S.board.push(S.deck.pop()); }
+  else return endHand();
+
+  logLine('street', `${S.street} — ${handStr(S.board)}`);
+
+  if(canAct().length<=1){
+    render();
+    return setTimeout(advanceStreet, 520);
+  }
+  S.toAct = nextToAct(S.btnPos);
+  step();
+}
+
+/* ---------- pots & showdown ---------- */
+function buildPots(){
+  const levels=[...new Set(S.players.filter(p=>p.invested>0).map(p=>p.invested))].sort((a,b)=>a-b);
+  const pots=[]; let prev=0;
+  for(const lvl of levels){
+    let amount=0; const elig=[];
+    for(const p of S.players){
+      amount += Math.min(p.invested,lvl) - Math.min(p.invested,prev);
+      if(p.invested>=lvl && !p.folded) elig.push(p);
+    }
+    if(amount>0) pots.push({amount,elig});
+    prev=lvl;
+  }
+  return pots;
+}
+
+function endHand(){
+  S.done=true;
+  clearActions();
+  const alive=activePlayers();
+  const results=[];
+
+  if(alive.length===1){
+    alive[0].stack += S.pot;
+    results.push({p:alive[0], amt:S.pot, desc:'everyone folded'});
+    logLine('win', `${alive[0].name} wins ${S.pot} (uncontested)`);
+  } else {
+    while(S.board.length<5) S.board.push(S.deck.pop());
+    const evals=new Map();
+    for(const p of alive) evals.set(p, evaluate([...p.cards,...S.board]));
+    const tally=new Map();   // player -> chips won, so split pots read as one line
+    for(const pot of buildPots()){
+      if(!pot.elig.length) continue;
+      if(pot.elig.length===1){
+        // nobody could match this much; it was never live money
+        const w=pot.elig[0];
+        w.stack+=pot.amount;
+        results.push({p:w, amt:pot.amount, desc:'uncalled — returned to you', refund:true});
+        logLine('win', `${w.name} gets back ${pot.amount} (uncalled bet, nobody could match it)`);
+        continue;
+      }
+      let best=null;
+      for(const p of pot.elig){ if(!best||cmpHand(evals.get(p),evals.get(best))>0) best=p; }
+      const winners=pot.elig.filter(p=>cmpHand(evals.get(p),evals.get(best))===0)
+        .sort((a,b)=>((a.idx-S.btnPos+S.n)%S.n)-((b.idx-S.btnPos+S.n)%S.n));  // odd chip goes left of the button
+      const share=Math.floor(pot.amount/winners.length);
+      let rem=pot.amount-share*winners.length;
+      for(const w of winners){
+        const amt=share+(rem>0?1:0);
+        if(rem>0) rem--;
+        w.stack+=amt;
+        tally.set(w,(tally.get(w)||0)+amt);
+      }
+    }
+    for(const [w,amt] of tally){
+      results.push({p:w, amt, desc:CAT_NAME[evals.get(w).cat]});
+      logLine('win', `${w.name} wins ${amt} with ${CAT_NAME[evals.get(w).cat]}`);
+    }
+  }
+
+  for(const p of S.players){
+    const r=roster.find(x=>x.seat===p.seat);
+    if(r){
+      r.stack=p.stack;
+      if(r.reads) r.reads.hands++;
+    }
+  }
+  for(const r of roster) if(r.stack<=0 && !r.announced){ r.announced=true; logLine('win', `${r.name} is out`); }
+
+  session.hands++;
+  if(S.heroVpip) session.vpip++;
+  const hero=S.players[0];
+  session.net += (hero.stack - session.hero - S.heroRebuy)/BB;   // rebuys are not winnings
+  session.hero = hero.stack;
+
+  const rec=buildExport(results);
+  session.records.push(rec);
+  render(true);
+  renderReview(results, rec);
+  updateSession();
+}
+
+/* ============================================================
+   RENDER
+   ============================================================ */
+const LAYOUTS={
+  2:[[50,88],[50,10]],
+  3:[[50,88],[9,32],[91,32]],
+  4:[[50,88],[8,54],[50,8],[92,54]],
+  5:[[50,88],[9,60],[24,15],[76,15],[91,60]],
+  6:[[50,88],[10,64],[15,24],[50,7],[85,24],[90,64]]
+};
+const seatXY=(i,n)=>(LAYOUTS[n]||LAYOUTS[6])[i]||[50,50];
+const betXY=(x,y)=>[50+(x-50)*0.52, 46+(y-46)*0.52];
+
+function cardEl(c, big, hidden){
+  if(hidden) return `<div class="card back ${big?'big':''}"></div>`;
+  const red = c.s==='h'||c.s==='d';
+  return `<div class="card ${red?'red':''} ${big?'big':''}"><span class="r">${RANK_CH[c.r]}</span><span class="s">${SUIT_CH[c.s]}</span></div>`;
+}
+
+function render(reveal){
+  if(!S) return;
+  const felt=document.getElementById('felt');
+  felt.querySelectorAll('.seat,.bet').forEach(n=>n.remove());
+
+  S.players.forEach((p,i)=>{
+    const [x,y]=seatXY(i,S.n);
+    const el=document.createElement('div');
+    el.className='seat'+(p.folded?' out':'')+(!S.done && S.toAct===i && !p.folded?' turn':'');
+    el.style.left=x+'%'; el.style.top=y+'%';
+    const show = p.isHero || (reveal && !p.folded);
+    el.innerHTML=`
+      <div class="hole">${p.cards.map(c=>cardEl(c,p.isHero,!show)).join('')}</div>
+      <div class="seat-card">
+        <div class="seat-name">${p.name}${i===S.btnPos?' ⏺':''}</div>
+        <div class="seat-stack">${p.stack}${p.allIn?' · all in':''}</div>
+        <div class="seat-pos">${p.pos}</div>
+        <div class="seat-act ${/raise|bet/.test(p.lastAct)?'aggro':/fold/.test(p.lastAct)?'fold':''}">${p.lastAct||'&nbsp;'}</div>
+      </div>`;
+    felt.appendChild(el);
+
+    if(p.bet>0){
+      const [bx,by]=betXY(x,y);
+      const b=document.createElement('div');
+      b.className='bet'; b.style.left=bx+'%'; b.style.top=by+'%';
+      b.style.transform='translate(-50%,-50%)';
+      b.textContent=p.bet;
+      felt.appendChild(b);
+    }
+  });
+
+  document.getElementById('board').innerHTML=S.board.map(c=>cardEl(c,true,false)).join('');
+  document.getElementById('potLabel').textContent='Pot '+S.pot;
+  document.getElementById('streetLabel').textContent=S.done?'Showdown':S.street;
+  document.getElementById('handLabel').textContent=`Hand ${S.handNum} · ${S.n}-handed · ${S.players[0].pos}`;
+}
+
+const SEAT_WORD={UTG:'under the gun',HJ:'in the hijack',CO:'in the cutoff',BTN:'on the button',SB:'in the small blind',BB:'in the big blind'};
+
+function updatePreflopGuide(){
+  const el=document.getElementById('pfLine');
+  const hero=S.players[0];
+  if(!opts.chart || S.street!=='preflop' || S.done){ el.style.display='none'; return; }
+  el.style.display='block';
+
+  const nm=handName(hero.cards), pct=pctOf(hero.cards);
+  const raised=S.raisedBefore;
+  const thr=hero.openThr || 30;
+  const limit = raised ? thr*0.55 : thr;
+  const inside = pct <= limit;
+
+  if(hero.pos==='BB' && !raised){
+    el.innerHTML=`<b>${nm}</b> \u2014 top ${pct.toFixed(0)}% of hands. Nobody raised, so you're in for free. Check.`;
+    return;
+  }
+  el.innerHTML = `<b>${nm}</b> \u2014 top ${pct.toFixed(0)}% of hands. You're ${SEAT_WORD[hero.pos]}, `
+    + (raised
+        ? `and someone already raised, so you need roughly the top ${limit.toFixed(0)}%. `
+        : `which plays about the top ${thr}%. `)
+    + (inside ? `<span class="ok">Playable \u2014 raise it.</span>` : `<span class="no">Too weak \u2014 fold.</span>`);
+}
+
+function updateStrip(){
+  updatePreflopGuide();
+  const strip=document.getElementById('strip');
+  if(!opts.eq){ strip.classList.add('off'); return; }
+  strip.classList.remove('off');
+
+  const hero=S.players[0];
+  const toCall=S.currentBet-hero.bet;
+  const opps=S.players.filter(p=>!p.folded && !p.isHero);
+  const tiers=opps.map(p=>({cap:p.inferredTier, aggr:p.aggr}));
+  const eq = tiers.length? equity(hero.cards, S.board, tiers, S.board.length?320:260) : 1;
+  const need = toCall>0 ? toCall/(S.pot+toCall) : 0;
+
+  document.getElementById('barEq').style.width=(eq*100).toFixed(0)+'%';
+  document.getElementById('valEq').textContent=(eq*100).toFixed(0)+'%';
+  document.getElementById('barNeed').style.width=(need*100).toFixed(0)+'%';
+  document.getElementById('valNeed').textContent= toCall>0?(need*100).toFixed(0)+'%':'—';
+
+  const v=document.getElementById('verdict');
+  const note=document.getElementById('stripNote');
+  if(toCall>0){
+    const edge=(eq-need)*100;
+    v.textContent = edge>0? `+${edge.toFixed(0)} edge` : `${edge.toFixed(0)} edge`;
+    v.className='verdict '+(edge>0?'good':'bad');
+    note.innerHTML = edge>0
+      ? `Calling ${toCall} risks ${toCall} to win ${S.pot}. You need ${(need*100).toFixed(0)}% and you have about ${(eq*100).toFixed(0)}%. Calling makes money over the long run.`
+      : `Calling ${toCall} needs ${(need*100).toFixed(0)}% equity. You have about ${(eq*100).toFixed(0)}%. Folding is the profitable choice here, even when you'd have won.`;
+  } else {
+    v.textContent = eq>0.55?'ahead':'behind';
+    v.className='verdict '+(eq>0.55?'good':'bad');
+    note.textContent = `Nothing to call. Against ${opps.length} inferred range${opps.length>1?'s':''} you're about ${(eq*100).toFixed(0)}% to win this pot.`;
+  }
+  S.lastEq={eq,need,toCall};
+}
+
+function clearActions(){ document.getElementById('actions').innerHTML=''; }
+
+function renderActions(){
+  updateStrip();
+  const hero=S.players[0];
+  const toCall=S.currentBet-hero.bet;
+  const half=Math.max(BB, Math.round(S.pot*0.5));
+  const full=Math.max(BB, Math.round(S.pot*0.9));
+  const a=document.getElementById('actions');
+  a.innerHTML='';
+
+  const mk=(label,cls,amt,fn,dis)=>{
+    const b=document.createElement('button');
+    b.className=cls;
+    b.innerHTML=label+(amt!=null?`<span class="amt">${amt}</span>`:'');
+    b.disabled=!!dis;
+    b.onclick=()=>{ clearActions(); fn(); S.toAct=nextToAct(S.toAct); step(); };
+    a.appendChild(b);
+  };
+
+  if(toCall>0) mk('Fold','b-fold',null,()=>applyAction(hero,{action:'fold'}));
+  if(toCall>0) mk('Call','b-primary',toCall,()=>applyAction(hero,{action:'call'}), hero.stack<=0);
+  else mk('Check','b-primary',null,()=>applyAction(hero,{action:'check'}));
+
+  if(hero.stack>toCall){
+    mk('Half pot','',half+toCall,()=>applyAction(hero,{action:'bet',amount:hero.bet+toCall+half}));
+    mk('Pot','',full+toCall,()=>applyAction(hero,{action:'bet',amount:hero.bet+toCall+full}));
+  }
+  mk('All in','',hero.stack+hero.bet,()=>applyAction(hero,{action:'bet',amount:hero.bet+hero.stack}));
+}
+
+function logLine(cls,text){
+  S.log.push({cls,text});
+  const box=document.getElementById('log');
+  if(box.querySelector('.le')&&S.log.length===1) box.innerHTML='';
+  const d=document.createElement('div');
+  d.className='le '+cls;
+  d.innerHTML=text.replace(/^(\w+)/,'<b>$1</b>');
+  box.appendChild(d); box.scrollTop=box.scrollHeight;
+}
+function logReason(t){
+  const box=document.getElementById('log');
+  const d=document.createElement('div'); d.className='reason'; d.textContent=t;
+  box.appendChild(d); box.scrollTop=box.scrollHeight;
+}
+
+function updateSession(){
+  const n=session.records.length;
+  document.getElementById('recCount').textContent = n
+    ? `${n} hand${n===1?'':'s'} saved this session, with every action and every opponent's reasoning.`
+    : 'No hands finished yet.';
+  document.getElementById('sessHands').textContent=session.hands;
+  document.getElementById('sessTotal').textContent=(session.net>0?'+':'')+session.net.toFixed(1);
+  document.getElementById('sessVpip').textContent=session.hands?Math.round(session.vpip/session.hands*100)+'%':'—';
+  updateReadsLine();
+}
+
+function updateReadsLine(){
+  const el=document.getElementById('readsLine');
+  if(!el || !roster) return;
+  const labels=roster.filter(r=>!r.isHero && r.stack>0).map(r=>readLabel(r.name, r.reads)).filter(Boolean);
+  el.textContent = labels.length
+    ? labels.join('  ·  ')
+    : (session.hands < READS_MIN_HANDS
+        ? `Need about ${READS_MIN_HANDS} hands before labels appear (${session.hands} so far).`
+        : 'No strong reads yet — still near average.');
+}
+
+function readsSnapshot(){
+  if(!roster) return '';
+  let out='TABLE READS (public actions only; prior-shrunk)\n';
+  for(const r of roster){
+    if(r.isHero && r.reads.hands===0) continue;
+    const s=shrinkReads(r.reads);
+    const lab=readLabel(r.name, r.reads) || (r.name+': unknown');
+    out+=`  ${lab}  [hands ${r.reads.hands}, VPIP ${(s.vpip*100).toFixed(0)}%, PFR ${(s.pfr*100).toFixed(0)}%, F2B ${(s.foldToBet*100).toFixed(0)}%, AF ${s.af.toFixed(2)}]\n`;
+  }
+  return out;
+}
+
+function renderReview(results, rec){
+  const hero=S.players[0];
+  const won=results.filter(r=>r.p.isHero && !r.refund).reduce((a,r)=>a+r.amt,0);
+  const refund=results.filter(r=>r.p.isHero && r.refund).reduce((a,r)=>a+r.amt,0);
+  const slot=document.getElementById('reviewSlot');
+
+  const shown=S.players.filter(p=>!p.folded&&!p.isHero);
+  const revealed = shown.length
+    ? shown.map(p=>`${p.name} had <span class="k">${handStr(p.cards)}</span>`).join(' \u00b7 ')
+    : 'Nobody else reached showdown.';
+
+  slot.innerHTML=`
+    <div class="review">
+      <h2>${won>0?'You won '+won:'Hand over'}</h2>
+      ${refund?`<p><span class="k">${refund} chips came back to you</span> — you bet more than anyone could match, so that part was never at risk.</p>`:''}
+      <p>You held <span class="k">${handStr(hero.cards)}</span>${S.board.length?` on <span class="k">${handStr(S.board)}</span>`:''}. ${revealed}</p>
+      <p>Every hand is saved. Copy the whole session whenever you like \u2014 nothing gets lost if you keep playing.</p>
+      <div class="actions" style="margin-top:4px">
+        <button class="b-primary" id="btnNext">Next hand</button>
+        <button class="b-ghost" id="btnCopyAll">Copy all ${session.records.length} hands</button>
+        <button class="b-ghost" id="btnCopy">Copy this hand only</button>
+      </div>
+      <textarea id="rec" readonly>${rec.replace(/</g,'&lt;')}</textarea>
+      <p style="font-size:11px;margin:6px 0 0">If the buttons don't work, the text above is selectable \u2014 click it and press Ctrl/Cmd + A, then C.</p>
+    </div>`;
+
+  document.getElementById('btnNext').onclick=()=>{ slot.innerHTML=''; newHand(); };
+  document.getElementById('btnCopy').onclick=()=>copyText(rec);
+  document.getElementById('btnCopyAll').onclick=()=>copyText(sessionRecord());
+  const ta=document.getElementById('rec');
+  ta.onclick=()=>{ ta.focus(); ta.select(); };
+}
+
+function sessionRecord(){
+  return session.records.join('\n\n---\n\n');
+}
+
+function buildExport(results){
+  const hero=S.players[0];
+  let out=`HAND ${S.handNum} — ${S.n}-handed NLHE, blinds ${SB}/${BB}\n`;
+  out+=`Hero position: ${hero.pos}   Hero cards: ${handStr(hero.cards)}\n`;
+  out+=`Board: ${S.board.length?handStr(S.board):'(none)'}\n\n`;
+  out+=`ACTION\n`;
+  for(const l of S.log) out+=`  ${l.text}\n`;
+  out+=`\nOPPONENT REASONING (verbatim, not reconstructed)\n`;
+  for(const d of S.decisions) out+=`  [${d.street}] ${d.name} ${d.action} — ${d.reason}\n`;
+  out+=`\nSHOWDOWN\n`;
+  for(const p of S.players.filter(p=>!p.folded)) out+=`  ${p.name}: ${handStr(p.cards)}\n`;
+  for(const r of results) out+=`  → ${r.p.name} won ${r.amt} (${r.desc})\n`;
+  out+=`\nSESSION SO FAR: ${session.hands} hands, ${(session.net>0?'+':'')+session.net.toFixed(1)} bb, VPIP ${Math.round(session.vpip/Math.max(1,session.hands)*100)}%\n`;
+  out+='\n'+readsSnapshot();
+  return out;
+}
+
+function copyText(text){
+  const ta=document.createElement('textarea');
+  ta.value=text;
+  ta.setAttribute('readonly','');
+  ta.style.cssText='position:fixed;top:0;left:0;width:1px;height:1px;opacity:0';
+  document.body.appendChild(ta);
+  ta.focus(); ta.select();
+  try{ ta.setSelectionRange(0,text.length); }catch(e){}
+  let ok=false;
+  try{ ok=document.execCommand('copy'); }catch(e){ ok=false; }
+  document.body.removeChild(ta);
+  if(ok){ toast('Copied \u2014 paste it into the chat'); return; }
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(text)
+      .then(()=>toast('Copied \u2014 paste it into the chat'))
+      .catch(()=>manualCopy(text));
+  } else manualCopy(text);
+}
+function manualCopy(text){
+  const ta=document.getElementById('rec');
+  if(ta){ ta.value=text; ta.style.display='block'; ta.focus(); ta.select(); }
+  toast('Select the text below, then press Ctrl/Cmd + C');
+}
+
+function toast(msg){
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),1900);
+}
+
+/* ---------- toggles ---------- */
+function bindSwitch(id,key,after){
+  const el=document.getElementById(id);
+  el.onclick=()=>{
+    opts[key]=!opts[key];
+    el.classList.toggle('on',opts[key]);
+    if(after) after();
+  };
+}
+bindSwitch('sw-eq','eq',()=>{ if(S&&!S.done) updateStrip(); else document.getElementById('strip').classList.toggle('off',!opts.eq); });
+bindSwitch('sw-chart','chart',()=>{ if(S&&!S.done) updateStrip(); });
+bindSwitch('sw-reason','reason');
+document.getElementById('btnCopySession').onclick=()=>{
+  if(!session.records.length){ toast('No finished hands yet'); return; }
+  copyText(sessionRecord());
+};
+
+/* ---------- go ---------- */
+updateSession();
+newSession();
+</script>
+</body>
+</html>

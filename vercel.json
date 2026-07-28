@@ -1,0 +1,3 @@
+{
+  "rewrites": [{ "source": "/", "destination": "/poker-trainer.html" }]
+}
