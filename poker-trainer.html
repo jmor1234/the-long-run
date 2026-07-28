@@ -87,8 +87,10 @@ h1{
 .seat{
   position:absolute;transform:translate(-50%,-50%);
   width:132px;text-align:center;transition:opacity .25s;
+  z-index:1;
 }
 .seat.out{opacity:.32}
+.seat:hover,.seat.tip-open{z-index:50}
 .seat-card{
   background:linear-gradient(180deg,var(--panel-2),var(--panel));
   border:1px solid var(--line);border-radius:9px;
@@ -118,7 +120,7 @@ h1{
 }
 .seat-tip{
   display:none;position:absolute;left:50%;bottom:calc(100% + 8px);
-  transform:translateX(-50%);width:168px;z-index:20;
+  transform:translateX(-50%);width:168px;z-index:51;
   background:var(--panel-2);border:1px solid var(--line);border-radius:8px;
   padding:8px 9px;box-shadow:0 10px 28px rgba(0,0,0,.55);
   text-align:left;pointer-events:none;
@@ -130,6 +132,13 @@ h1{
 .seat:hover .seat-tip,.seat.tip-open .seat-tip{display:block}
 .seat-tip.tip-below{bottom:auto;top:calc(100% + 8px)}
 .seat-tip.tip-below::after{bottom:auto;top:-5px;border-right:none;border-bottom:none;border-left:1px solid var(--line);border-top:1px solid var(--line)}
+/* Keep tips inside the table on edge seats */
+.seat-tip.tip-left{left:0;transform:none}
+.seat-tip.tip-left::after{left:66px;transform:translateX(-50%) rotate(45deg)}
+.seat-tip.tip-left.tip-below::after{transform:translateX(-50%) rotate(45deg)}
+.seat-tip.tip-right{left:auto;right:0;transform:none}
+.seat-tip.tip-right::after{left:auto;right:66px;transform:translateX(50%) rotate(45deg)}
+.seat-tip.tip-right.tip-below::after{left:auto;right:66px;transform:translateX(50%) rotate(45deg)}
 .seat-tip .tip-name{font-size:11px;font-weight:600;color:var(--bone);margin-bottom:3px}
 .seat-tip .tip-body{font-size:11px;color:var(--muted);line-height:1.45}
 .seat-tip .tip-live{margin-top:5px;font-family:'IBM Plex Mono',monospace;font-size:9.5px;color:var(--bone-dim);line-height:1.4}
@@ -1217,7 +1226,7 @@ function render(reveal){
     el.style.left=x+'%'; el.style.top=y+'%';
     const show = p.isHero || (reveal && !p.folded);
     const brief=playerBrief(p);
-    const tipSide=y<36?' tip-below':'';
+    const tipSide=(y<36?' tip-below':'')+(x<28?' tip-left':x>72?' tip-right':'');
     el.innerHTML=`
       <div class="seat-tip${tipSide}" role="tooltip">
         <div class="tip-name">${brief.title}</div>
