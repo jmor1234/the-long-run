@@ -1,7 +1,8 @@
 # The Long Run — architecture & handoff
 
 A 6-max No-Limit Hold'em trainer. Single self-contained HTML file, no build step, no
-dependencies, no network calls. Opens in a browser and runs.
+npm dependencies. Game logic runs entirely in the browser (Google Fonts may load from
+the network when online). Opens locally or via the Vercel static deploy.
 
 **Read this before changing anything.** Several design choices look like mistakes and
 are not. They are marked ⚠ throughout.
@@ -10,23 +11,16 @@ are not. They are marked ⚠ throughout.
 
 ## 1. What this is for
 
-This is not a poker game with teaching bolted on. It is a **measuring instrument** that
-happens to deal cards. Every design decision follows from one purpose:
-
-> Let a beginner make real decisions under real uncertainty, then find out
-> afterwards whether the decision was good — independently of whether it worked.
-
-Poker's core difficulty for a learner is that **outcomes are almost uncorrelated with
-decision quality over any sample they will actually play.** A bad call wins 40% of the
-time. A losing strategy shows a profit over 53 hands about 43% of the time (measured —
-see §10). So a trainer that only shows results teaches noise.
-
-Everything below exists to separate *decision* from *outcome*:
+A fair table to **play and learn** against readable opponents — not a casino skin with
+hints bolted on. Outcomes over a short sample are noisy, so the app also separates
+*decision* from *outcome* where it can (equity strip, full hand export, verbatim bot
+reasons).
 
 | Feature | What it's actually for |
 |---|---|
 | Bots cannot see your cards | Without this the post-hand review is theatre |
 | Bots act on **frequencies**, not rules | A deterministic bot is solvable; you'd learn to beat *it*, not poker |
+| Distinct seat styles + public reads | A table of people, not five copies of one policy |
 | Bots log their real reason | The stated reason **is** the cause, so it can be trusted |
 | Equity vs pot odds strip | Reduces every betting decision to one comparison |
 | Full session export | Review needs the whole hand, not a memory of it |
@@ -35,12 +29,12 @@ Everything below exists to separate *decision* from *outcome*:
 
 ## 2. File layout
 
-Everything is `poker-trainer.html`, ~1250 lines, three parts:
+**App:** `poker-trainer.html` (~1500 lines), three parts:
 
 ```
-<style>    ~370 lines   design tokens + all layout
-<body>     ~90 lines    static shell; the table is built by JS
-<script>   ~880 lines   in labelled sections, in dependency order
+<style>    design tokens + layout (including seat tips)
+<body>     static shell; the table is built by JS
+<script>   labelled sections, in dependency order
 ```
 
 The script sections, in order (each has a banner comment):
@@ -54,10 +48,19 @@ The script sections, in order (each has a banner comment):
 | `READS` | public-action memory, labels, facing nudges |
 | `BOT POLICY` | the single decision function |
 | `GAME STATE` | table, positions, betting loop, pots, styles |
-| `RENDER` | all DOM writing |
+| `RENDER` | all DOM writing (seats, tips, strip, export) |
+
+**Repo (flat — no `tests/` folder):**
+
+| Path | Role |
+|---|---|
+| `poker-trainer.html` | the app |
+| `harness.js` / `t*.js` / `audit.js` / `run-all.sh` | Node test suite |
+| `vercel.json` | `/` → `poker-trainer.html` |
+| `ARCHITECTURE.md` / `README.md` | handoff + how to run |
 
 There is **no framework and no bundler.** Functions are hoisted and called directly.
-Global mutable state is three variables (§5). This is deliberate: the file has to stay
+Global mutable state is documented in §5. This is deliberate: the file has to stay
 readable and testable by a person or agent with no setup.
 
 ---
@@ -116,8 +119,8 @@ accidentally destroy.** A bot that always folds to a re-raise teaches the player
 always re-raise — a habit that gets punished immediately by real opponents. This is the
 documented failure mode of most beginner poker apps.
 
-`tests/t4`-style checks (see §10) confirm no naive exploit beats them: a maniac loses
-~3000 bb/100, "always re-raise when bet at" loses ~2500 bb/100.
+`tests/t4`-style checks (historical; no `t4.js` in-repo) confirmed no naive exploit beats
+them: a maniac loses ~3000 bb/100, "always re-raise when bet at" loses ~2500 bb/100.
 
 ---
 
@@ -144,17 +147,27 @@ ties splitting correctly.
 
 ## 5. Game state
 
-Three module-level mutables:
+Module-level mutables:
 
 ```js
-let S        // current hand; null between sessions
-let roster   // 6 persistent players; a player with stack 0 is eliminated
-let buttonSeat  // seat index 0..5, survives between hands
-let session  // { hands, net, vpip, hero, records[], over }
+let S          // current hand; null between sessions
+let roster     // 6 persistent players; stack 0 = eliminated
+let buttonSeat // seat index 0..5, survives between hands
+let session    // { hands, net, vpip, hero, records[], over }
 ```
 
 `roster[i].seat === i` always. **Hero is always `roster[0]` and always `S.players[0]`** —
 a lot of code relies on that, so preserve it if you reorder anything.
+
+Each roster entry also carries:
+
+```js
+style: null | { open, bet, fold, tag, blurb }  // bots only; fixed at newSession
+reads: { hands, vpipOpps, vpip, pfrOpps, pfr, agg, passive, foldToBetOpps, foldToBet }
+```
+
+Per-hand `S` also tracks public action for bots: `streetBets`, `streetAggressor`,
+`preflopRaiser` (reset on street advance as appropriate).
 
 ### Per hand
 
@@ -297,14 +310,16 @@ Node ≥ 18. No dependencies.
 
 ### How the harness works
 
-`harness.js` extracts the `<script>` body from the HTML, applies three surgical string
+`harness.js` extracts the `<script>` body from the HTML, applies surgical string
 replacements, and evaluates it as a function with a fake DOM:
 
 1. `renderActions()` → `HERO_ACT()` so a test can drive hero programmatically
-2. wraps `botDecide` in a flag so card access can be trapped
+2. wraps `botDecide` with `BOTFLAG` + `SETCTX` so card access can be trapped and the
+   last ctx inspected
 3. strips the bootstrap call so tests control when a session starts
 
-⚠ **The transforms are string matches against the app source.** If you rename
+⚠ **The transforms are string matches against the app source.** Keep the literal
+`function botDecide(ctx){` declaration line unchanged. If you rename
 `renderActions`, `botDecide`, or the bootstrap call, the harness silently stops
 transforming and the tests will behave strangely rather than failing loudly. This
 actually happened: renaming `newHand()` to `newSession()` at the bootstrap made the
@@ -318,7 +333,7 @@ looks impossible, suspect the harness first.**
 |---|---|
 | `t1b.js` | equity engine vs hand-verified draw maths |
 | `t2.js` | 3000 hands: no hangs, no negative stacks, pot = money in, correct winner |
-| `t3.js` | fairness — static + live Proxy trap, with control |
+| `t3.js` | fairness — static scan + Proxy trap on **all other seats**, ctx leak check, control |
 | `t6.js` | elimination, table shrinking 6→2, chip conservation, heads-up blind rules |
 | `audit.js` | VPIP scope, session accounting, incomplete-raise rules, all-in labelling, reads |
 
@@ -364,30 +379,59 @@ used for modeling with prior shrinkage. They are not interchangeable.
 
 ---
 
-## 11b. Styles and reads (current model)
+## 12. Styles, reads, and seat dossiers
 
-Each bot seat gets a fixed `{open, bet, fold}` multiplier at session start so the table
-has real behavioral diversity (without a profiles UI). Every seat — including hero —
-accumulates `reads` from public actions. When a bot faces a bet, `step()` passes the
-aggressor's pre-resolved `facingReads` plus `aggressorHadInitiative`. Skew strength
-scales with sample confidence; UI labels appear only after enough hands.
+### Fixed seat styles
+
+At `newSession`, each bot gets a permanent entry from `BOT_STYLES`:
+
+```js
+{ open, bet, fold, tag, blurb }
+```
+
+Examples: Vera `tight`, Mikko `LAG`, Dunn `loose`. Hero has `style: null`. Multipliers
+skew open width / bet frequency / fold pressure inside `botDecide` via `ctx.style`.
+There is no profiles menu and styles do not change mid-session.
+
+### Cross-hand reads
+
+Every seat (including hero) accumulates opportunity counts from **public actions only**
+inside `applyAction` — never from hole cards or showdown. Rates use prior shrinkage
+(`READS_PRIOR`). When facing a bet, `step()` passes pre-resolved `facingReads` and
+`aggressorHadInitiative`. Nudge strength scales with sample confidence; frequencies
+still go through `clampFreq`.
+
+`session.vpip` (hero display) and `reads.vpip` (modeling) are different on purpose —
+see §10.
+
+### UI
+
+- **Table reads** panel — confident labels once `READS_MIN_HANDS` (30) is reached
+- **Seat pill + tip** — small tag on each seat; hover or tap opens a dossier
+  (`playerBrief`: baked `blurb` + live read line). Tips shift for edge seats
+  (`tip-left` / `tip-right` / `tip-below`) and raise `z-index` while open so they are
+  not clipped or buried under neighbors
+- **Export** — `buildExport` appends a `TABLE READS` snapshot
+
+Postflop bots also receive `inPosition` and `streetBets` in ctx (positional nudge).
 
 ---
 
-## 12. Visual design
+## 13. Visual design
 
 Deliberately not a green-felt casino. Aubergine table, bone cards, one restrained accent.
 
 ⚠ **Mint (`--mint`) is reserved for the measurement layer** — equity, pot odds, verdicts.
 Nothing else uses it. That's a structural encoding: mint means *this is what the machine
-computed*, not decoration. Keep it that way or the readout loses its signal.
+computed*, not decoration. Keep it that way or the readout loses its signal. Style pills
+and dossiers use muted bone/faint colors, not mint.
 
 Fonts: Fraunces (display + card ranks), Inter Tight (UI), IBM Plex Mono (all numbers).
 Numbers are always monospaced so columns align and digits don't shift as they update.
 
-The **decision strip** below the table is the signature element: two bars, your equity
-against the equity you need. Nearly every betting decision in poker reduces to that
-comparison, and the interface is built around making its shape automatic.
+The **decision strip** below the table is the signature teaching element: two bars, your
+equity against the equity you need. Nearly every betting decision in poker reduces to
+that comparison.
 
 ⚠ No `localStorage` or `sessionStorage` anywhere — they fail in some sandboxed contexts.
 Session state is in-memory only and dies on refresh, by design.

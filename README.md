@@ -1,22 +1,33 @@
 # The Long Run
 
-6-max No-Limit Hold'em trainer. Open in a browser, play against frequency-based bots, copy hand histories for review.
+6-max No-Limit Hold'em trainer. Play against frequency-based bots with distinct styles;
+they adapt from public actions over a session. Copy hand histories for review.
+
+**Repo:** [github.com/jmor1234/the-long-run](https://github.com/jmor1234/the-long-run)  
+**Live:** [the-long-run-chi.vercel.app](https://the-long-run-chi.vercel.app)
 
 ## Play
 
-- **Local:** open [`poker-trainer.html`](poker-trainer.html) in a browser  
-- **Deployed:** root URL serves the trainer (see Vercel below)
+- **Local:** open [`poker-trainer.html`](poker-trainer.html) in a browser
+- **Deployed:** production URL above (Vercel maps `/` → `poker-trainer.html`)
+
+Hover or tap a seat’s style pill for a short dossier (baked style + live session read).
 
 ## Deploy (Vercel)
 
-This is a static site. [`vercel.json`](vercel.json) maps `/` → `poker-trainer.html`.
+Static site. [`vercel.json`](vercel.json) rewrites `/` to the trainer.
 
 ```bash
 npx vercel          # preview
 npx vercel --prod   # production
 ```
 
-Or import the GitHub repo in the [Vercel dashboard](https://vercel.com/new) — framework preset **Other**, no build command, output directory left empty (static root).
+Or import the GitHub repo in the [Vercel dashboard](https://vercel.com/new) — framework
+preset **Other**, no build command, empty output directory.
+
+## Docs
+
+- [`ARCHITECTURE.md`](ARCHITECTURE.md) — design, invariants, bots/reads model, testing
 
 ## Test suite
 
