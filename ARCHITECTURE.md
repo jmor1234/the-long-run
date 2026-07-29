@@ -9,6 +9,56 @@ are not. They are marked ⚠ throughout.
 
 ---
 
+## 0. Cold start (agents)
+
+**Mental model in one line:** one HTML file deals fair 6-max NLHE; bots are
+**frequency policies** with fixed recreational styles and a shared **public-action
+reads** model — not LLMs, not GTO solvers.
+
+### Read in this order
+
+1. This section (§0) and §1 (purpose)
+2. §3 (invariants — do not break)
+3. §2 (where files and script sections live)
+4. §5 (state machine) → §12 (styles / reads / UI)
+5. §9 (how to run tests; harness string-match traps)
+6. §10–11 (limits and open work) before inventing new systems
+
+### Where to change what
+
+| Goal | Touch |
+|---|---|
+| Bot decisions / frequencies | `botDecide` in `poker-trainer.html` (BOT POLICY) |
+| Styles / limps / blurbs | `BOT_STYLES` + limp branch in `botDecide` |
+| Cross-hand memory | `freshReads` / `applyAction` reads block / `facingNudge` / `readLabel` |
+| Table / pots / streets | GAME STATE (`step`, `applyAction`, `buildPots`, `endHand`) |
+| Seats, dossiers, strip, export | RENDER |
+| Tests | `harness.js` + `t*.js` / `audit.js` — keep `function botDecide(ctx){` literal |
+
+### Load-bearing decisions (do not casually reverse)
+
+| Decision | Rationale |
+|---|---|
+| **Frequencies, not fixed rules** | A bot that always folds to 3-bets teaches a habit that dies at a real table (§3.4) |
+| **`botDecide` is ctx-only** | Fairness is structural: never read `S` or others’ hole cards; `t3.js` enforces it |
+| **Coded policy, not LLM decisions** | LLMs are weak/unreliable at NLHE, break offline/simple/testable fairness, and separate “reason” from cause. Optional LLM *narration* of public stats is a later experiment — not the action chooser |
+| **Recreational leaks, not GTO** | Target is beginner–intermediate opponents you can learn to read (limp, station, maniac), not solver-perfect play |
+| **One shared reads model** | UI dossiers, export, and bot nudges all use the same public counters — what you see is what they use |
+| **Priors + confidence tiers** | Small samples must not print fake certainty (`unknown` → `lean` → `solid`) |
+| **No `localStorage`** | Sandboxed contexts fail; session is RAM-only by design |
+| **Mint = measurement only** | Equity/pot-odds UI signal; don’t decorate with it |
+| **Percentile opens, not 5 tiers** | Old coarse tiers were 3–5× too tight vs real players (§8.1) |
+| **Hero is always seat / `players[0]`** | Much of the app assumes this |
+
+### Quick verify after changes
+
+```bash
+bash run-all.sh    # any BUG/FAIL line = regression
+node t3.js         # always after touching botDecide or its ctx
+```
+
+---
+
 ## 1. What this is for
 
 A fair table to **play and learn** against readable opponents — not a casino skin with
@@ -380,10 +430,14 @@ used for modeling with prior shrinkage. They are not interchangeable.
    judgement add value?" with a sample smaller than ~9000 hands
 2. **Showdown-aware reads** — optionally update beliefs from revealed hands without
    leaking mid-hand information
-3. **Preflop limp guard** — an optional mode where, first into a pot, the only buttons
-   are Raise and Fold. Removes the decision rather than asking the player to win it every
-   hand
-4. **Better strength proxy** for `betLikelihood`, to close the 25%-vs-2% gap in §8.3
+3. **Board texture → frequencies** (and later sizing) — bots still under-react to wet vs
+   dry boards; useful after recreational leaks feel solid
+4. **Preflop limp guard (hero UI)** — optional mode where, first into a pot, hero only
+   gets Raise/Fold (bots already limp via style)
+5. **Better strength proxy** for `betLikelihood`, to close the 25%-vs-2% gap in §8.3
+
+Explicitly **not** current priorities: LLM as primary decision maker; profiles menu;
+cross-session persistence; rewriting pot/sidepot math.
 
 ---
 

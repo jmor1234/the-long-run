@@ -30,7 +30,8 @@ preset **Other**, no build command, empty output directory.
 
 ## Docs
 
-- [`ARCHITECTURE.md`](ARCHITECTURE.md) — design, invariants, styles/reads model, testing
+- [`ARCHITECTURE.md`](ARCHITECTURE.md) — **start here for agents**: cold-start (§0),
+  purpose, invariants, file map, styles/reads rationale, testing, open work
 
 ## Test suite
 
