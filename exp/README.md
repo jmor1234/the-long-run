@@ -36,6 +36,8 @@ Plan with FROZEN pre-registered pass criteria and baseline reference numbers:
 | `run-labels.js` | dossier-label rates at hand 31 with the frozen mapping (criterion-4 reference numbers) |
 | `metrics.js` | shared rate/pooling/bb100 helpers, unit-tested against hand-computed values |
 | `prompt.js` | pure prompt builder: shared rules + 5 persona prefixes (cache-sized), spot renderer, default-deny card scan, output schema |
+| `spend.js` | hard MAX_CALLS / MAX_USD guard + Haiku 4.5 cost math (unit-tested) |
+| `run-pilot.js` | step-3 LLM arm: oracle -> buildPrompt -> Haiku 4.5 (cached prefixes, structured output) -> legality -> persisted JSONL; `--stub` runs the whole pipeline offline. Every decision is appended to disk before it enters the cache, so a cap abort or crash resumes without re-spending; the JSONL header pins config+mode so stub and api records can never cross-feed |
 | `PLAN.md` | frozen pre-registered criteria + baseline reference numbers |
 | `t-exp.js` | gate suite: determinism, cross-arm deal identity, oracle replay, legality (unit + engine-integration), prompt purity/scan |
 

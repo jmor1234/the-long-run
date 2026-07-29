@@ -1,0 +1,8 @@
+{
+  "name": "poker-llm-experiment",
+  "private": true,
+  "description": "Offline harness + pilot runner for the LLM-bots experiment. The only dependency is the Anthropic SDK, used solely by run-pilot.js in api mode; everything else (and the whole test suite) is dependency-free.",
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.74.0"
+  }
+}

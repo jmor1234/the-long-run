@@ -118,4 +118,8 @@ prompts/responses/seeds persisted so results are recomputable without re-spendin
 - Steps 1–2 complete: foundations (seeded streams, oracle+replay, legality guard),
   verifier-hardened; baseline bands, probes, and label rates measured and frozen
   above; `prompt.js` (pure builder, 5 persona prefixes ≥ cache minimum, default-deny
-  card scan) built and tested. Blocked on: API key + $5 pilot approval.
+  card scan) built and tested.
+- Step-3 runner built (`run-pilot.js`): spend caps unit-tested, decisions persisted
+  before caching (crash/cap-safe resume verified), full pipeline exercised offline
+  via `--stub`. Pilot registration: 2 sessions x 75 hands, seed `pilot1`,
+  `claude-haiku-4-5`. The live run remains blocked on: API key + $5 approval.

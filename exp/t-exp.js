@@ -259,7 +259,25 @@ function runBaseline(seed, hands, opts={}){
     'bb/100 matches hand-computed values');
 }
 
-// --- 9. oracle: miss -> abort -> replay converges, ctx stable ----------
+// --- 9. spend guard: hand-computed cost, hard caps fire ----------------
+{
+  const {estimateCostUsd, makeSpendGuard}=require('./spend');
+  // 300*$1 + 4000*$1.25 + 9000*$0.10 per MTok in, 60*$5 per MTok out = $0.0065
+  const usage={input_tokens:300, cache_creation_input_tokens:4000,
+    cache_read_input_tokens:9000, output_tokens:60};
+  ok(Math.abs(estimateCostUsd(usage)-0.0065)<1e-12,
+    'cost estimate matches hand-computed Haiku 4.5 rates', estimateCostUsd(usage));
+  const g=makeSpendGuard({maxCalls:2, maxUsd:100});
+  g.beforeCall(); g.record(usage); g.beforeCall(); g.record(usage);
+  let calls=false; try{ g.beforeCall(); }catch(e){ calls=!!e.isSpendCap; }
+  ok(calls, 'call cap throws before the call that would exceed it');
+  const g2=makeSpendGuard({maxCalls:100, maxUsd:0.01});
+  g2.beforeCall(); g2.record(usage); g2.record(usage);
+  let usd=false; try{ g2.beforeCall(); }catch(e){ usd=!!e.isSpendCap; }
+  ok(usd, 'USD cap throws once accrued cost crosses it', '$'+g2.usd.toFixed(4));
+}
+
+// --- 10. oracle: miss -> abort -> replay converges, ctx stable ----------
 {
   (async()=>{
     let resolved=0;
@@ -289,6 +307,40 @@ function runBaseline(seed, hands, opts={}){
         resolvePending:()=>{}, cache});
     }catch(e){ threw=/replay divergence/.test(e.message); }
     ok(threw, 'ctx divergence check trips on poisoned cache');
+
+    // --- 11. pilot runner: stub arm end to end, resume, cap abort -------
+    const fs=require('fs');
+    const path=require('path');
+    const {runPilot, makeStubClient}=require('./run-pilot');
+    const outDir=path.join(__dirname,'out','t-exp-pilot');
+    fs.rmSync(outDir,{recursive:true,force:true});
+    const cfg={sessions:1, hands:3, seed:'texp-p', mode:'stub',
+      maxCalls:10000, maxUsd:100, outDir, quiet:true};
+    const s1=await runPilot({...cfg, client:makeStubClient()});
+    ok(s1.volume.totalHands===3 && s1.volume.decisions>0,
+      'stub pilot plays the session through the oracle', `${s1.volume.decisions} decisions`);
+    ok(s1.volume.strayDraws===0 && s1.volume.conservationBugs===0,
+      'stub pilot: streams isolated, chips conserved');
+    ok(s1.volume.replayAttempts===s1.volume.decisions+1,
+      'stub pilot: one replay per decision');
+    ok((s1.legality.clampHist['call-nothing']||0)>0 && s1.legality.rawIllegal>0,
+      'clamps flow into the persisted accounting');
+    ok(s1.tokens.coldAfterWarm===0, 'no cold cache calls after each persona warm-up');
+    const s2=await runPilot({...cfg, client:makeStubClient()});
+    ok(s2.latencyMs.n===0 && s2.volume.replayAttempts===1
+      && s2.volume.decisions===s1.volume.decisions,
+      'resume replays entirely from disk with zero new calls');
+    const capDir=path.join(__dirname,'out','t-exp-pilot-cap');
+    fs.rmSync(capDir,{recursive:true,force:true});
+    const capCfg={...cfg, outDir:capDir, maxCalls:4};
+    const c1=await runPilot({...capCfg, client:makeStubClient()});
+    ok(c1.caps.capHit!==null && c1.volume.decisions===4,
+      'call cap aborts the run after exactly the allowed calls', c1.caps.capHit);
+    const c2=await runPilot({...capCfg, maxCalls:10000, client:makeStubClient()});
+    ok(c2.caps.capHit===null && c2.volume.totalHands===3
+      && c2.volume.decisions>4 && c2.latencyMs.n===c2.volume.decisions-4,
+      'raising the cap resumes from the persisted 4 decisions and completes');
+
     summarize();
   })().catch(e=>{ console.log('FAIL oracle block threw: '+e.message); process.exitCode=1; });
 }
