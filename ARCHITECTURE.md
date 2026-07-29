@@ -43,12 +43,12 @@ reads** model — not LLMs, not GTO solvers.
 | **`botDecide` is ctx-only** | Fairness is structural: never read `S` or others’ hole cards; `t3.js` enforces it |
 | **Coded policy, not LLM decisions** | LLMs are weak/unreliable at NLHE, break offline/simple/testable fairness, and separate “reason” from cause. Optional LLM *narration* of public stats is a later experiment — not the action chooser |
 | **Recreational leaks, not GTO** | Target is beginner–intermediate opponents you can learn to read (limp, station, maniac), not solver-perfect play |
-| **One shared reads model** | UI dossiers, export, and bot nudges all use the same public counters — what you see is what they use |
+| **One shared reads model** | UI dossiers, export, and bot nudges share one public counter set. If bots used a richer private model, the UI would lie — review becomes theatre |
 | **Priors + confidence tiers** | Small samples must not print fake certainty (`unknown` → `lean` → `solid`) |
-| **No `localStorage`** | Sandboxed contexts fail; session is RAM-only by design |
-| **Mint = measurement only** | Equity/pot-odds UI signal; don’t decorate with it |
+| **No browser persistence** | `localStorage`/`sessionStorage` fail in some sandboxes; also keeps each session a clean slate (no silent carry-over). Export is the review path |
+| **Mint = machine signal** | Prefer mint for equity/odds/verdicts and primary actions; never mint-decorate dossiers/style pills or the signal dilutes |
 | **Percentile opens, not 5 tiers** | Old coarse tiers were 3–5× too tight vs real players (§8.1) |
-| **Hero is always seat / `players[0]`** | Much of the app assumes this |
+| **Hero is always seat / `players[0]`** | Single-hero trainer; indexing, Proxy fairness traps, and UI assume this — don’t “generalize” seats without rewriting those |
 
 ### Quick verify after changes
 
@@ -118,9 +118,10 @@ readable and testable by a person or agent with no setup.
 
 ## 3. ⚠ Invariants — do not break these
 
-These are enforced by the test suite. If a change breaks one, the change is wrong.
+Some are **test-enforced**; others are **design intent** (breaking them is still wrong,
+but the suite may not catch it). Treat both as load-bearing.
 
-### 3.1 Bots cannot see hero's cards
+### 3.1 Bots cannot see hero's cards — **tested (`t3.js`)**
 
 `botDecide(ctx)` takes a context object built in `step()`. Public fields only:
 
@@ -129,22 +130,36 @@ These are enforced by the test suite. If a change breaks one, the change is wron
   inPosition, streetBets, facingReads, aggressorHadInitiative, style }
 ```
 
+`tableSize` is passed today but unused inside `botDecide` (kept for call-site symmetry /
+future HU logic — don’t invent policy around it without need).
+
 Hero's cards / other hole cards are **not** parameters (except the acting bot's own
-`myCards`). `facingReads` is a pre-resolved stats object — never a seat index that would
-tempt a lookup into `S`. The function never touches `S` — it is pure with respect to its
+`myCards`). `facingReads` is the aggressor’s **raw** `roster[].reads` counters (not
+pre-shrunk, never a seat index into `S`). Shrinkage / nudge math runs inside
+`facingNudge`. The function never touches `S` — it is pure with respect to its
 arguments. That is what makes the guarantee structural rather than a promise.
 
-`t3.js` proves this two ways: statically (the decision code contains no reference
+**Return shape** (what `applyAction` consumes):
+
+```js
+{ action: 'fold'|'check'|'call'|'bet'|'raise', amount?: number, reason: string, pct?: number }
+```
+
+`amount` is required for `bet`/`raise` (total chips to put in / raise-to sizing as the
+call site expects). Inventing `size`/`bet` instead of `amount` silently breaks sizing.
+
+`t3.js` proves fairness two ways: statically (the decision code contains no reference
 to `isHero`, `players[0]`, `hero`, or `S.`) and at runtime, by wrapping **every** other
 seat's card array in a `Proxy` that counts reads while a bot is deciding. Result must be
 **zero**, with a control confirming the trap fires on the bot's own cards.
+Note: the static ban list is narrow — do not reach for `roster` or other globals either.
 
 **If you add a parameter to `botDecide`, re-run t3.**
 
 Effective frequencies for mixed actions are `clampFreq`'d into `[0.05, 0.95]`.
 A true zero (e.g. never open this trash hand) stays zero — we do not invent a 5% open.
 
-### 3.2 Chips are conserved exactly
+### 3.2 Chips are conserved exactly — **tested (`t2.js`, `t6.js`)**
 
 Six players × 200 = **1200 chips, forever.** Nobody rebuys. `t2.js` and `t6.js`
 assert the table total never drifts.
@@ -153,25 +168,32 @@ Historical bug worth knowing: split pots used `Math.floor` and silently destroye
 chip. Fixed by awarding remainders to the player nearest the button's left, which is the
 real cardroom rule.
 
-### 3.3 An uncalled bet is a refund, not a win
+### 3.3 An uncalled bet is a refund, not a win — **design intent (no dedicated test)**
 
 If you bet 78 into someone with 73, the extra 5 forms a pot with exactly one eligible
 player. `endHand` detects `pot.elig.length === 1` and returns it, labelled as a refund.
 Do not let it fall through to the "wins with a full house" path — it's the player's own
 money coming back.
 
-### 3.4 Frequencies, never rules
+### 3.4 Frequencies, never rules — **design intent (no `t4.js` in-repo)**
 
-Every bot action is `if (Math.random() < someFrequency)`. There is no spot where a bot
-does the same thing 100% of the time except with the very top of its range.
+Mixed actions (opens, bets, bluff-raises, limp rolls, many preflop continues) use
+`if (Math.random() < someFrequency)`. That is the property to protect.
+
+Honest nuance: some **postflop call/fold** branches are threshold-based
+(`effective` equity vs need + `edgeNeed`) rather than a fresh random roll — still not
+“always fold to pressure,” but not pure frequency either. Do **not** expand deterministic
+always-do-X spots (especially always-fold-to-3bet / always-fold-to-cbet); that teaches
+habits that die at a real table.
 
 ⚠ **This is the most important design property in the file and the easiest to
 accidentally destroy.** A bot that always folds to a re-raise teaches the player to
 always re-raise — a habit that gets punished immediately by real opponents. This is the
 documented failure mode of most beginner poker apps.
 
-`tests/t4`-style checks (historical; no `t4.js` in-repo) confirmed no naive exploit beats
-them: a maniac loses ~3000 bb/100, "always re-raise when bet at" loses ~2500 bb/100.
+Historical `tests/t4`-style checks (no `t4.js` in-repo) once confirmed no naive exploit
+beats them: a maniac loses ~3000 bb/100, "always re-raise when bet at" loses ~2500 bb/100.
+Do not treat that as currently CI-enforced.
 
 ---
 
@@ -188,9 +210,11 @@ them: a maniac loses ~3000 bb/100, "always re-raise when bet at" loses ~2500 bb/
 Direct evaluation, not 21-combination enumeration — it's called thousands of times per
 equity simulation.
 
-Edge cases that are handled and have tests: the wheel (A-2-3-4-5, ace plays low), a wheel
-*flush* that is not a straight flush, a full house built from two sets of trips, exact
-ties splitting correctly.
+Edge cases that are **handled in code** (not covered by dedicated `evaluate` unit tests —
+`t1b` is equity Monte Carlo, `t2` is table integrity): the wheel (A-2-3-4-5, ace plays
+low), a wheel *flush* that is not a straight flush, a full house built from two sets of
+trips, exact ties splitting correctly. Call `evaluate` with ≥5 cards; shorter inputs are
+undefined.
 
 `straightHigh(ranks)` appends a phantom rank-1 when an ace is present. Ranks are `2..14`.
 
@@ -377,20 +401,21 @@ replacements, and evaluates it as a function with a fake DOM:
 3. strips the bootstrap call so tests control when a session starts
 
 ⚠ **The transforms are string matches against the app source.** Keep the literal
-`function botDecide(ctx){` declaration line unchanged. If you rename
-`renderActions`, `botDecide`, or the bootstrap call, the harness silently stops
-transforming and the tests will behave strangely rather than failing loudly. This
-actually happened: renaming `newHand()` to `newSession()` at the bootstrap made the
-harness run a phantom session whose leftover callbacks bled into later ones, producing a
-fake chip-conservation failure that took four diagnostics to trace. **If a test result
-looks impossible, suspect the harness first.**
+`function botDecide(ctx){` declaration line unchanged — if that wrap fails, harness
+**throws**. Renames of `renderActions` → `HERO_ACT` or the bootstrap strip
+(`updateSession();` + `newHand`/`newSession`) still **fail silently** and tests will
+behave strangely rather than failing loudly. This actually happened: renaming
+`newHand()` to `newSession()` at the bootstrap made the harness run a phantom session
+whose leftover callbacks bled into later ones, producing a fake chip-conservation
+failure that took four diagnostics to trace. **If a test result looks impossible,
+suspect the harness first.**
 
 ### Suites
 
 | File | Covers |
 |---|---|
 | `t1b.js` | equity engine vs hand-verified draw maths |
-| `t2.js` | 3000 hands: no hangs, no negative stacks, pot = money in, correct winner |
+| `t2.js` | 3000 hands: no hangs, no negative stacks, pot = money in; winner check is a narrow log heuristic, not a full pot-award oracle |
 | `t3.js` | fairness — static scan + Proxy trap on **all other seats**, ctx leak check, control |
 | `t6.js` | elimination, table shrinking 6→2, chip conservation, heads-up blind rules |
 | `audit.js` | VPIP scope, session bb, incomplete raises, styles/limps, forced 3-bet & fold-to-cbet spots |
@@ -451,7 +476,7 @@ At `newSession`, each bot gets a permanent entry from `BOT_STYLES` aimed at
 | tag | Role |
 |---|---|
 | nit | narrow opens, folds to pressure, never limps |
-| solid | baseline raise-or-fold |
+| solid | mostly raise-or-fold; occasional limp (`limp:0.05`) |
 | maniac | plays/bets too wide |
 | selective | tight-aggressive, no limp |
 | station | limps often, sticky (`fold` &lt; 1), rarely raises |
@@ -474,13 +499,13 @@ inside `applyAction` — never from hole cards or showdown. Rates use prior shri
 |---|---|
 | VPIP / PFR | voluntary money / raises preflop |
 | AF | postflop bets+raises vs calls |
-| foldToBet | folds when facing any bet |
+| foldToBet | folds when `toCall>0` (includes preflop folds facing blinds — **not** pure postflop fold-to-cbet; use `foldToCbet` for that) |
 | threeBet | raises when facing exactly the open (`streetBets===1` preflop) |
 | foldToCbet | folds to the preflop raiser's **flop** c-bet (`street==='flop'`, `streetBets===1`) |
 
-When facing a bet, `step()` passes pre-resolved `facingReads` and
-`aggressorHadInitiative`. Nudge strength scales with sample confidence; `threeBet`
-widens call frequency vs light aggressors. Frequencies still go through `clampFreq`.
+When facing a bet, `step()` passes raw `facingReads` and `aggressorHadInitiative`.
+Nudge strength scales with sample confidence; `threeBet` widens call frequency vs light
+aggressors. Frequencies still go through `clampFreq`.
 
 UI dossiers show confidence tiers (`unknown` / `lean` / `solid`) plus sample sizes.
 `session.vpip` (hero display) and `reads.vpip` (modeling) are different on purpose —
@@ -507,10 +532,10 @@ distinguishes a limped pot from a fully unopened one.
 
 Deliberately not a green-felt casino. Aubergine table, bone cards, one restrained accent.
 
-⚠ **Mint (`--mint`) is reserved for the measurement layer** — equity, pot odds, verdicts.
-Nothing else uses it. That's a structural encoding: mint means *this is what the machine
-computed*, not decoration. Keep it that way or the readout loses its signal. Style pills
-and dossiers use muted bone/faint colors, not mint.
+⚠ **Mint (`--mint`) means machine / primary action** — equity strip, pot odds, verdicts,
+and also primary buttons / focus / turn chrome. Do **not** mint-decorate style pills or
+dossiers; those stay muted bone/faint so measurement and seat flavor stay distinct. Don’t
+“purify” the UI by stripping mint from action chrome — that chrome is intentional.
 
 Fonts: Fraunces (display + card ranks), Inter Tight (UI), IBM Plex Mono (all numbers).
 Numbers are always monospaced so columns align and digits don't shift as they update.

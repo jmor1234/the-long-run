@@ -42,7 +42,7 @@ node t3.js          # fairness only — run this after touching botDecide
 
 Node >= 18, no dependencies. Any line starting `BUG` or `FAIL` is a regression.
 
-The harness reads `./poker-trainer.html` and rewrites three strings in it. If you
-rename `renderActions`, `botDecide`, or the bootstrap `newSession()` call, update
-`harness.js` — otherwise the transforms silently no-op and results become nonsense
-rather than failing. See [ARCHITECTURE.md](ARCHITECTURE.md) §9.
+The harness reads `./poker-trainer.html` and rewrites three strings in it. A failed
+`botDecide` wrap **throws**; a missed `renderActions` or bootstrap strip can still
+silently no-op and make results nonsense. Keep `function botDecide(ctx){` literal.
+See [ARCHITECTURE.md](ARCHITECTURE.md) §9.
