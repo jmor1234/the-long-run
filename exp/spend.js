@@ -4,6 +4,12 @@
 // rates. The guard is checked BEFORE every call and the run aborts loudly
 // the moment either cap is crossed — a cap hit mid-run is safe because every
 // resolved decision is already persisted and a re-run resumes from disk.
+//
+// Cap semantics: maxCalls is exact (the N+1th call never fires). maxUsd is
+// stop-after-crossing — cost accrues from actual usage after each response,
+// so the final call may overshoot the cap by its own cost (~$0.01 worst case
+// at pilot sizes: one uncached prefix write). Calls count billed decisions;
+// the SDK may internally retry transient failures within one counted call.
 
 const PRICES_HAIKU_45={
   inputPerMTok:1.00,

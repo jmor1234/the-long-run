@@ -109,9 +109,11 @@ offline play; free instant regression testing; sustained outbound API traffic.
 
 ## Spend controls
 
-Runner enforces hard MAX_CALLS / MAX_ESTIMATED_SPEND aborts (unit-tested); API key
-from environment only; `exp/out/` gitignored and Vercel-ignored; per-decision
-prompts/responses/seeds persisted so results are recomputable without re-spending.
+Runner enforces hard MAX_CALLS / MAX_USD aborts (unit-tested; the USD cap is
+stop-after-crossing, so the overshoot is bounded by one call's cost); billing is
+opt-in via `--live`; API key from environment only; `exp/out/` gitignored and
+Vercel-ignored; per-decision prompts/responses/seeds persisted so results are
+recomputable without re-spending.
 
 ## Status
 

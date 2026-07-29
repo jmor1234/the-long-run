@@ -277,6 +277,29 @@ function runBaseline(seed, hands, opts={}){
   ok(usd, 'USD cap throws once accrued cost crosses it', '$'+g2.usd.toFixed(4));
 }
 
+// --- 9b. parseDecision: paid-call fallback paths never throw ------------
+{
+  const {parseDecision}=require('./run-pilot');
+  const cases=[
+    ['truncated json', {stop_reason:'max_tokens', content:[{type:'text', text:'{"action":"ra'}]}],
+    ['no text block', {stop_reason:'end_turn', content:[{type:'tool_use'}]}],
+    ['empty content', {stop_reason:'end_turn', content:[]}],
+    ['missing content', {stop_reason:'refusal'}],
+    ['non-string text', {stop_reason:'end_turn', content:[{type:'text', text:null}]}],
+  ];
+  let bad=null;
+  for(const [name,resp] of cases){
+    try{
+      const r=parseDecision(resp);
+      if(!(r.raw===null && typeof r.parseError==='string' && r.parseError.length)) bad=name;
+    }catch(e){ bad=name+' threw: '+e.message; }
+  }
+  ok(bad===null, 'parseDecision degrades every malformed response to null + parseError', bad);
+  const norm=normalize(null, {toCall:2, currentBet:2, minRaise:2, myBet:0, stack:100});
+  ok(norm.d.action==='fold' && norm.clamps.some(c=>c.code==='unknown-action') && norm.rawIllegal,
+    'null decision becomes a counted unknown-action fold');
+}
+
 // --- 10. oracle: miss -> abort -> replay converges, ctx stable ----------
 {
   (async()=>{
@@ -323,19 +346,50 @@ function runBaseline(seed, hands, opts={}){
       'stub pilot: streams isolated, chips conserved');
     ok(s1.volume.replayAttempts===s1.volume.decisions+1,
       'stub pilot: one replay per decision');
-    ok((s1.legality.clampHist['call-nothing']||0)>0 && s1.legality.rawIllegal>0,
-      'clamps flow into the persisted accounting');
-    ok(s1.tokens.coldAfterWarm===0, 'no cold cache calls after each persona warm-up');
+    ok(s1.legality.rawIllegal>0 && Object.values(s1.legality.byPersona)
+      .reduce((a,b)=>a+b.rawIllegal,0)===s1.legality.rawIllegal,
+      'clamps flow into the persisted accounting (persona split sums to total)');
+    ok((s1.legality.clampHist['amount-under-min']||0)>0
+      && (s1.legality.clampHist['missing-amount']||0)>0,
+      'bet/raise amount clamps reached (view fields are live, not decorative)',
+      JSON.stringify(s1.legality.clampHist));
+    const persisted=fs.readFileSync(path.join(outDir,'pilot-stub-texp-p.jsonl'),'utf8')
+      .split('\n').filter(Boolean).map(l=>JSON.parse(l)).filter(r=>r.type!=='header');
+    ok(persisted.filter(r=>r.d.amount!==undefined)
+      .every(r=>Number.isInteger(r.d.amount) && r.d.amount>0),
+      'every persisted bet/raise amount is a positive integer (no NaN leaks)');
+    ok(s1.tokens.postWarmMisses===0, 'warm cache profile shows zero post-warm misses');
     const s2=await runPilot({...cfg, client:makeStubClient()});
     ok(s2.latencyMs.n===0 && s2.volume.replayAttempts===1
       && s2.volume.decisions===s1.volume.decisions,
       'resume replays entirely from disk with zero new calls');
+    ok(Math.abs(s2.costUsd.total-s1.costUsd.total)<1e-12 && s2.costUsd.calls===s1.costUsd.calls,
+      'resumed spend carries forward against the caps (total budget, not per-invocation)');
+    let hdrThrew=false;
+    try{ await runPilot({...cfg, hands:4, client:makeStubClient()}); }
+    catch(e){ hdrThrew=/different config header/.test(e.message); }
+    ok(hdrThrew, 'mismatched config header on an existing record file is rejected');
+    let seedThrew=false;
+    try{ await runPilot({...cfg, seed:'x/../y', client:makeStubClient()}); }
+    catch(e){ seedThrew=/filename-safe/.test(e.message); }
+    ok(seedThrew, 'path-escaping seed is rejected before any file is touched');
+    const coldDir=path.join(__dirname,'out','t-exp-pilot-cold');
+    fs.rmSync(coldDir,{recursive:true,force:true});
+    const cold=await runPilot({...cfg, outDir:coldDir, client:makeStubClient({cold:true})});
+    ok(cold.tokens.postWarmMisses===cold.volume.decisions-5,
+      'zero-read responses are counted as post-warm misses (detector can fire)',
+      `${cold.tokens.postWarmMisses} of ${cold.volume.decisions}`);
     const capDir=path.join(__dirname,'out','t-exp-pilot-cap');
     fs.rmSync(capDir,{recursive:true,force:true});
     const capCfg={...cfg, outDir:capDir, maxCalls:4};
     const c1=await runPilot({...capCfg, client:makeStubClient()});
     ok(c1.caps.capHit!==null && c1.volume.decisions===4,
       'call cap aborts the run after exactly the allowed calls', c1.caps.capHit);
+    ok(c1.costUsd.perHand===null, 'per-hand cost is withheld on a cap hit, not misreported');
+    const cUsd=await runPilot({...capCfg, maxCalls:10000, maxUsd:c1.costUsd.total,
+      client:makeStubClient()});
+    ok(cUsd.caps.capHit!==null && /spend cap/.test(cUsd.caps.capHit) && cUsd.volume.decisions===4,
+      'resumed spend alone trips the USD cap before any new call fires', cUsd.caps.capHit);
     const c2=await runPilot({...capCfg, maxCalls:10000, client:makeStubClient()});
     ok(c2.caps.capHit===null && c2.volume.totalHands===3
       && c2.volume.decisions>4 && c2.latencyMs.n===c2.volume.decisions-4,
