@@ -619,7 +619,10 @@ const READS_PRIOR_AF = 1.0;
 function freshReads(){
   return {hands:0, vpipOpps:0, vpip:0, pfrOpps:0, pfr:0, agg:0, passive:0, foldToBetOpps:0, foldToBet:0};
 }
-function clampFreq(f){ return Math.max(0.05, Math.min(0.95, f)); }
+function clampFreq(f){
+  if(f<=0) return 0;                         // allow pure fold/skip
+  return Math.max(0.05, Math.min(0.95, f));   // non-zero mixes stay non-degenerate
+}
 function readsRate(yes, opps, priorRate){
   return (READS_PRIOR * priorRate + yes) / (READS_PRIOR + Math.max(0, opps));
 }
@@ -686,7 +689,8 @@ function facingNudge(facingReads, hadInitiative){
    ============================================================ */
 function botDecide(ctx){
   const {myCards, board, street, toCall, pot, myStack, position, raisedBefore} = ctx;
-  const style = ctx.style || {open:1, bet:1, fold:1};
+  const style = ctx.style || {open:1, bet:1, fold:1, limp:0};
+  const limpFreq = style.limp==null?0:style.limp;
   const inPosition = !!ctx.inPosition;
   const streetBets = ctx.streetBets || 0;
   const nudge = facingNudge(ctx.facingReads, !!ctx.aggressorHadInitiative);
@@ -705,6 +709,14 @@ function botDecide(ctx){
         const size = Math.min(myStack, Math.max(6, Math.round(pot*1.1)));
         return {action:'raise', amount:size, pct,
           reason:`${nm} is a top-${pct.toFixed(0)}% hand. ${position} opens ~${thr.toFixed(0)}%, so this one opens ${Math.round(f*100)}% of the time \u2014 roll ${roll.toFixed(2)} said open.`};
+      }
+      // Recreational limp: call the blind instead of folding some of the time
+      if(toCall>0 && pct <= thr*2.2 && limpFreq>0){
+        const lf = clampFreq(limpFreq);
+        if(Math.random() < lf){
+          return {action:'call', pct,
+            reason:`${nm} — didn't open, but ${position} limps ~${Math.round(lf*100)}% in this band. Roll said limp.`};
+        }
       }
       return {action: toCall>0?'fold':'check', pct,
         reason:`${nm} is a top-${pct.toFixed(0)}% hand; ${position} opens ~${thr.toFixed(0)}%. Opens it ${Math.round(f*100)}% of the time \u2014 roll ${roll.toFixed(2)} said fold.`};
@@ -743,9 +755,11 @@ function botDecide(ctx){
   const posBet = inPosition ? 1.12 : 0.88;
   const posCall = inPosition ? 1.06 : 0.94;
   const multiway = streetBets >= 2 ? 0.85 : 1;
+  // Stations (low fold) chase a bit more; nits a bit less — derived from fold dial
+  const chaseMult = Math.max(0.75, Math.min(1.4, 1.2/style.fold));
 
   if(toCall===0){
-    let betFreq = bucket==='strong'?0.80 : bucket==='good'?0.55 : bucket==='marginal'?0.22 : (dr.any?0.35:0.13);
+    let betFreq = bucket==='strong'?0.80 : bucket==='good'?0.55 : bucket==='marginal'?0.22 : (dr.any?0.35*chaseMult:0.13);
     betFreq = clampFreq(betFreq * style.bet * posBet * multiway);
     if(roll<betFreq){
       const amt = Math.min(myStack, bucket==='strong'?fullPot:halfPot);
@@ -759,7 +773,7 @@ function botDecide(ctx){
 
   // facing a bet
   const need = potOdds;
-  const effective = s + (dr.flushDraw?0.13:0) + (dr.oesd?0.10:0);
+  const effective = s + ((dr.flushDraw?0.13:0) + (dr.oesd?0.10:0)) * chaseMult;
   if(bucket==='strong'){
     const raiseFreq = clampFreq(0.55 * style.bet * nudge.raiseMult);
     if(roll<raiseFreq) return {action:'raise', amount:Math.min(myStack,Math.round(pot*0.9)+toCall),
@@ -770,8 +784,8 @@ function botDecide(ctx){
   if(roll < bluffRaise && dr.any) return {action:'raise', amount:Math.min(myStack,Math.round(pot*0.8)+toCall),
     reason:`Draw turned into a ${Math.round(bluffRaise*100)}% bluff-raise. Roll ${roll.toFixed(2)}.${nudge.note}`};
 
-  // fold pressure: style.fold > 1 folds more often (needs more equity edge to continue)
-  const edgeNeed = 0.02 * style.fold / nudge.callMult / posCall;
+  // fold pressure band so extreme styles stay frequency-based, not mechanical rules
+  const edgeNeed = Math.max(0.005, Math.min(0.08, 0.02 * style.fold / nudge.callMult / posCall));
   if(effective > need + edgeNeed){
     return {action:'call',
       reason:`${pct}% strength${dr.any?' + draw equity':''} = ~${Math.round(effective*100)}% vs ${Math.round(need*100)}% needed. Calls.${nudge.note}`};
@@ -787,11 +801,17 @@ const NAMES=['Vera','Oyelaran','Mikko','Priya','Dunn'];
 /* Fixed seat styles — real diversity so reads converge to something true.
    open/bet > 1 = looser/more aggressive; fold > 1 = folds more under pressure. */
 const BOT_STYLES=[
-  {open:0.85, bet:0.85, fold:1.15, tag:'tight', blurb:'Opens a narrow range and folds more when pressured. Patient, not flashy.'},
-  {open:1.00, bet:1.00, fold:1.00, tag:'solid', blurb:'Balanced regular. Standard opens, standard aggression — a clean baseline.'},
-  {open:1.15, bet:1.15, fold:0.85, tag:'LAG', blurb:'Loose-aggressive. Plays more hands and keeps betting; harder to push off pots.'},
-  {open:0.90, bet:1.10, fold:0.95, tag:'selective', blurb:'Selective preflop, but bets firmly when involved. Not a calling station.'},
-  {open:1.10, bet:0.90, fold:1.05, tag:'loose', blurb:'Sees more flops than most, then plays them passively. Sticky, not spewy.'}
+  // Recreational leaks (beginner–intermediate), not GTO. fold<1 = sticky under pressure.
+  {open:0.70, bet:0.70, fold:1.35, limp:0.00, tag:'nit',
+   blurb:'Nitty recreational. Narrow opens, never limps, folds when pressured.'},
+  {open:1.00, bet:1.00, fold:1.00, limp:0.05, tag:'solid',
+   blurb:'Straightforward regular. Mostly raise-or-fold; occasional limp.'},
+  {open:1.35, bet:1.40, fold:0.70, limp:0.08, tag:'maniac',
+   blurb:'Spewy and aggressive. Plays too many hands and keeps betting at you.'},
+  {open:0.85, bet:1.25, fold:0.90, limp:0.00, tag:'selective',
+   blurb:'Selective preflop, punches when involved. Not a caller.'},
+  {open:1.20, bet:0.75, fold:0.72, limp:0.40, tag:'station',
+   blurb:'Calling station. Limps in, pays off too light, rarely raises for value.'}
 ];
 const SB=1, BB=2, START=200;
 
@@ -1017,8 +1037,9 @@ function applyAction(p, d){
     const a=Math.min(toCall,p.stack);
     p.stack-=a; p.bet+=a; p.invested+=a; S.pot+=a;
     if(p.stack===0) p.allIn=true;
-    p.lastAct='call '+a;
-    logLine(p.isHero?'hero':'', `${p.name} calls ${a}`);
+    const isLimp = S.street==='preflop' && !S.raisedBefore;
+    p.lastAct=(isLimp?'limp ':'call ')+a;
+    logLine(p.isHero?'hero':'', `${p.name} ${isLimp?'limps':'calls'} ${a}`);
     p.inferredTier=Math.min(p.inferredTier, S.street==='preflop'?55:60);
   }
   else { // bet / raise
@@ -1085,7 +1106,7 @@ function step(){
       streetBets:S.streetBets||0,
       facingReads: (toCall>0 && aggRoster) ? aggRoster.reads : null,
       aggressorHadInitiative: !!(agg && S.preflopRaiser && agg.seat===S.preflopRaiser.seat),
-      style: rosterOf(p)?.style || {open:1, bet:1, fold:1}
+      style: rosterOf(p)?.style || {open:1, bet:1, fold:1, limp:0}
     });
     applyAction(p,d);
     S.toAct=nextToAct(S.toAct);
@@ -1287,7 +1308,11 @@ function updatePreflopGuide(){
   const inside = pct <= limit;
 
   if(hero.pos==='BB' && !raised){
-    el.innerHTML=`<b>${nm}</b> \u2014 top ${pct.toFixed(0)}% of hands. Nobody raised, so you're in for free. Check.`;
+    if(S.pot > SB+BB){
+      el.innerHTML=`<b>${nm}</b> \u2014 top ${pct.toFixed(0)}% of hands. Limped pot — you can check for free or raise the limpers.`;
+    } else {
+      el.innerHTML=`<b>${nm}</b> \u2014 top ${pct.toFixed(0)}% of hands. Nobody raised, so you're in for free. Check.`;
+    }
     return;
   }
   el.innerHTML = `<b>${nm}</b> \u2014 top ${pct.toFixed(0)}% of hands. You're ${SEAT_WORD[hero.pos]}, `

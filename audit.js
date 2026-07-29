@@ -96,8 +96,35 @@ const chk=(name,ok,detail)=>{ if(!ok)fails++; console.log(`  ${ok?'ok  ':'BUG '}
   chk('reads accumulate from public actions', moved, 'hands/vpipOpps should rise');
   // Hero who sometimes puts money in should show vpip > 0 on reads (separate from session.vpip)
   chk('hero reads track public VPIP opportunities', G.roster[0].reads.vpipOpps>0);
-  chk('clampFreq respects band', G.clampFreq(0)===0.05 && G.clampFreq(1)===0.95 && G.clampFreq(0.4)===0.4);
+  chk('clampFreq respects band', G.clampFreq(0)===0 && G.clampFreq(1)===0.95 && G.clampFreq(0.4)===0.4);
   chk('botDecide received public ctx fields', !!(state.lastBotCtx && 'inPosition' in state.lastBotCtx &&
       'streetBets' in state.lastBotCtx && 'facingReads' in state.lastBotCtx && 'style' in state.lastBotCtx));
+}
+
+// ---- 6. recreational styles limp; station limps measurably ----
+{
+  const policy=(G)=>{
+    const S=G.S,h=S.players[0],tc=S.currentBet-h.bet;
+    // fold often preflop so bots get first-in chances
+    const d = S.street==='preflop'
+      ? (tc>0?{action:'fold'}:{action:'check'})
+      : (tc>0?{action:'fold'}:{action:'check'});
+    G.applyAction(h,d); S.toAct=G.nextToAct(S.toAct); G.step();
+  };
+  const {G,drain}=make(policy);
+  G.newSession(); drain();
+  const tags=G.roster.filter(r=>!r.isHero).map(r=>r.style&&r.style.tag);
+  chk('archetype tags present', ['nit','solid','maniac','selective','station'].every(t=>tags.includes(t)),
+      'got '+tags.join(','));
+  const station=G.roster.find(r=>r.style&&r.style.tag==='station');
+  chk('station fold < 1 (sticky)', station && station.style.fold<1, `fold=${station&&station.style.fold}`);
+  let limps=0;
+  for(let i=0;i<800;i++){
+    if(G.session.over){ G.newSession(); drain(); }
+    G.newHand(); drain();
+    if(!G.S||!G.S.log) continue;
+    limps += G.S.log.filter(l=>/limps /.test(l.text)).length;
+  }
+  chk('station-table produces limps', limps>15, `saw ${limps} limp actions over ~800 hands`);
 }
 console.log(fails?`\n  ${fails} bug${fails>1?'s':''} found`:'\n  clean');

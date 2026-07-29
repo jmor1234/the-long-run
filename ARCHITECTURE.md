@@ -90,8 +90,8 @@ seat's card array in a `Proxy` that counts reads while a bot is deciding. Result
 
 **If you add a parameter to `botDecide`, re-run t3.**
 
-Effective frequencies are always `clampFreq`'d to `[0.05, 0.95]` so style/reads skew
-cannot collapse into deterministic rules.
+Effective frequencies for mixed actions are `clampFreq`'d into `[0.05, 0.95]`.
+A true zero (e.g. never open this trash hand) stays zero — we do not invent a 5% open.
 
 ### 3.2 Chips are conserved exactly
 
@@ -381,16 +381,25 @@ used for modeling with prior shrinkage. They are not interchangeable.
 
 ## 12. Styles, reads, and seat dossiers
 
-### Fixed seat styles
+### Fixed seat styles (recreational leaks)
 
-At `newSession`, each bot gets a permanent entry from `BOT_STYLES`:
+At `newSession`, each bot gets a permanent entry from `BOT_STYLES` aimed at
+**beginner–intermediate** opponents — readable leaks, not GTO:
 
-```js
-{ open, bet, fold, tag, blurb }
-```
+| tag | Role |
+|---|---|
+| nit | narrow opens, folds to pressure, never limps |
+| solid | baseline raise-or-fold |
+| maniac | plays/bets too wide |
+| selective | tight-aggressive, no limp |
+| station | limps often, sticky (`fold` &lt; 1), rarely raises |
 
-Examples: Vera `tight`, Mikko `LAG`, Dunn `loose`. Hero has `style: null`. Multipliers
-skew open width / bet frequency / fold pressure inside `botDecide` via `ctx.style`.
+Each style: `{ open, bet, fold, limp, tag, blurb }`. Hero has `style: null`.
+Multipliers skew open width / bet frequency / fold pressure; `limp` is the
+probability of calling the blind after declining to open (soft hand band).
+Stickiness/chase intensity is derived from the `fold` dial (no separate fields).
+`edgeNeed` is band-clamped so extreme styles stay frequency-based.
+
 There is no profiles menu and styles do not change mid-session.
 
 ### Cross-hand reads
@@ -414,7 +423,7 @@ see §10.
 - **Export** — `buildExport` appends a `TABLE READS` snapshot
 
 Postflop bots also receive `inPosition` and `streetBets` in ctx (positional nudge).
-
+Preflop unraised calls are labelled **limp** in the log/UI.
 ---
 
 ## 13. Visual design
