@@ -1,7 +1,9 @@
 # The Long Run
 
-6-max No-Limit Hold'em trainer. Play against frequency-based bots with distinct styles;
-they adapt from public actions over a session. Copy hand histories for review.
+6-max No-Limit Hold'em trainer. Play against frequency-based bots with distinct
+recreational styles (nit / maniac / station, etc.). They limp, adapt from public
+actions over a session, and share the same read model you see in the UI. Copy hand
+histories for review.
 
 **Repo:** [github.com/jmor1234/the-long-run](https://github.com/jmor1234/the-long-run)  
 **Live:** [the-long-run-chi.vercel.app](https://the-long-run-chi.vercel.app)
@@ -11,7 +13,8 @@ they adapt from public actions over a session. Copy hand histories for review.
 - **Local:** open [`poker-trainer.html`](poker-trainer.html) in a browser
 - **Deployed:** production URL above (Vercel maps `/` → `poker-trainer.html`)
 
-Hover or tap a seat’s style pill for a short dossier (baked style + live session read).
+Hover or tap a seat’s style pill for a dossier (baked style + live session read:
+VPIP, 3-bet, fold-to-c-bet, sample confidence).
 
 ## Deploy (Vercel)
 
@@ -27,7 +30,7 @@ preset **Other**, no build command, empty output directory.
 
 ## Docs
 
-- [`ARCHITECTURE.md`](ARCHITECTURE.md) — design, invariants, bots/reads model, testing
+- [`ARCHITECTURE.md`](ARCHITECTURE.md) — design, invariants, styles/reads model, testing
 
 ## Test suite
 

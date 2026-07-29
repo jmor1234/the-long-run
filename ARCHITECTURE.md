@@ -21,6 +21,7 @@ reasons).
 | Bots cannot see your cards | Without this the post-hand review is theatre |
 | Bots act on **frequencies**, not rules | A deterministic bot is solvable; you'd learn to beat *it*, not poker |
 | Distinct seat styles + public reads | A table of people, not five copies of one policy |
+| Limps, 3-bet / c-bet patterns | Recreational leaks you can actually practice reading |
 | Bots log their real reason | The stated reason **is** the cause, so it can be trusted |
 | Equity vs pot odds strip | Reduces every betting decision to one comparison |
 | Full session export | Review needs the whole hand, not a memory of it |
@@ -29,7 +30,7 @@ reasons).
 
 ## 2. File layout
 
-**App:** `poker-trainer.html` (~1500 lines), three parts:
+**App:** `poker-trainer.html` (~1600 lines), three parts:
 
 ```
 <style>    design tokens + layout (including seat tips)
@@ -162,8 +163,15 @@ a lot of code relies on that, so preserve it if you reorder anything.
 Each roster entry also carries:
 
 ```js
-style: null | { open, bet, fold, tag, blurb }  // bots only; fixed at newSession
-reads: { hands, vpipOpps, vpip, pfrOpps, pfr, agg, passive, foldToBetOpps, foldToBet }
+style: null | { open, bet, fold, limp, tag, blurb }  // bots only; fixed at newSession
+reads: {
+  hands,
+  vpipOpps, vpip, pfrOpps, pfr,
+  agg, passive,
+  foldToBetOpps, foldToBet,
+  threeBetOpps, threeBet,
+  foldToCbetOpps, foldToCbet
+}
 ```
 
 Per-hand `S` also tracks public action for bots: `streetBets`, `streetAggressor`,
@@ -335,7 +343,7 @@ looks impossible, suspect the harness first.**
 | `t2.js` | 3000 hands: no hangs, no negative stacks, pot = money in, correct winner |
 | `t3.js` | fairness — static scan + Proxy trap on **all other seats**, ctx leak check, control |
 | `t6.js` | elimination, table shrinking 6→2, chip conservation, heads-up blind rules |
-| `audit.js` | VPIP scope, session accounting, incomplete-raise rules, all-in labelling, reads |
+| `audit.js` | VPIP scope, session bb, incomplete raises, styles/limps, forced 3-bet & fold-to-cbet spots |
 
 ⚠ Several expectations in `t1b.js` look wrong and are not — they have comments
 explaining why (e.g. a set is ~75% against a flush draw, not 66%, because it redraws to a
@@ -426,15 +434,19 @@ see §10.
 
 ### UI
 
-- **Table reads** panel — confident labels once `READS_MIN_HANDS` (30) is reached
-- **Seat pill + tip** — small tag on each seat; hover or tap opens a dossier
-  (`playerBrief`: baked `blurb` + live read line). Tips shift for edge seats
-  (`tip-left` / `tip-right` / `tip-below`) and raise `z-index` while open so they are
-  not clipped or buried under neighbors
-- **Export** — `buildExport` appends a `TABLE READS` snapshot
+- **Table reads** panel — strong labels after `READS_MIN_HANDS` (30); thinner “lean”
+  hints can appear earlier via `sampleTier` (`unknown` / `lean` / `solid`)
+- **Seat pill + tip** — style tag on each seat; hover or tap opens a dossier
+  (`playerBrief` / `readsLiveLine`: baked `blurb` + live rates with sample sizes).
+  Tips shift for edge seats (`tip-left` / `tip-right` / `tip-below`) and raise
+  `z-index` while open so they are not clipped or buried under neighbors
+- **Export** — `buildExport` appends a `TABLE READS` snapshot (VPIP, PFR, 3-bet,
+  F2cbet, F2bet, AF, sample tier)
 
 Postflop bots also receive `inPosition` and `streetBets` in ctx (positional nudge).
-Preflop unraised calls are labelled **limp** in the log/UI.
+Preflop unraised calls are labelled **limp** in the log/UI. BB’s preflop guide
+distinguishes a limped pot from a fully unopened one.
+
 ---
 
 ## 13. Visual design
