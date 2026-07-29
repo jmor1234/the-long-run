@@ -4,9 +4,8 @@ An experiment testing whether LLM-persona bots simulate human poker behavior bet
 than the coded frequency policies in `poker-trainer.html`. **The shipped app and its
 test suite are untouched** — everything here is a parallel harness build.
 
-Plan with pre-registered pass criteria: see the session plan doc
-(`llm-bots-experiment-plan.md`, currently in the working scratchpad; lands here when
-the experiment runs). Independent assessment findings are folded in; key design calls:
+Plan with FROZEN pre-registered pass criteria and baseline reference numbers:
+[PLAN.md](PLAN.md). Independent assessment findings are folded in; key design calls:
 
 - **No async engine.** `botDecide` stays synchronous. LLM arms use a decision oracle
   (`oracle.js`): cache hit → return; miss → record prompt, abort session, resolve the
@@ -32,8 +31,11 @@ the experiment runs). Independent assessment findings are folded in; key design 
 | `prng.js` | keyed deterministic streams (fnv1a + mulberry32) |
 | `oracle.js` | cache-or-abort oracle + session replay loop |
 | `legality.js` | LLM action/amount normalizer, clamp accounting |
-| `run-baseline.js` | coded-bots arm through the metrics pipeline (persona frequency bands, split-half, transcripts) |
-| `t-exp.js` | step-1 gate: determinism, cross-arm deal identity, oracle replay, legality (`node exp/t-exp.js`) |
+| `run-baseline.js` | coded-bots arm through the metrics pipeline (persona frequency bands, pooled split-half, transcripts) |
+| `run-probes.js` | degenerate-hero exploitability probes (criterion-3 reference numbers) |
+| `prompt.js` | pure prompt builder: shared rules + 5 persona prefixes (cache-sized), spot renderer, default-deny card scan, output schema |
+| `PLAN.md` | frozen pre-registered criteria + baseline reference numbers |
+| `t-exp.js` | gate suite: determinism, cross-arm deal identity, oracle replay, legality (unit + engine-integration), prompt purity/scan |
 
 Outputs land in `exp/out/` (gitignored; also excluded from Vercel deploys via
 `.vercelignore` along with all of `exp/`). `exp/t-exp.js` runs as part of

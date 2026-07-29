@@ -57,8 +57,10 @@ const rates=(rd)=>({
   af:rd.passive>0? rd.agg/rd.passive : null, // null, not a count, when never passive
 });
 
-const perTag={};        // tag -> {first:[], second:[], full:[]}  per-session rates
+const perTag={};        // tag -> {full:[]}  per-session rates (dispersion view)
 const pooledTag={};     // tag -> summed raw counters across sessions (band reference)
+const pooledFirst={};   // tag -> summed first-half counters (split-half, pooled)
+const pooledSecond={};  // tag -> summed second-half counters
 const transcripts=[];
 let conservationErrors=0, strayDraws=0, handsPlayed=0;
 
@@ -86,17 +88,19 @@ for(let s=0;s<SESSIONS;s++){
   handsPlayed+=h.G.session.hands; // engine truth, includes the newSession hand
   strayDraws+=h.state.strayDraws;
   const end=snapReads(h.G);
+  const addTo=(acc,tag,counters)=>{
+    acc[tag]=acc[tag]||{};
+    for(const [k,v] of Object.entries(counters)) acc[tag][k]=(acc[tag][k]||0)+v;
+  };
   for(const e of end){
     const m=mid && mid.find(x=>x.tag===e.tag);
-    perTag[e.tag]=perTag[e.tag]||{first:[],second:[],full:[]};
+    perTag[e.tag]=perTag[e.tag]||{full:[]};
     perTag[e.tag].full.push(rates(e.reads));
+    addTo(pooledTag, e.tag, e.reads);
     if(m){
-      perTag[e.tag].first.push(rates(m.reads));
-      perTag[e.tag].second.push(rates(diffReads(e.reads,m.reads)));
+      addTo(pooledFirst, e.tag, m.reads);
+      addTo(pooledSecond, e.tag, diffReads(e.reads, m.reads));
     }
-    pooledTag[e.tag]=pooledTag[e.tag]||{};
-    for(const [k,v] of Object.entries(e.reads))
-      pooledTag[e.tag][k]=(pooledTag[e.tag][k]||0)+v;
   }
 }
 
@@ -114,14 +118,18 @@ const report={config:{sessions:SESSIONS, hands:HANDS, seed:SEED},
   handsPlayed, conservationErrors, strayDraws, personas:{}};
 for(const [tag,d] of Object.entries(perTag)){
   const pooled=rates(pooledTag[tag]);
+  const firstR=pooledFirst[tag]? rates(pooledFirst[tag]) : {};
+  const secondR=pooledSecond[tag]? rates(pooledSecond[tag]) : {};
   report.personas[tag]={pooled}; // pooled counters are the band reference
   for(const k of KEYS){
+    // split-half from POOLED half-counters, not means of per-session ratios —
+    // small per-session denominators otherwise dominate the delta
+    const a=firstR[k], b=secondR[k];
     report.personas[tag][k]={
-      full:agg(d.full,k), firstHalf:agg(d.first,k), secondHalf:agg(d.second,k),
-      splitHalfDelta:(()=>{
-        const a=agg(d.first,k), b=agg(d.second,k);
-        return a&&b? +Math.abs(a.mean-b.mean).toFixed(3) : null;
-      })(),
+      full:agg(d.full,k),
+      pooledFirstHalf:a==null?null:+a.toFixed(3),
+      pooledSecondHalf:b==null?null:+b.toFixed(3),
+      splitHalfDelta:(a!=null&&b!=null)? +Math.abs(a-b).toFixed(3) : null,
     };
   }
 }

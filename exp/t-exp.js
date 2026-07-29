@@ -161,7 +161,52 @@ function runBaseline(seed, hands, opts={}){
     'impossible raise becomes short all-in call, currentBet untouched');
 }
 
-// --- 7. oracle: miss -> abort -> replay converges, ctx stable ----------
+// --- 7. prompt builder: purity, determinism, default-deny card scan ----
+{
+  const fs=require('fs');
+  const P=require('./prompt');
+  const src=fs.readFileSync(require.resolve('./prompt'),'utf8');
+  ok(!/Math\.random\s*\(|Date\.now\s*\(|new Date\s*\(|process\.env|require\s*\(/.test(src),
+    'prompt.js is statically pure (no RNG, clock, env, or requires)');
+
+  // every persona prefix: only whitelisted example cards, plausibly cache-sized
+  const allowed=new Set(P.EXAMPLE_CARDS);
+  let prefixOk=true, minLen=Infinity;
+  for(const tag of Object.keys(P.PERSONAS)){
+    const pre=P.buildPrefix(tag);
+    minLen=Math.min(minLen, pre.length);
+    for(const tok of P.scanCards(pre)) if(!allowed.has(tok)) prefixOk=false;
+  }
+  ok(prefixOk, 'prefix cards are all from the declared example whitelist');
+  ok(minLen>=16000, 'every persona prefix is plausibly above the 4096-token cache minimum',
+    `${minLen} chars (exact token count verified in the pilot)`);
+
+  // determinism + frozen-ctx purity + live scan across real decisions
+  const seen=[];
+  const spy=(ctx, meta, fall)=>{ if(seen.length<300) seen.push(JSON.parse(JSON.stringify(ctx))); return fall(ctx); };
+  runBaseline('prompt-1', 40, {decide:spy});
+  let deterministic=true, scanned=0, threw=0;
+  for(const ctx of seen){
+    const deepFreeze=(o)=>{Object.freeze(o); for(const v of Object.values(o)) if(v&&typeof v==='object') deepFreeze(v); return o;};
+    try{
+      const a=P.buildPrompt(deepFreeze(ctx));
+      const b=P.buildPrompt(ctx);
+      if(a.prefix!==b.prefix || a.spot!==b.spot) deterministic=false;
+      scanned++;
+    }catch(e){ threw++; }
+  }
+  ok(threw===0 && scanned>=200, 'buildPrompt runs clean on real frozen ctx across decisions',
+    `${scanned} decisions, ${threw} threw`);
+  ok(deterministic, 'buildPrompt is deterministic (same ctx, byte-identical prompt)');
+
+  // the tripwire itself must fire on a genuinely foreign card
+  let trip=false;
+  try{ P.assertNoForeignCards('he showed K♦ earlier', {myCards:[{r:14,s:'s'},{r:13,s:'s'}], board:[]}); }
+  catch(e){ trip=/card leak/.test(e.message); }
+  ok(trip, 'foreign-card scan trips on a card outside own+board');
+}
+
+// --- 8. oracle: miss -> abort -> replay converges, ctx stable ----------
 {
   (async()=>{
     let resolved=0;
