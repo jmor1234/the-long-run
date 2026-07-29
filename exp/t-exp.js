@@ -5,6 +5,9 @@ const {normalize}=require('./legality');
 const {makeOracle, runOracleSession}=require('./oracle');
 
 console.log('EXP TEST — seeded streams, oracle replay, legality\n');
+// Fail closed: only a completed summarize() may clear this. A hang or throw
+// in the async oracle block otherwise exits 0 while printing FAIL lines.
+process.exitCode=1;
 let fail=0;
 const ok=(cond,name,detail)=>{
   if(!cond) fail++;
@@ -166,47 +169,97 @@ function runBaseline(seed, hands, opts={}){
   const fs=require('fs');
   const P=require('./prompt');
   const src=fs.readFileSync(require.resolve('./prompt'),'utf8');
-  ok(!/Math\.random\s*\(|Date\.now\s*\(|new Date\s*\(|process\.env|require\s*\(/.test(src),
-    'prompt.js is statically pure (no RNG, clock, env, or requires)');
+  ok(!/Math\.random\s*\(|Date\.now\s*\(|new Date\s*\(|process\.|globalThis|\beval\s*\(|new Function|require\s*\(/.test(src),
+    'prompt.js has no impurity markers (RNG, clock, env, eval, requires)');
+  ok(/^'use strict';/.test(src), 'prompt.js is strict mode (frozen-ctx writes throw, not no-op)');
 
-  // every persona prefix: only whitelisted example cards, plausibly cache-sized
-  const allowed=new Set(P.EXAMPLE_CARDS);
-  let prefixOk=true, minLen=Infinity;
+  // every persona prefix: exact two-way match with the declared example cards
+  // (a superset-only check lets both the prose and the list drift), and
+  // plausibly cache-sized
+  const used=new Set();
+  let minLen=Infinity;
   for(const tag of Object.keys(P.PERSONAS)){
     const pre=P.buildPrefix(tag);
     minLen=Math.min(minLen, pre.length);
-    for(const tok of P.scanCards(pre)) if(!allowed.has(tok)) prefixOk=false;
+    for(const tok of P.scanCards(pre)) used.add(tok);
   }
-  ok(prefixOk, 'prefix cards are all from the declared example whitelist');
-  ok(minLen>=16000, 'every persona prefix is plausibly above the 4096-token cache minimum',
+  const declared=new Set(P.EXAMPLE_CARDS);
+  ok(used.size===declared.size && [...used].every(c=>declared.has(c)),
+    'prefix cards exactly match the declared example whitelist',
+    `used ${used.size}, declared ${declared.size}`);
+  ok(minLen>=17000, 'every persona prefix is plausibly above the 4096-token cache minimum',
     `${minLen} chars (exact token count verified in the pilot)`);
+  let protoThrew=0;
+  for(const bad of ['constructor','__proto__','hasOwnProperty']){
+    try{ P.buildPrefix(bad); }catch(e){ protoThrew++; }
+  }
+  ok(protoThrew===3, 'buildPrefix rejects prototype-chain persona tags');
 
-  // determinism + frozen-ctx purity + live scan across real decisions
+  // determinism + frozen-ctx purity + live scan across real decisions.
+  // Two passes in OPPOSITE orders so module-level state or memoization keyed
+  // on call order would surface; ctx snapshot proves buildPrompt mutates nothing.
   const seen=[];
   const spy=(ctx, meta, fall)=>{ if(seen.length<300) seen.push(JSON.parse(JSON.stringify(ctx))); return fall(ctx); };
   runBaseline('prompt-1', 40, {decide:spy});
-  let deterministic=true, scanned=0, threw=0;
+  const deepFreeze=(o)=>{Object.freeze(o); for(const v of Object.values(o)) if(v&&typeof v==='object') deepFreeze(v); return o;};
+  let scanned=0, threw=0, mutated=0;
+  const passA=[];
   for(const ctx of seen){
-    const deepFreeze=(o)=>{Object.freeze(o); for(const v of Object.values(o)) if(v&&typeof v==='object') deepFreeze(v); return o;};
+    const before=JSON.stringify(ctx);
     try{
-      const a=P.buildPrompt(deepFreeze(ctx));
-      const b=P.buildPrompt(ctx);
-      if(a.prefix!==b.prefix || a.spot!==b.spot) deterministic=false;
+      passA.push(P.buildPrompt(deepFreeze(ctx)));
       scanned++;
-    }catch(e){ threw++; }
+    }catch(e){ threw++; passA.push(null); }
+    if(JSON.stringify(ctx)!==before) mutated++;
+  }
+  let deterministic=true;
+  for(let i=seen.length-1;i>=0;i--){ // reverse order
+    if(!passA[i]) continue;
+    const b=P.buildPrompt(seen[i]);
+    if(b.prefix!==passA[i].prefix || b.spot!==passA[i].spot) deterministic=false;
   }
   ok(threw===0 && scanned>=200, 'buildPrompt runs clean on real frozen ctx across decisions',
     `${scanned} decisions, ${threw} threw`);
-  ok(deterministic, 'buildPrompt is deterministic (same ctx, byte-identical prompt)');
+  ok(mutated===0, 'buildPrompt never mutates ctx');
+  ok(deterministic, 'buildPrompt is deterministic and order-independent');
 
-  // the tripwire itself must fire on a genuinely foreign card
-  let trip=false;
+  // the tripwire must fire on a foreign card — both on a literal and when
+  // injected into a REAL spot produced by the live code path
+  let trip=0;
   try{ P.assertNoForeignCards('he showed K♦ earlier', {myCards:[{r:14,s:'s'},{r:13,s:'s'}], board:[]}); }
-  catch(e){ trip=/card leak/.test(e.message); }
-  ok(trip, 'foreign-card scan trips on a card outside own+board');
+  catch(e){ if(/card leak/.test(e.message)) trip++; }
+  const realCtx=seen.find(c=>c.toCall>0)||seen[0];
+  const inCtx=new Set(P.scanCards(P.buildSpot(realCtx)));
+  const foreign=['2♠','3♦','9♠','5♥','K♣'].find(c=>!inCtx.has(c));
+  try{ P.assertNoForeignCards(P.buildSpot(realCtx)+` and he tabled ${foreign}`, realCtx); }
+  catch(e){ if(/card leak/.test(e.message)) trip++; }
+  ok(trip===2, 'foreign-card scan trips on literals and on a poisoned real spot');
 }
 
-// --- 8. oracle: miss -> abort -> replay converges, ctx stable ----------
+// --- 8. metric helpers vs hand-computed values --------------------------
+// These feed the FROZEN numbers in PLAN.md; they get an independent oracle.
+{
+  const M=require('./metrics');
+  const end={vpip:30, vpipOpps:100, pfr:20, pfrOpps:100, foldToBet:12, foldToBetOpps:20,
+    threeBet:2, threeBetOpps:10, foldToCbet:1, foldToCbetOpps:4, agg:9, passive:6, hands:50};
+  const mid={vpip:10, vpipOpps:40, pfr:8, pfrOpps:40, foldToBet:5, foldToBetOpps:8,
+    threeBet:1, threeBetOpps:4, foldToCbet:0, foldToCbetOpps:1, agg:3, passive:3, hands:25};
+  const r=M.rates(end);
+  ok(r.vpip===0.3 && r.pfr===0.2 && r.f2bet===0.6 && r.threeBet===0.2 && r.af===1.5,
+    'rates() matches hand-computed values');
+  ok(M.rates({...end, passive:0}).af===null, 'AF is null (never a count) when passive=0');
+  const second=M.diffReads(end, mid);
+  ok(second.vpip===20 && second.vpipOpps===60 && second.agg===6,
+    'diffReads yields exact second-half counters');
+  ok(M.rates(second).vpip+''==='0.3333333333333333', 'second-half rate from diffed counters');
+  const acc={};
+  M.addTo(acc,'x',{a:1,b:2}); M.addTo(acc,'x',{a:4});
+  ok(acc.x.a===5 && acc.x.b===2, 'addTo pools counters');
+  ok(M.bb100(-600, 100, 2)===-300 && M.bb100(50, 500, 2)===5,
+    'bb/100 matches hand-computed values');
+}
+
+// --- 9. oracle: miss -> abort -> replay converges, ctx stable ----------
 {
   (async()=>{
     let resolved=0;
@@ -237,7 +290,7 @@ function runBaseline(seed, hands, opts={}){
     }catch(e){ threw=/replay divergence/.test(e.message); }
     ok(threw, 'ctx divergence check trips on poisoned cache');
     summarize();
-  })();
+  })().catch(e=>{ console.log('FAIL oracle block threw: '+e.message); process.exitCode=1; });
 }
 
 function summarize(){

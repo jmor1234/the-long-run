@@ -13,6 +13,7 @@
 const fs=require('fs');
 const path=require('path');
 const make=require('./exp-harness');
+const {bb100}=require('./metrics');
 
 function parseArgs(argv){
   const args={};
@@ -61,9 +62,13 @@ const PROBES={
   },
 };
 
+if(SESSIONS!==30||HANDS!==200||SEED!=='probe1')
+  console.log(`NOTE: config differs from the frozen registration (30x200, probe1) — output is exploratory`);
+
 const report={config:{sessions:SESSIONS, hands:HANDS, seed:SEED}, probes:{}};
 for(const [name,policy] of Object.entries(PROBES)){
-  let net=0, hands=0, busts=0, stray=0;
+  let net=0, hands=0, busts=0, stray=0, conservation=0;
+  const perSession=[];
   const heroPolicy=(G)=>{
     const S=G.S, hero=S.players[0];
     G.applyAction(hero, policy(G));
@@ -78,16 +83,21 @@ for(const [name,policy] of Object.entries(PROBES)){
       h.G.newHand(); h.drain();
       if(h.G.session.hands===lastHands) break;
       lastHands=h.G.session.hands;
+      if(h.G.roster.reduce((a,p)=>a+p.stack,0)!==6*h.G.START) conservation++;
     }
-    net+=h.G.roster[0].stack-h.G.START;
+    const sNet=h.G.roster[0].stack-h.G.START;
+    perSession.push({net:sNet, hands:h.G.session.hands, over:h.G.session.over||null});
+    net+=sNet;
     hands+=h.G.session.hands;
     if(h.G.session.over==='busted') busts++;
     stray+=h.state.strayDraws;
+    var BB=h.G.BB, START=h.G.START;
   }
-  const bb100=+(net/hands/2*100).toFixed(0);
-  report.probes[name]={bb100, hands, busts, sessions:SESSIONS};
+  const rate=bb100(net, hands, BB);
+  report.probes[name]={bb100:rate, net, hands, busts, sessions:SESSIONS, BB, START, perSession};
   if(stray) console.log(`BUG ${name}: ${stray} stray RNG draws`);
-  console.log(`  ${name.padEnd(14)} ${String(bb100).padStart(6)} bb/100   ${hands} hands, busted ${busts}/${SESSIONS}`);
+  if(conservation) console.log(`BUG ${name}: chips drifted in ${conservation} hands`);
+  console.log(`  ${name.padEnd(14)} ${String(rate).padStart(6)} bb/100   ${hands} hands, busted ${busts}/${SESSIONS}`);
 }
 
 const outDir=path.join(__dirname,'out');

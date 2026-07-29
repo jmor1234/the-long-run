@@ -32,7 +32,8 @@ Exploitability probes: 30 sessions x ≤200 hands each, seed `probe1`, no rebuys
 3bet-preflop **−612**, check-fold **−33** bb/100.
 
 Dossier labels at hand 31, 30 sessions, seed `label1` (correct% / contradiction%):
-nit 73/3, solid 43/10, maniac 33/20, selective 70/0, station 33/23.
+nit 73/3, solid 43/10, maniac 33/20, selective 70/0, station 33/23 — reproducible via
+`node exp/run-labels.js` (`exp/out/labels-baseline.json`).
 Label mapping (fragment sets, fixed):
 correct — nit {tight, folds often}; solid {folds often}; maniac {loose, 3-bets light,
 aggressive, sticky}; selective {tight, folds often, aggressive}; station {loose,
@@ -56,18 +57,35 @@ folds often}. "(none)" is neither. Any-contradicting-fragment counts as contradi
       for VPIP, PFR, F2bet.
 3. **Non-exploitability** (same probe config/seeds): always-raise, call-station, and
    3bet-preflop each lose ≥ **300 bb/100** against the LLM table; check-fold stays
-   ≤ **−15 bb/100**.
+   ≤ **−15 bb/100**. LLM-arm cost note: the busting probes are cheap (~250–350 hands
+   each), but check-fold survives ~6,000 hands at full config — for the LLM arm it
+   runs capped at **10 sessions × 100 hands** (a blind-bleed rate converges long
+   before that), and the criterion applies to that capped run.
 4. **Reads validity** (30 sessions to hand 31, frozen mapping above): per persona,
    correct-label rate ≥ baseline − **10pp** AND contradiction rate ≤ baseline + **10pp**.
-5. **Fairness.** Zero foreign-card failures from the default-deny scan inside
-   `buildPrompt` across 100% of decisions, and the purity tests stay green. (No hero
-   or opponent hole cards can leave the machine: ctx carries only the acting bot's
-   own cards — t3-verified — and the prompt is a pure function of ctx.)
+5. **Fairness.** The load-bearing guarantee is structural: ctx carries only the
+   acting bot's own cards (t3-verified) and `buildPrompt` is a pure function of ctx
+   (strict mode; determinism, no-mutation, and order-independence tested against
+   real decisions) — so no hero or opponent hole cards can leave the machine. The
+   in-`buildPrompt` card scan is a prose-drift TRIPWIRE, not the proof (it cannot
+   fail while the spot derives only from ctx — which is the property it pins).
+   Criterion: purity tests stay green AND zero tripwire failures across 100% of
+   decisions.
 6. **Feel (the product question).** Blind protocol, fixed before viewing: 30-hand
    transcript blocks per arm, unlabeled, shuffled; the owner marks each block
    human/mechanical before seeing any metrics. The LLM arm must win a strict
    majority of paired comparisons. Run only if 1–5 pass; live-play A/B is the
    confirmation step, not the primary.
+
+**Design decision (stated, not hidden):** the persona cards tell each bot its
+approximate target rates in plain language ("you play about a third of your hands").
+Criterion 2 therefore tests *embodiment* — whether the model can consistently live a
+stated identity across thousands of independent decisions (bands + convergence +
+ordering) — not blind discovery of rates it was never told. A model cannot pass 2b/2c
+by parroting a number; a human told "play 40% of hands" still can't do it without
+skill. Persona text was audited against the frozen bands for internal consistency
+(maniac range aligned; selective fold-direction corrected) so an obedient model is
+never *penalized* by its own instructions.
 
 Documented losses regardless of outcome: stated-reason-as-cause becomes narrative;
 offline play; free instant regression testing; sustained outbound API traffic.

@@ -11,6 +11,7 @@
 const fs=require('fs');
 const path=require('path');
 const make=require('./exp-harness');
+const {rates, diffReads, addTo}=require('./metrics');
 
 function parseArgs(argv){
   const args={};
@@ -27,10 +28,14 @@ function parseArgs(argv){
 }
 function fatal(msg){ console.error('run-baseline: '+msg); process.exit(1); }
 
+// Defaults ARE the frozen config (PLAN.md); a bare run reproduces the
+// registered numbers rather than quietly overwriting them with another config.
 const args=parseArgs(process.argv.slice(2));
-const SESSIONS=args.sessions===undefined?12:+args.sessions;
-const HANDS=args.hands===undefined?120:+args.hands;
+const SESSIONS=args.sessions===undefined?40:+args.sessions;
+const HANDS=args.hands===undefined?150:+args.hands;
 const SEED=args.seed||'exp1';
+if(SESSIONS!==40||HANDS!==150||SEED!=='exp1')
+  console.log(`NOTE: config differs from the frozen registration (40x150, exp1) — output is exploratory`);
 if(!Number.isInteger(SESSIONS) || SESSIONS<1) fatal(`--sessions must be a positive integer, got "${args.sessions}"`);
 if(!Number.isInteger(HANDS) || HANDS<2) fatal(`--hands must be an integer >= 2, got "${args.hands}"`);
 
@@ -44,25 +49,13 @@ const checkFoldHero=(G)=>{
 const snapReads=(G)=>G.roster.filter(r=>r.style).map(r=>({
   tag:r.style.tag, reads:JSON.parse(JSON.stringify(r.reads)),
 }));
-const rate=(y,o)=>o>0? y/o : null;
-const diffReads=(end,mid)=>{ // second-half raw counters
-  const d={};
-  for(const k of Object.keys(end)) d[k]=end[k]-(mid?mid[k]:0);
-  return d;
-};
-const rates=(rd)=>({
-  vpip:rate(rd.vpip,rd.vpipOpps), pfr:rate(rd.pfr,rd.pfrOpps),
-  f2bet:rate(rd.foldToBet,rd.foldToBetOpps), threeBet:rate(rd.threeBet,rd.threeBetOpps),
-  f2cbet:rate(rd.foldToCbet,rd.foldToCbetOpps),
-  af:rd.passive>0? rd.agg/rd.passive : null, // null, not a count, when never passive
-});
 
 const perTag={};        // tag -> {full:[]}  per-session rates (dispersion view)
 const pooledTag={};     // tag -> summed raw counters across sessions (band reference)
 const pooledFirst={};   // tag -> summed first-half counters (split-half, pooled)
 const pooledSecond={};  // tag -> summed second-half counters
 const transcripts=[];
-let conservationErrors=0, strayDraws=0, handsPlayed=0;
+let conservationErrors=0, strayDraws=0, handsPlayed=0, splitHalfSessions=0;
 
 const recordTranscript=(G)=>{
   const S=G.S;
@@ -88,10 +81,7 @@ for(let s=0;s<SESSIONS;s++){
   handsPlayed+=h.G.session.hands; // engine truth, includes the newSession hand
   strayDraws+=h.state.strayDraws;
   const end=snapReads(h.G);
-  const addTo=(acc,tag,counters)=>{
-    acc[tag]=acc[tag]||{};
-    for(const [k,v] of Object.entries(counters)) acc[tag][k]=(acc[tag][k]||0)+v;
-  };
+  if(mid) splitHalfSessions++;
   for(const e of end){
     const m=mid && mid.find(x=>x.tag===e.tag);
     perTag[e.tag]=perTag[e.tag]||{full:[]};
@@ -115,7 +105,9 @@ const agg=(list,key)=>{
 };
 const KEYS=['vpip','pfr','f2bet','threeBet','f2cbet','af'];
 const report={config:{sessions:SESSIONS, hands:HANDS, seed:SEED},
-  handsPlayed, conservationErrors, strayDraws, personas:{}};
+  handsPlayed, conservationErrors, strayDraws, splitHalfSessions, personas:{}};
+if(splitHalfSessions!==SESSIONS)
+  console.log(`NOTE: split-half covers ${splitHalfSessions}/${SESSIONS} sessions (some ended before the midpoint)`);
 for(const [tag,d] of Object.entries(perTag)){
   const pooled=rates(pooledTag[tag]);
   const firstR=pooledFirst[tag]? rates(pooledFirst[tag]) : {};

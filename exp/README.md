@@ -32,7 +32,9 @@ Plan with FROZEN pre-registered pass criteria and baseline reference numbers:
 | `oracle.js` | cache-or-abort oracle + session replay loop |
 | `legality.js` | LLM action/amount normalizer, clamp accounting |
 | `run-baseline.js` | coded-bots arm through the metrics pipeline (persona frequency bands, pooled split-half, transcripts) |
-| `run-probes.js` | degenerate-hero exploitability probes (criterion-3 reference numbers) |
+| `run-probes.js` | degenerate-hero exploitability probes (criterion-3 reference numbers, per-session audit detail) |
+| `run-labels.js` | dossier-label rates at hand 31 with the frozen mapping (criterion-4 reference numbers) |
+| `metrics.js` | shared rate/pooling/bb100 helpers, unit-tested against hand-computed values |
 | `prompt.js` | pure prompt builder: shared rules + 5 persona prefixes (cache-sized), spot renderer, default-deny card scan, output schema |
 | `PLAN.md` | frozen pre-registered criteria + baseline reference numbers |
 | `t-exp.js` | gate suite: determinism, cross-arm deal identity, oracle replay, legality (unit + engine-integration), prompt purity/scan |

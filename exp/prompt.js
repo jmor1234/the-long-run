@@ -1,8 +1,10 @@
+'use strict';
 // Prompt builder for the LLM arms. buildPrompt(ctx) is a PURE function of ctx:
 // no globals, no Date, no Math.random, no engine state — that purity, plus the
 // t3-verified fact that ctx only ever carries the acting bot's own two cards,
-// is the structural fairness guarantee. A default-deny card scan runs on every
-// spot as a tripwire on top.
+// is the structural fairness guarantee. The card scan below is a prose-drift
+// TRIPWIRE on top (it cannot fail while the spot derives only from ctx, which
+// is exactly the property it exists to pin) — it is not the fairness proof.
 //
 // Cache design (Haiku 4.5 min cacheable prefix = 4096 tokens): the prefix is
 // SHARED_RULES + WORKED_EXAMPLES (identical for all personas) + the persona
@@ -149,6 +151,18 @@ real moves are fold or shove; nursing 15 chips through three streets is how shor
 remember nobody can rebuy here: felting a player removes them, the table gets shorter, and shorter
 tables mean everyone correctly plays more hands - even you.
 
+SHOWDOWN AND WINNING
+When the river betting ends with two or more players still in, hands get turned over and the best five
+cards take the pot. Losing a showdown you were confident about is informative twice over: you learn the
+money is gone, and everyone else learns how you played that holding. Winning without showing - because
+everyone folded - is the quiet skill aggressive players get paid for, and it is also why nobody can be
+sure their reads are complete: the hands that fold face-down keep their secrets. If two hands tie, the
+pot splits. If someone was all-in for less than the final bets, they can only win the portion of the
+pot they matched - the rest goes to the best hand among the players who kept betting. None of this
+needs calculating at the table; the dealer sorts it out. What matters to you is the decision in front
+of you, made the way your player would make it, with the chips in front of you and the person across
+the table in mind.
+
 MONEY MOODS
 Chips are not abstract to a person. Winning a big pot makes most players a little braver for a few
 hands; losing one the wrong way - a bad beat, a bluff shown in their face - makes some players tighten
@@ -177,7 +191,7 @@ commentary about the player.`;
 // default-deny scan applies to the volatile spot text, and a static test
 // checks the prefix against EXAMPLE_CARDS.
 const EXAMPLE_CARDS=['A♠','K♠','Q♥','J♥','7♣','2♦','9♥','9♣',
-  'T♠','8♠','A♥','6♦','6♣','K♥','4♠','J♦','3♣','Q♠',
+  'T♠','8♠','A♥','6♦','6♣','K♥','4♠','J♦','Q♠',
   '8♥','7♥','5♣','A♦','K♦','T♦','T♣','4♥','4♦','2♣','5♠','9♦','Q♦','J♣','8♦','3♠'];
 const WORKED_EXAMPLES=`WORKED EXAMPLES (how decisions and reasons should look - different players decide differently)
 
@@ -261,7 +275,7 @@ continuation bets with a real piece and fold the rest without drama. You respect
 a stab at an abandoned pot now and then, but only when the story makes sense. On the river you make
 the disciplined call with a good hand and the disciplined fold with a bad one, and you sleep fine.`,
   maniac:`YOUR PLAYER PROFILE - "The Whirlwind"
-You came to gamble. You play around 35-40% of your hands and you play them fast - raising, re-raising,
+You came to gamble. You play around 40-45% of your hands and you play them fast - raising, re-raising,
 firing at pots whether you hit or not. Aggression is your answer to most questions: when in doubt, bet.
 You hate folding (you fold to bets barely half the time) and you treat a raise against you as a
 challenge more than a warning. You bluff freely, sometimes brilliantly, often unwisely. You chase draws
@@ -276,9 +290,9 @@ feels worse than losing.`,
   selective:`YOUR PLAYER PROFILE - "The Ambusher"
 You are picky before the flop - you play maybe a quarter of your hands and never limp - but once you
 are in a pot you play it hard. You punch: continuation bets, raises with good draws, pressure on
-opponents who look weak. You fold to pressure a little less than average because when you are in, you
-usually have something worth fighting for, but you can still let a hand go when the story against you
-is convincing. Calling feels passive to you; you would rather raise or fold and you treat calling as a
+opponents who look weak. For all that aggression you are not a hero-caller: when someone plays back at
+you hard and the story is convincing, you fold at a somewhat above-average rate - about two times in
+three - because you would rather wait for a better spot than pay off a monster. Calling feels passive to you; you would rather raise or fold and you treat calling as a
 last resort with hands too good to fold but too weak to raise. Your inner voice is calculating and a
 little predatory - you pick your spots and you like the feeling of picking right.
 In the common spots: you defend your blind selectively but three-bet it with your good hands instead of
@@ -342,17 +356,24 @@ function buildSpot(ctx){
     lines.push(`Bets/raises this street so far: ${ctx.streetBets}.${ctx.raisedBefore&&ctx.street==='preflop'?' Someone has already raised this hand.':''}`);
     lines.push(readsLine(ctx));
   } else {
-    lines.push(`Nobody has bet this street. You may check, or bet between ${Math.min(ctx.minRaise,maxTo)} and ${maxTo} (all-in).`);
-    if(ctx.street==='preflop') lines.push(`Nobody has raised; you are closing the action cheap.`);
+    // toCall==0 with currentBet>0 is the BB option: the legal "bet-to" floor is
+    // still currentBet+minRaise, same as the raise branch (a stated floor of
+    // minRaise alone would teach the model an illegal minimum).
+    const floor=Math.min(ctx.currentBet+ctx.minRaise, maxTo);
+    if(ctx.currentBet>0){
+      lines.push(`No raise yet - your blind already covers the action. You may check, or raise to a total between ${floor} and ${maxTo} (all-in).`);
+    } else {
+      lines.push(`Nobody has bet this street. You may check, or bet between ${floor} and ${maxTo} (all-in).`);
+    }
   }
   lines.push(`What do you do?`);
   return lines.join('\n');
 }
 
 function buildPrefix(tag){
-  const persona=PERSONAS[tag];
-  if(!persona) throw new Error('unknown persona tag: '+tag);
-  return [SHARED_RULES, WORKED_EXAMPLES, persona, OUTPUT_CONTRACT].join('\n\n');
+  if(!Object.prototype.hasOwnProperty.call(PERSONAS, tag))
+    throw new Error('unknown persona tag: '+tag);
+  return [SHARED_RULES, WORKED_EXAMPLES, PERSONAS[tag], OUTPUT_CONTRACT].join('\n\n');
 }
 
 // The one entry point the arms use. Pure in ctx; throws on any foreign card.
@@ -374,5 +395,11 @@ const OUTPUT_SCHEMA={
   additionalProperties:false,
 };
 
-module.exports={buildPrompt, buildPrefix, buildSpot, scanCards, assertNoForeignCards,
-  PERSONAS, EXAMPLE_CARDS, OUTPUT_SCHEMA};
+// Freeze exported text so no arm can mutate the pre-registered prompt content.
+Object.freeze(PERSONAS);
+Object.freeze(EXAMPLE_CARDS);
+Object.freeze(OUTPUT_SCHEMA);
+Object.freeze(OUTPUT_SCHEMA.properties);
+
+module.exports=Object.freeze({buildPrompt, buildPrefix, buildSpot, scanCards,
+  assertNoForeignCards, PERSONAS, EXAMPLE_CARDS, OUTPUT_SCHEMA});
