@@ -4,11 +4,15 @@
 // (the round then never completes and the hand loops forever) and silently
 // floors under-min raises. LLM output must be normalized here, and every
 // coercion counted — raw illegality is a pre-registered experiment metric.
+// Verb-only relabels (bet vs raise — the engine treats them identically) are
+// counted separately and excluded from rawIllegal, so the metric measures
+// chip decisions, not vocabulary.
 //
 // Amount contract (matches applyAction): amount = TOTAL chips wagered this
 // street after the action (bet-to level), not an increment.
 
 const ACTIONS=new Set(['fold','check','call','bet','raise']);
+const COSMETIC=new Set(['bet-should-be-raise','raise-should-be-bet']);
 
 // view: {toCall, currentBet, minRaise, myBet, stack}
 // returns {d:{action, amount?, reason?}, clamps:[{code, detail?}], rawIllegal}
@@ -27,7 +31,7 @@ function normalize(d, view){
   if(action==='call' && view.toCall<=0){ push('call-nothing'); action='check'; }
   if(action==='fold' && view.toCall<=0){ push('fold-when-free'); action='check'; }
   if(action==='bet' && view.toCall>0){ push('bet-should-be-raise'); action='raise'; }
-  if(action==='raise' && view.toCall<=0 && view.currentBet===0){ action='bet'; } // cosmetic, engine-equivalent
+  if(action==='raise' && view.toCall<=0 && view.currentBet===0){ push('raise-should-be-bet'); action='bet'; }
 
   if(action==='bet' || action==='raise'){
     const allIn=view.myBet+view.stack;
@@ -35,7 +39,6 @@ function normalize(d, view){
       // cannot even flat the current bet in full: a raise is impossible
       push('raise-impossible');
       out.action='call';
-      out.d={action:'call'};
     } else {
       const minTarget=Math.min(view.currentBet+view.minRaise, allIn); // short all-in "raise" is legal
       let amt=Number(d && d.amount);
@@ -49,8 +52,8 @@ function normalize(d, view){
     out.action=action;
   }
 
-  if(d && d.reason) out.reason=d.reason;
-  return {d:out, clamps, rawIllegal:clamps.length>0};
+  if(d && typeof d.reason==='string') out.reason=d.reason.slice(0,500);
+  return {d:out, clamps, rawIllegal:clamps.some(c=>!COSMETIC.has(c.code))};
 }
 
 module.exports={normalize};

@@ -11,14 +11,20 @@ the experiment runs). Independent assessment findings are folded in; key design 
 - **No async engine.** `botDecide` stays synchronous. LLM arms use a decision oracle
   (`oracle.js`): cache hit → return; miss → record prompt, abort session, resolve the
   decision outside the engine, replay from seed. Replays reproduce identical ctx
-  (verified on every cache hit — divergence throws).
+  (verified on every cache hit — divergence throws). Cache keys are scoped by seed so
+  a cache shared across runs can never serve another session's decision.
+- **ctx is extended in exp builds only** with three public betting-state fields
+  (`currentBet`, `minRaise`, `myBet`) that the legality view needs. Shipped ctx is
+  unchanged; the extension carries no hidden information.
 - **Keyed RNG streams** (`prng.js`, wired in `exp-harness.js`): deck/button per hand
   index, policy rolls + equity Monte Carlo per (hand, decision). Deals are identical
   across arms at the same seed (duplicate-poker variance reduction); draws outside the
   expected windows are counted and must be zero.
 - **Legality normalizer** (`legality.js`) runs before `applyAction` for LLM arms —
-  the engine accepts `check` facing a bet and would loop forever. Every coercion is
-  counted; raw illegality is a pre-registered metric.
+  the engine accepts `check` facing a bet and would loop forever (the harness `drain`
+  throws at its step cap rather than truncating silently). Every coercion is counted;
+  raw illegality is a pre-registered metric, with verb-only relabels (bet↔raise)
+  counted separately and excluded from it.
 
 | File | Role |
 |---|---|
@@ -29,6 +35,9 @@ the experiment runs). Independent assessment findings are folded in; key design 
 | `run-baseline.js` | coded-bots arm through the metrics pipeline (persona frequency bands, split-half, transcripts) |
 | `t-exp.js` | step-1 gate: determinism, cross-arm deal identity, oracle replay, legality (`node exp/t-exp.js`) |
 
-Outputs land in `exp/out/` (gitignored). If `poker-trainer.html`'s `Math.random`
-call sites change, `exp-harness.js` fails loudly (expects exactly 5) — re-audit the
-stream assignment before bumping the count.
+Outputs land in `exp/out/` (gitignored; also excluded from Vercel deploys via
+`.vercelignore` along with all of `exp/`). `exp/t-exp.js` runs as part of
+`run-all.sh`, so if `poker-trainer.html` drifts — a `Math.random` site added, a
+rewrite anchor renamed — the harness fails loudly in the normal suite (it expects
+exactly 5 `Math.random()` sites). Re-audit the stream assignment before bumping
+the count.

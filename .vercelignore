@@ -1,0 +1,9 @@
+# The deploy serves only the trainer; tests, harnesses, and experiment
+# code (plus any local exp/out artifacts) stay off the public site.
+exp/
+harness.js
+audit.js
+t*.js
+run-all.sh
+ARCHITECTURE.md
+.gitignore

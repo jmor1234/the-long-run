@@ -33,6 +33,11 @@ src=mustReplace(src, 'function newSession(){', 'function newSession(){ __STREAM(
   'newSession stream hook');
 src=mustReplace(src, 'function newHand(){', 'function newHand(){ __STREAM("deal");',
   'newHand stream hook');
+// Extend ctx with the public betting state the legality normalizer needs
+// (currentBet/minRaise/myBet are public info; exp-only, shipped ctx unchanged).
+src=mustReplace(src, 'streetBets:S.streetBets||0,',
+  'streetBets:S.streetBets||0, currentBet:S.currentBet, minRaise:S.minRaise, myBet:p.bet,',
+  'ctx betting-state extension');
 
 // Route all engine randomness through the injected generator.
 {
@@ -83,6 +88,15 @@ module.exports=function make(heroPolicy, opts={}){
   const HERO_ACT=()=>heroPolicy(G,state);
   const G=new Function('document','navigator','setTimeout','HERO_ACT','__RAND','__STREAM','__DECIDE','window',
     '"use strict";'+src)(document,{},fn=>queue.push(fn),HERO_ACT,__RAND,__STREAM,__DECIDE,{});
-  const drain=(stop)=>{let n=0; while(queue.length && n++<500000){ if(stop && stop()) return; queue.shift()(); }};
+  // A hand that cannot complete (e.g. an unnormalized `check` facing a bet)
+  // loops forever; hitting the cap is a bug signal, never silent truncation.
+  const drain=(stop)=>{
+    let n=0;
+    while(queue.length){
+      if(stop && stop()) return;
+      if(n++>=500000) throw new Error('exp-harness: drain exceeded 500k steps — hand stuck (unnormalized decision?)');
+      queue.shift()();
+    }
+  };
   return {G,drain,state,queue};
 };

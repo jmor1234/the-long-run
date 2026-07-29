@@ -13,9 +13,11 @@ class AbortSession extends Error {
 }
 
 // cache: Map key -> {ctxJson, d}; pending: array the runner drains
-function makeOracle({cache, pending}){
+// scope namespaces keys (seed + arm) so a cache shared across runs can never
+// silently serve another session's decision.
+function makeOracle({cache, pending, scope=''}){
   return function decide(ctx, meta /*, fallthrough */){
-    const key=`${meta.hand}:${meta.index}`;
+    const key=`${scope}|${meta.hand}:${meta.index}`;
     const ctxJson=JSON.stringify(ctx);
     const hit=cache.get(key);
     if(hit){
@@ -35,7 +37,7 @@ async function runOracleSession({make, seed, hands, heroPolicy, resolvePending, 
   const maxAttempts=hands*60; // generous bound; a real bug signal if hit
   for(let attempt=1; attempt<=maxAttempts; attempt++){
     const pending=[];
-    const decide=makeOracle({cache, pending});
+    const decide=makeOracle({cache, pending, scope:String(seed)});
     const h=make(heroPolicy, {seed, decide});
     try{
       h.G.newSession(); h.drain();
