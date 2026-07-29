@@ -406,10 +406,21 @@ There is no profiles menu and styles do not change mid-session.
 
 Every seat (including hero) accumulates opportunity counts from **public actions only**
 inside `applyAction` — never from hole cards or showdown. Rates use prior shrinkage
-(`READS_PRIOR`). When facing a bet, `step()` passes pre-resolved `facingReads` and
-`aggressorHadInitiative`. Nudge strength scales with sample confidence; frequencies
-still go through `clampFreq`.
+(`READS_PRIOR`). Tracked patterns:
 
+| Stat | Meaning |
+|---|---|
+| VPIP / PFR | voluntary money / raises preflop |
+| AF | postflop bets+raises vs calls |
+| foldToBet | folds when facing any bet |
+| threeBet | raises when facing exactly the open (`streetBets===1` preflop) |
+| foldToCbet | folds to the preflop raiser's **flop** c-bet (`street==='flop'`, `streetBets===1`) |
+
+When facing a bet, `step()` passes pre-resolved `facingReads` and
+`aggressorHadInitiative`. Nudge strength scales with sample confidence; `threeBet`
+widens call frequency vs light aggressors. Frequencies still go through `clampFreq`.
+
+UI dossiers show confidence tiers (`unknown` / `lean` / `solid`) plus sample sizes.
 `session.vpip` (hero display) and `reads.vpip` (modeling) are different on purpose —
 see §10.
 

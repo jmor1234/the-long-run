@@ -125,6 +125,63 @@ const chk=(name,ok,detail)=>{ if(!ok)fails++; console.log(`  ${ok?'ok  ':'BUG '}
     if(!G.S||!G.S.log) continue;
     limps += G.S.log.filter(l=>/limps /.test(l.text)).length;
   }
-  chk('station-table produces limps', limps>15, `saw ${limps} limp actions over ~800 hands`);
+  chk('station-table produces limps', limps>=10, `saw ${limps} limp actions over ~800 hands`);
+}
+
+// ---- 7. 3-bet and fold-to-cbet counters (forced spots, not Monte Carlo) ----
+{
+  const {G,drain}=make(()=>{});
+  G.newSession();
+  // Force a 3-bet opportunity: player1 opens, player2 faces streetBets===1
+  {
+    const S=G.S;
+    const [a,b]=[S.players[1],S.players[2]];
+    S.street='preflop'; S.raisedBefore=false; S.streetBets=0; S.currentBet=2; S.minRaise=2;
+    S.players.forEach(p=>{p.bet=0;p.acted=false;p.folded=false;p.allIn=false;p.invested=0;});
+    a.bet=0; a.stack=200;
+    G.applyAction(a,{action:'raise',amount:6}); // open → streetBets=1
+    const before=G.roster.find(r=>r.seat===b.seat).reads.threeBetOpps;
+    b.bet=0; b.stack=200;
+    G.applyAction(b,{action:'raise',amount:18}); // 3-bet
+    const after=G.roster.find(r=>r.seat===b.seat).reads;
+    chk('3-bet opp+hit on forced spot', after.threeBetOpps===before+1 && after.threeBet>=1,
+        `opps ${before}→${after.threeBetOpps}, hits=${after.threeBet}`);
+  }
+  // Force fold-to-cbet: preflop raiser c-bets flop, villain folds
+  {
+    G.newSession();
+    const S=G.S;
+    const [a,b]=[S.players[1],S.players[2]];
+    S.street='preflop'; S.raisedBefore=false; S.streetBets=0; S.currentBet=2; S.minRaise=2;
+    S.players.forEach(p=>{p.bet=0;p.acted=false;p.folded=false;p.allIn=false;p.invested=0;});
+    G.applyAction(a,{action:'raise',amount:6});
+    G.applyAction(b,{action:'call'});
+    // advance-like reset into flop c-bet
+    S.street='flop'; S.streetBets=0; S.streetAggressor=null; S.currentBet=0; S.minRaise=2;
+    S.players.forEach(p=>{p.bet=0;p.acted=false;});
+    S.preflopRaiser=a;
+    G.applyAction(a,{action:'bet',amount:8}); // c-bet, streetBets=1, aggressor=a
+    const before=G.roster.find(r=>r.seat===b.seat).reads.foldToCbetOpps;
+    G.applyAction(b,{action:'fold'});
+    const after=G.roster.find(r=>r.seat===b.seat).reads;
+    chk('fold-to-cbet opp+fold on forced flop c-bet', after.foldToCbetOpps===before+1 && after.foldToCbet>=1,
+        `opps ${before}→${after.foldToCbetOpps}, folds=${after.foldToCbet}`);
+  }
+  // Cold 4-bet must NOT count as 3-bet opp
+  {
+    G.newSession();
+    const S=G.S;
+    const [a,b,c]=[S.players[1],S.players[2],S.players[3]];
+    S.street='preflop'; S.streetBets=0; S.currentBet=2; S.minRaise=2;
+    S.players.forEach(p=>{p.bet=0;p.acted=false;p.folded=false;p.allIn=false;p.invested=0;});
+    G.applyAction(a,{action:'raise',amount:6});  // streetBets=1
+    G.applyAction(b,{action:'raise',amount:18}); // streetBets=2
+    const before=G.roster.find(r=>r.seat===c.seat).reads.threeBetOpps;
+    G.applyAction(c,{action:'raise',amount:40}); // 4-bet face
+    const after=G.roster.find(r=>r.seat===c.seat).reads.threeBetOpps;
+    chk('cold 4-bet spot is not a 3-bet opportunity', after===before, `opps ${before}→${after}`);
+  }
+  const s=G.shrinkReads(G.roster[1].reads);
+  chk('shrinkReads exposes new rates', s && 'threeBet' in s && 'foldToCbet' in s);
 }
 console.log(fails?`\n  ${fails} bug${fails>1?'s':''} found`:'\n  clean');

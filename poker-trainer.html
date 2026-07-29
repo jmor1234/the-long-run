@@ -615,9 +615,15 @@ const READS_PRIOR_VPIP = 0.28;
 const READS_PRIOR_PFR = 0.18;
 const READS_PRIOR_FOLD = 0.45;
 const READS_PRIOR_AF = 1.0;
+const READS_PRIOR_3BET = 0.09;
+const READS_PRIOR_F2CBET = 0.55;
 
 function freshReads(){
-  return {hands:0, vpipOpps:0, vpip:0, pfrOpps:0, pfr:0, agg:0, passive:0, foldToBetOpps:0, foldToBet:0};
+  return {
+    hands:0, vpipOpps:0, vpip:0, pfrOpps:0, pfr:0,
+    agg:0, passive:0, foldToBetOpps:0, foldToBet:0,
+    threeBetOpps:0, threeBet:0, foldToCbetOpps:0, foldToCbet:0
+  };
 }
 function clampFreq(f){
   if(f<=0) return 0;                         // allow pure fold/skip
@@ -629,14 +635,21 @@ function readsRate(yes, opps, priorRate){
 function readsConf(opps){
   return Math.max(0, opps) / (Math.max(0, opps) + READS_PRIOR);
 }
+function sampleTier(opps){
+  if(opps < 8) return 'unknown';
+  if(opps < 20) return 'lean';
+  return 'solid';
+}
 function shrinkReads(rd){
   if(!rd) return null;
   const vpip = readsRate(rd.vpip, rd.vpipOpps, READS_PRIOR_VPIP);
   const pfr = readsRate(rd.pfr, rd.pfrOpps, READS_PRIOR_PFR);
   const foldToBet = readsRate(rd.foldToBet, rd.foldToBetOpps, READS_PRIOR_FOLD);
+  const threeBet = readsRate(rd.threeBet, rd.threeBetOpps, READS_PRIOR_3BET);
+  const foldToCbet = readsRate(rd.foldToCbet, rd.foldToCbetOpps, READS_PRIOR_F2CBET);
   const af = (READS_PRIOR * READS_PRIOR_AF + rd.agg) / (READS_PRIOR + rd.agg + rd.passive);
-  const conf = readsConf(Math.max(rd.vpipOpps, rd.foldToBetOpps, rd.agg + rd.passive));
-  return {vpip, pfr, foldToBet, af, conf, hands:rd.hands};
+  const conf = readsConf(Math.max(rd.vpipOpps, rd.foldToBetOpps, rd.threeBetOpps, rd.foldToCbetOpps, rd.agg + rd.passive));
+  return {vpip, pfr, foldToBet, threeBet, foldToCbet, af, conf, hands:rd.hands};
 }
 function readLabel(name, rd){
   if(!rd || rd.hands < READS_MIN_HANDS) return null;
@@ -645,10 +658,19 @@ function readLabel(name, rd){
   if(rd.vpipOpps >= 20){
     if(s.vpip < 0.22) parts.push('tight');
     else if(s.vpip > 0.35) parts.push('loose');
+    if(rd.pfrOpps >= 20 && s.vpip > 0.28 && s.pfr < s.vpip*0.45) parts.push('passive pre');
   }
   if(rd.foldToBetOpps >= 15){
     if(s.foldToBet > 0.55) parts.push('folds often');
     else if(s.foldToBet < 0.35) parts.push('sticky');
+  }
+  if(rd.threeBetOpps >= 8){
+    if(s.threeBet > 0.12) parts.push('3-bets light');
+    else if(s.threeBet < 0.05) parts.push('3-bets rare');
+  }
+  if(rd.foldToCbetOpps >= 8){
+    if(s.foldToCbet > 0.65) parts.push('overfolds c-bets');
+    else if(s.foldToCbet < 0.40) parts.push('calls c-bets');
   }
   if(rd.agg + rd.passive >= 15){
     if(s.af > 1.6) parts.push('aggressive');
@@ -668,6 +690,9 @@ function facingNudge(facingReads, hadInitiative){
   // Loose bettors → call a bit lighter; sticky callers → bluff-raise less.
   let callMult = 1 + c * (s.vpip - READS_PRIOR_VPIP) * 0.5;
   let raiseMult = 1 - c * (READS_PRIOR_FOLD - s.foldToBet) * 0.55;
+  // High 3-bet % → their aggression is wider → call a bit more
+  const t3 = readsConf(facingReads.threeBetOpps);
+  callMult *= 1 + t3 * (s.threeBet - READS_PRIOR_3BET) * 1.2;
   if(hadInitiative) callMult *= 1 + c * 0.04;          // c-bet is common
   else callMult *= 1 - c * 0.12;                        // lead without initiative → more respect
   const tags=[];
@@ -675,6 +700,9 @@ function facingNudge(facingReads, hadInitiative){
   else if(s.vpip < 0.22) tags.push('tight');
   if(s.foldToBet > 0.55) tags.push('folds often');
   else if(s.foldToBet < 0.35) tags.push('sticky');
+  if(facingReads.threeBetOpps >= 8 && s.threeBet > 0.12) tags.push('3-bets light');
+  if(facingReads.foldToCbetOpps >= 8 && s.foldToCbet > 0.65) tags.push('overfolds c-bets');
+  else if(facingReads.foldToCbetOpps >= 8 && s.foldToCbet < 0.40) tags.push('calls c-bets');
   return {
     callMult, raiseMult,
     note: tags.length ? ' Faces a '+tags.join('/')+' aggressor.' : ''
@@ -824,24 +852,37 @@ const opts={eq:true, chart:true, reason:false};
 function rosterOf(p){ return roster.find(x=>x.seat===p.seat); }
 
 /* Brief dossier for seat hover/tap — baked style + live reads when ready. */
+function readsLiveLine(rd){
+  if(!rd || rd.hands===0) return 'Session so far: no hands yet.';
+  const s=shrinkReads(rd);
+  const tier=sampleTier(Math.max(rd.vpipOpps, rd.foldToBetOpps, rd.threeBetOpps, rd.foldToCbetOpps));
+  const bits=[];
+  if(rd.vpipOpps>=8) bits.push(`VPIP ${(s.vpip*100).toFixed(0)}% (${rd.vpipOpps})`);
+  if(rd.pfrOpps>=8) bits.push(`PFR ${(s.pfr*100).toFixed(0)}%`);
+  if(rd.threeBetOpps>=5) bits.push(`3-bet ${(s.threeBet*100).toFixed(0)}% (${rd.threeBetOpps})`);
+  if(rd.foldToCbetOpps>=5) bits.push(`F2cbet ${(s.foldToCbet*100).toFixed(0)}% (${rd.foldToCbetOpps})`);
+  if(rd.foldToBetOpps>=8) bits.push(`F2bet ${(s.foldToBet*100).toFixed(0)}%`);
+  const lab=readLabel('', rd);
+  const tags=lab?lab.replace(/^:\s*/,''):'';
+  if(tier==='unknown') return 'Read: unknown (low sample). '+ (bits.length?bits.join(' · '):'Keep watching.');
+  return `Read: ${tier}`+(tags?' — '+tags:'')+'. '+(bits.length?bits.join(' · '):'');
+}
 function playerBrief(p){
   const r=rosterOf(p);
   if(p.isHero){
-    const lab=r&&r.reads?readLabel('You', r.reads):null;
     return {
       tag:'you',
       title:'You',
       body:'Bots only see your public actions — not your cards. They adapt to how you play over the session.',
-      live: lab?lab.replace(/^You:\s*/,'So far: '):'So far: still gathering a read on you.'
+      live: r&&r.reads?readsLiveLine(r.reads):'So far: still gathering a read on you.'
     };
   }
   const st=r&&r.style;
-  const lab=r&&r.reads?readLabel(p.name, r.reads):null;
   return {
     tag: st&&st.tag || 'bot',
     title: p.name,
     body: st&&st.blurb || 'Regular at this table.',
-    live: lab?lab.replace(new RegExp('^'+p.name+':\\s*'),'Session so far: '):'Session so far: not enough hands for a live read yet.'
+    live: r&&r.reads?readsLiveLine(r.reads):'Session so far: not enough hands for a live read yet.'
   };
 }
 
@@ -1014,6 +1055,17 @@ function applyAction(p, d){
     if(toCall>0){
       rd.foldToBetOpps++;
       if(d.action==='fold') rd.foldToBet++;
+      // 3-bet: facing exactly the open (streetBets===1), not a cold 4-bet
+      if(S.street==='preflop' && (S.streetBets||0)===1){
+        rd.threeBetOpps++;
+        if(d.action==='bet' || d.action==='raise') rd.threeBet++;
+      }
+      // Fold to c-bet: flop only, first bet of street from preflop raiser
+      if(S.street==='flop' && (S.streetBets||0)===1 && S.streetAggressor && S.preflopRaiser
+          && S.streetAggressor.seat===S.preflopRaiser.seat){
+        rd.foldToCbetOpps++;
+        if(d.action==='fold') rd.foldToCbet++;
+      }
     }
     if(S.street==='preflop' && (d.action==='call' || d.action==='bet' || d.action==='raise')){
       if(!p._rdVpip){ p._rdVpip=true; rd.vpip++; }
@@ -1417,11 +1469,19 @@ function updateSession(){
 function updateReadsLine(){
   const el=document.getElementById('readsLine');
   if(!el || !roster) return;
-  const labels=roster.filter(r=>!r.isHero && r.stack>0).map(r=>readLabel(r.name, r.reads)).filter(Boolean);
+  const labels=roster.filter(r=>!r.isHero && r.stack>0).map(r=>{
+    const lab=readLabel(r.name, r.reads);
+    if(lab) return lab;
+    if(r.reads.hands>=12){
+      const tier=sampleTier(Math.max(r.reads.vpipOpps, r.reads.foldToBetOpps, r.reads.threeBetOpps, r.reads.foldToCbetOpps));
+      if(tier!=='unknown') return r.name+': '+tier+' read (still thin)';
+    }
+    return null;
+  }).filter(Boolean);
   el.textContent = labels.length
     ? labels.join('  ·  ')
     : (session.hands < READS_MIN_HANDS
-        ? `Need about ${READS_MIN_HANDS} hands before labels appear (${session.hands} so far).`
+        ? `Need about ${READS_MIN_HANDS} hands before strong labels (${session.hands} so far). Watch 3-bet and c-bet folds.`
         : 'No strong reads yet — still near average.');
 }
 
@@ -1431,8 +1491,10 @@ function readsSnapshot(){
   for(const r of roster){
     if(r.isHero && r.reads.hands===0) continue;
     const s=shrinkReads(r.reads);
-    const lab=readLabel(r.name, r.reads) || (r.name+': unknown');
-    out+=`  ${lab}  [hands ${r.reads.hands}, VPIP ${(s.vpip*100).toFixed(0)}%, PFR ${(s.pfr*100).toFixed(0)}%, F2B ${(s.foldToBet*100).toFixed(0)}%, AF ${s.af.toFixed(2)}]\n`;
+    const tier=sampleTier(Math.max(r.reads.vpipOpps, r.reads.foldToBetOpps, r.reads.threeBetOpps, r.reads.foldToCbetOpps));
+    const lab=readLabel(r.name, r.reads) || (r.name+': '+tier);
+    out+=`  ${lab}\n`;
+    out+=`    hands ${r.reads.hands} · sample ${tier} · VPIP ${(s.vpip*100).toFixed(0)}% (${r.reads.vpipOpps}) · PFR ${(s.pfr*100).toFixed(0)}% · 3bet ${(s.threeBet*100).toFixed(0)}% (${r.reads.threeBetOpps}) · F2cbet ${(s.foldToCbet*100).toFixed(0)}% (${r.reads.foldToCbetOpps}) · F2bet ${(s.foldToBet*100).toFixed(0)}% · AF ${s.af.toFixed(2)}\n`;
   }
   return out;
 }
