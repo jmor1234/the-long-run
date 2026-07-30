@@ -68,14 +68,18 @@ function runBaseline(seed, hands, opts={}){
 // The load-bearing stream-isolation check is strayDraws===0 above.
 {
   const stub=(ctx)=>({action: ctx.toCall>0?'fold':'check', reason:'stub arm'});
-  const a=runBaseline('dup-1', 40);
-  const b=runBaseline('dup-1', 40, {decide:stub});
+  // A bust shrinks one arm's roster and ends that seed's comparable window,
+  // so accumulate across seeds until enough hands have been compared.
   let compared=0, same=true;
-  for(let i=0;i<Math.min(a.deals.length,b.deals.length);i++){
-    const an=JSON.parse(a.deals[i]).n, bn=JSON.parse(b.deals[i]).n;
-    if(an!==bn) break; // rosters diverged; hole assignment no longer comparable
-    compared++;
-    if(a.deals[i]!==b.deals[i]) same=false;
+  for(let sIdx=1; sIdx<=5 && compared<10; sIdx++){
+    const a=runBaseline('dup-'+sIdx, 40);
+    const b=runBaseline('dup-'+sIdx, 40, {decide:stub});
+    for(let i=0;i<Math.min(a.deals.length,b.deals.length);i++){
+      const an=JSON.parse(a.deals[i]).n, bn=JSON.parse(b.deals[i]).n;
+      if(an!==bn) break; // rosters diverged; hole assignment no longer comparable
+      compared++;
+      if(a.deals[i]!==b.deals[i]) same=false;
+    }
   }
   ok(compared>=10 && same, 'different decision-makers, same seed, identical deals',
     `${compared} hands compared`);

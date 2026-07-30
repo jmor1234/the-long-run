@@ -15,8 +15,11 @@ const {stream}=require('./prng');
 const DEFAULT_HTML=path.join(__dirname,'..','poker-trainer.html');
 // Single source for the expected Math.random() site count (t-exp reads this
 // export; README points here). Overridable per make() call ONLY for
-// cross-version A/B runs (an older engine build may have a different count).
-const EXPECTED_RAND_SITES=5;
+// cross-version A/B runs (pre-C1 builds have 5: the shared roll and the limp
+// draw were separate sites; C1 routed every decision draw through one helper).
+// Current sites: deck shuffle, equity Monte Carlo, botDecide draw helper,
+// button seat. All decision draws land inside the decision stream window.
+const EXPECTED_RAND_SITES=4;
 
 // Every rewrite must actually land; silent no-ops corrupt results (see ARCHITECTURE §9).
 function mustReplace(src, from, to, label){

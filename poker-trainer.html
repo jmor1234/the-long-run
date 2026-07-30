@@ -722,7 +722,9 @@ function botDecide(ctx){
   const inPosition = !!ctx.inPosition;
   const streetBets = ctx.streetBets || 0;
   const nudge = facingNudge(ctx.facingReads, !!ctx.aggressorHadInitiative);
-  const roll = Math.random();
+  // One draw per stochastic choice: a single shared roll correlates branches
+  // that should be independent (one low number fires every aggressive option).
+  const draw = () => Math.random();
   const potOdds = toCall>0 ? toCall/(pot+toCall) : 0;
 
   /* ---- PREFLOP ---- */
@@ -733,21 +735,23 @@ function botDecide(ctx){
 
     if(!raisedBefore){
       const f = clampFreq(openFreq(pct, thr));
-      if(roll < f){
+      const openRoll = draw();
+      if(openRoll < f){
         const size = Math.min(myStack, Math.max(6, Math.round(pot*1.1)));
         return {action:'raise', amount:size, pct,
-          reason:`${nm} is a top-${pct.toFixed(0)}% hand. ${position} opens ~${thr.toFixed(0)}%, so this one opens ${Math.round(f*100)}% of the time \u2014 roll ${roll.toFixed(2)} said open.`};
+          reason:`${nm} is a top-${pct.toFixed(0)}% hand. ${position} opens ~${thr.toFixed(0)}%, so this one opens ${Math.round(f*100)}% of the time \u2014 roll ${openRoll.toFixed(2)} said open.`};
       }
       // Recreational limp: call the blind instead of folding some of the time
       if(toCall>0 && pct <= thr*2.2 && limpFreq>0){
         const lf = clampFreq(limpFreq);
-        if(Math.random() < lf){
+        const limpRoll = draw();
+        if(limpRoll < lf){
           return {action:'call', pct,
-            reason:`${nm} — didn't open, but ${position} limps ~${Math.round(lf*100)}% in this band. Roll said limp.`};
+            reason:`${nm} — didn't open, but ${position} limps ~${Math.round(lf*100)}% in this band. Roll ${limpRoll.toFixed(2)} said limp.`};
         }
       }
       return {action: toCall>0?'fold':'check', pct,
-        reason:`${nm} is a top-${pct.toFixed(0)}% hand; ${position} opens ~${thr.toFixed(0)}%. Opens it ${Math.round(f*100)}% of the time \u2014 roll ${roll.toFixed(2)} said fold.`};
+        reason:`${nm} is a top-${pct.toFixed(0)}% hand; ${position} opens ~${thr.toFixed(0)}%. Opens it ${Math.round(f*100)}% of the time \u2014 roll ${openRoll.toFixed(2)} said fold.`};
     }
 
     // facing a raise: continue with a tighter slice, plus a small bluff frequency.
@@ -758,17 +762,18 @@ function botDecide(ctx){
     const bluff3 = clampFreq(0.038 * style.bet * nudge.raiseMult);
 
     if(pct <= defend*0.30){
-      if(roll<threeBet) return {action:'raise', amount:Math.min(myStack,Math.round(pot*1.0)), pct,
-        reason:`${nm} \u2014 premium. 3-bets ${Math.round(threeBet*100)}% / calls the rest, roll ${roll.toFixed(2)}.${nudge.note}`};
-      return {action:'call', pct, reason:`${nm} \u2014 premium, flat-call branch. Roll ${roll.toFixed(2)}.${nudge.note}`};
+      const premRoll = draw();
+      if(premRoll<threeBet) return {action:'raise', amount:Math.min(myStack,Math.round(pot*1.0)), pct,
+        reason:`${nm} \u2014 premium. 3-bets ${Math.round(threeBet*100)}% / calls the rest, roll ${premRoll.toFixed(2)}.${nudge.note}`};
+      return {action:'call', pct, reason:`${nm} \u2014 premium, flat-call branch. Roll ${premRoll.toFixed(2)}.${nudge.note}`};
     }
-    if(pct <= defend) return roll<defendCall
-      ? {action:'call', pct, reason:`${nm} (top ${pct.toFixed(0)}%) inside the ${defend.toFixed(0)}% defend range \u2014 continues ${Math.round(defendCall*100)}%, roll ${roll.toFixed(2)}.${nudge.note}`}
-      : {action:'fold', pct, reason:`${nm} is inside the defend range but folds here. Roll ${roll.toFixed(2)}.${nudge.note}`};
-    if(pct <= defend*1.9 && roll<spewCall) return {action:'call', pct,
-      reason:`${nm} is outside the defend range \u2014 played ${Math.round(spewCall*100)}% so calls aren't all strong. Roll ${roll.toFixed(2)}.${nudge.note}`};
-    if(pct <= thr*1.3 && roll < bluff3) return {action:'raise', amount:Math.min(myStack,Math.round(pot*1.0)), pct,
-      reason:`${nm} 3-bet bluff \u2014 ${Math.round(bluff3*100)}% frequency. Roll ${roll.toFixed(2)}.${nudge.note}`};
+    if(pct <= defend){ const dRoll = draw(); return dRoll<defendCall
+      ? {action:'call', pct, reason:`${nm} (top ${pct.toFixed(0)}%) inside the ${defend.toFixed(0)}% defend range \u2014 continues ${Math.round(defendCall*100)}%, roll ${dRoll.toFixed(2)}.${nudge.note}`}
+      : {action:'fold', pct, reason:`${nm} is inside the defend range but folds here. Roll ${dRoll.toFixed(2)}.${nudge.note}`}; }
+    if(pct <= defend*1.9){ const sRoll = draw(); if(sRoll<spewCall) return {action:'call', pct,
+      reason:`${nm} is outside the defend range \u2014 played ${Math.round(spewCall*100)}% so calls aren't all strong. Roll ${sRoll.toFixed(2)}.${nudge.note}`}; }
+    if(pct <= thr*1.3 && draw() < bluff3) return {action:'raise', amount:Math.min(myStack,Math.round(pot*1.0)), pct,
+      reason:`${nm} 3-bet bluff \u2014 ${Math.round(bluff3*100)}% frequency.${nudge.note}`};
     return {action:'fold', pct, reason:`${nm} (top ${pct.toFixed(0)}%) is outside the ${defend.toFixed(0)}% defend range. Folds.${nudge.note}`};
   }
 
@@ -789,14 +794,15 @@ function botDecide(ctx){
   if(toCall===0){
     let betFreq = bucket==='strong'?0.80 : bucket==='good'?0.55 : bucket==='marginal'?0.22 : (dr.any?0.35*chaseMult:0.13);
     betFreq = clampFreq(betFreq * style.bet * posBet * multiway);
-    if(roll<betFreq){
+    const betRoll = draw();
+    if(betRoll<betFreq){
       const amt = Math.min(myStack, bucket==='strong'?fullPot:halfPot);
       const why = bucket==='weak' && dr.any
         ? `${dr.flushDraw?'Flush draw':'Open-ended draw'}, ${pct}% raw strength — semi-bluffs ${Math.round(betFreq*100)}%`
         : `${bucket} (${pct}% vs a random hand) — bets ${Math.round(betFreq*100)}%${inPosition?' IP':''}`;
-      return {action:'bet', amount:amt, reason:`${why}. Roll ${roll.toFixed(2)} said bet.`};
+      return {action:'bet', amount:amt, reason:`${why}. Roll ${betRoll.toFixed(2)} said bet.`};
     }
-    return {action:'check', reason:`${bucket} (${pct}%) — checks ${Math.round((1-betFreq)*100)}% here. Roll ${roll.toFixed(2)}.`};
+    return {action:'check', reason:`${bucket} (${pct}%) — checks ${Math.round((1-betFreq)*100)}% here. Roll ${betRoll.toFixed(2)}.`};
   }
 
   // facing a bet
@@ -804,13 +810,15 @@ function botDecide(ctx){
   const effective = s + ((dr.flushDraw?0.13:0) + (dr.oesd?0.10:0)) * chaseMult;
   if(bucket==='strong'){
     const raiseFreq = clampFreq(0.55 * style.bet * nudge.raiseMult);
-    if(roll<raiseFreq) return {action:'raise', amount:Math.min(myStack,Math.round(pot*0.9)+toCall),
-      reason:`Strong (${pct}%) — raises ${Math.round(raiseFreq*100)}%. Roll ${roll.toFixed(2)}.${nudge.note}`};
-    return {action:'call', reason:`Strong (${pct}%) — the slow branch. Roll ${roll.toFixed(2)}.${nudge.note}`};
+    const strongRoll = draw();
+    if(strongRoll<raiseFreq) return {action:'raise', amount:Math.min(myStack,Math.round(pot*0.9)+toCall),
+      reason:`Strong (${pct}%) — raises ${Math.round(raiseFreq*100)}%. Roll ${strongRoll.toFixed(2)}.${nudge.note}`};
+    return {action:'call', reason:`Strong (${pct}%) — the slow branch. Roll ${strongRoll.toFixed(2)}.${nudge.note}`};
   }
   const bluffRaise = clampFreq(0.07 * style.bet * nudge.raiseMult * (inPosition?1.15:0.85));
-  if(roll < bluffRaise && dr.any) return {action:'raise', amount:Math.min(myStack,Math.round(pot*0.8)+toCall),
-    reason:`Draw turned into a ${Math.round(bluffRaise*100)}% bluff-raise. Roll ${roll.toFixed(2)}.${nudge.note}`};
+  const bluffRoll = draw();
+  if(bluffRoll < bluffRaise && dr.any) return {action:'raise', amount:Math.min(myStack,Math.round(pot*0.8)+toCall),
+    reason:`Draw turned into a ${Math.round(bluffRaise*100)}% bluff-raise. Roll ${bluffRoll.toFixed(2)}.${nudge.note}`};
 
   // fold pressure band so extreme styles stay frequency-based, not mechanical rules
   const edgeNeed = Math.max(0.005, Math.min(0.08, 0.02 * style.fold / nudge.callMult / posCall));
