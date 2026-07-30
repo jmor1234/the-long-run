@@ -1,0 +1,146 @@
+{
+  "date": "2026-07-31",
+  "engines": {
+    "old": "8f0bada",
+    "new": "689911c"
+  },
+  "seed": "feelab1",
+  "bar": "new mean >= 5.0; no original tell in >= half of new blocks; secondary majority of pairs",
+  "result": {
+    "newMean": 2.625,
+    "oldMean": 1,
+    "pairsNewWins": 4,
+    "verdicts": "16/16 mechanical"
+  },
+  "outcome": "BELOW BAR - per-tell iteration per frozen protocol",
+  "verdicts": [
+    {
+      "block": "A",
+      "judge": 1,
+      "verdict": "mechanical",
+      "humanness": 1,
+      "confidence": "high",
+      "rationale": "The stated reasoning is literally the trace of a rule engine: every decision cites a hand-percentile, a position-based open frequency, and an RNG roll (\"roll 0.88 said open\"), with identical phrasing templates across players. No moods, table talk, tilt, history-based adjustments, or bad-but-human logic anywhere; even the one big hand (54) is narrated as strength-percentage-vs-price arithmetic. Also, despite the prompt's claim of five opponents, only Vera and Priya ever act, and they are indistinguishable apart from parameter values (27% vs 33% open ranges), i.e., the same algorithm with different constants."
+    },
+    {
+      "block": "A",
+      "judge": 2,
+      "verdict": "mechanical",
+      "humanness": 1,
+      "confidence": "high",
+      "rationale": "The stated reasoning is literally the internals of a rule engine: every decision cites a hand-percentile, a position-based open frequency, and an RNG draw (\"roll 0.88 said open\"). No moods, no table talk, no history-based adjustments, no bad-but-human logic — just range thresholds and mixed-strategy dice, phrased identically for both players. Vera and Priya are the same algorithm with slightly different range parameters, and the lone big hand (54) plays out as pure equity-vs-price arithmetic. Also, only two opponents appear in this block, not five."
+    },
+    {
+      "block": "B",
+      "judge": 1,
+      "verdict": "mechanical",
+      "humanness": 2,
+      "confidence": "high",
+      "rationale": "Reasoning lines are string templates with visible unfilled slots (\"Checking. something thin doesn't want a big pot\") and each player repeats identical catchphrases verbatim across dozens of hands. Table-read tags are appended word-for-word to multiple players simultaneously and sometimes in nonsensical contexts (hand 27's \"raiser re-raises light\" on a limped pot), and several players share the exact same equity-vs-price sentence frame. Personas are differentiated by design (calling station, loose-aggro, nit) but there is zero mood, memory, or reaction to big hands — clearly scripted algorithms."
+    },
+    {
+      "block": "B",
+      "judge": 2,
+      "verdict": "mechanical",
+      "humanness": 3,
+      "confidence": "high",
+      "rationale": "Each player is a fixed catchphrase generator: Mikko's \"Nearly limped X out of boredom. Nah.\", Dunn's \"Almost limped X again. Letting it go.\", and Vera's \"Been waiting a while for something like X\" recur verbatim with only the hand slot swapped, and read-tags like \"The raiser re-raises light — seen it plenty\" get appended mechanically to every action in a hand regardless of relevance. There are visible template bugs (\"Checking. something thin doesn't want a big pot.\", \"a big hand is strong — calling\") and unfilled-slot lines, plus algorithmic tells like exact equity-vs-price percentages and nonsense sizings (Mikko \"raises to 4\" over a 110 bet). Personas are differentiated, but by parameter, not personality — no mood drift, no reaction to the massive pots won or lost, no memory across hands beyond a canned read string."
+    },
+    {
+      "block": "C",
+      "judge": 1,
+      "verdict": "mechanical",
+      "humanness": 1,
+      "confidence": "high",
+      "rationale": "Every stated reason is an identical algorithmic template: hand-percentile vs. position open-frequency, a bet/check probability, and an explicit RNG roll (\"roll 0.86 said open\"). All five players share the same voice and decision structure, differing only in numeric parameters; there are no moods, memories, tilt, or idiosyncratic logic — just canned tags like \"Faces a loose aggressor\". The action lines are frequency-plausible, but the reasoning is a literal script trace, not human thought."
+    },
+    {
+      "block": "C",
+      "judge": 2,
+      "verdict": "mechanical",
+      "humanness": 1,
+      "confidence": "high",
+      "rationale": "Every stated reason is the same algorithmic template — hand percentile, position open/defend frequency, and an explicit RNG roll (\"roll 0.86 said open\") — with zero emotion, memory, or table narrative. All five seats run the identical engine with different parameter sets, so they read as one script with five configs, not five people. The only opponent-awareness is a canned \"Faces a loose aggressor\" tag. Action lines (frequency-driven min-bets, four-way passive call-downs) match a sampler, not human intent."
+    },
+    {
+      "block": "D",
+      "judge": 1,
+      "verdict": "mechanical",
+      "humanness": 2,
+      "confidence": "high",
+      "rationale": "Each player's reasoning is a fixed string template with only the hand substituted (Vera: \"Thought about limping X. Thought better of it\"; Oyelaran: \"X almost talked me into a limp. Fold is better\"; Mikko: \"Nearly limped X out of boredom. Nah\"), repeated verbatim across dozens of hands with zero mood drift. Read tags (\"The raiser plays almost anything / gives up when you push back — seen it plenty\") are appended mechanically, even in incoherent spots — Vera folds T9s to a 3-bet with \"T9s against a raise? Not from me\" after being the original raiser herself, and Mikko attaches a raiser-read to his own raise. Vera's call logic exposes an equity formula (\"About 66 percent with the price at 36\") repeated with identical numbers. The personas are differentiated, but by template assignment, not by human texture."
+    },
+    {
+      "block": "D",
+      "judge": 2,
+      "verdict": "mechanical",
+      "humanness": 3,
+      "confidence": "high",
+      "rationale": "The reasoning text is built from small per-player phrase banks repeated verbatim with hole cards substituted in, plus a boilerplate \"raiser plays almost anything / gives up — seen it plenty\" suffix stapled onto almost every raise-facing decision (even onto a player's own raise). Vera reuses the exact canned equity line \"About 66 percent with the price at 36\" across different pots, and hand-strength buckets map one-to-one to fixed sentences. Personas are distinct and the action lines are plausible recreational poker, which earns a few points, but no memory, mood drift, or reaction to a 300-chip loss ever surfaces — these read as scripted agents with flavor text."
+    },
+    {
+      "block": "E",
+      "judge": 1,
+      "verdict": "mechanical",
+      "humanness": 1,
+      "confidence": "high",
+      "rationale": "Every bracketed rationale is the same template across all five players: hand percentile vs a position-indexed open/defend range, a bet/check frequency, and an explicit RNG roll (\"roll 0.57 said open\", \"checks 76% here. Roll 0.95\"). That is a frequency-table policy with dice, not human thought — no moods, tilt, history references, or idiosyncratic bad logic, and the players differ only in their range parameters, not personality. Even the \"reads\" are canned tags (\"Faces a loose aggressor\") appended mechanically. The action lines alone might pass loosely for loose-passive recreational play, but the stated reasoning makes the scripting unmistakable."
+    },
+    {
+      "block": "E",
+      "judge": 2,
+      "verdict": "mechanical",
+      "humanness": 1,
+      "confidence": "high",
+      "rationale": "Every stated reasoning line is a bare algorithm trace: hand-percentile lookup, position-indexed open/defend frequency, then a literal RNG roll (\"opens it 95% of the time — roll 0.57 said open\"). All five players use the identical template, differing only in threshold parameters, with no moods, tilt, table talk, history-based reads, or bad logic — even a folded AKo in the SB is just \"roll 1.00 said fold\" with zero reaction. The action lines themselves are frequency-plausible, but the transcript openly exposes the rule engine driving them."
+    },
+    {
+      "block": "F",
+      "judge": 1,
+      "verdict": "mechanical",
+      "humanness": 2,
+      "confidence": "high",
+      "rationale": "The reasoning lines are visibly template-driven: each player cycles a tiny set of stock phrases with the hand slotted in (\"Been waiting a while for something like {X}. Raising.\", \"{X}? Good enough. Let's go.\", \"About {N} percent with the price at {M}. It's there. Call.\"), and the read tag \"The raiser plays almost anything — seen it plenty\" is appended verbatim dozens of times regardless of context. Template seams leak through as ungrammatical fills like \"Checking. not much doesn't want a big pot.\" and \"something thin. Free card sounds good,\" and hand-strength labels are abstract buckets (\"a big hand\", \"a monster\") rather than anything a person would say about specific cards. Personas are differentiated only by which phrase bank they draw from, with no mood drift, no reaction to big wins/losses (Dunn and Priya bust without a word), and identical lines repeated across streets within the same hand."
+    },
+    {
+      "block": "F",
+      "judge": 2,
+      "verdict": "mechanical",
+      "humanness": 3,
+      "confidence": "high",
+      "rationale": "The reasoning lines are transparently fill-in-the-slot templates: each player has a fixed handful of phrases that recur verbatim regardless of context (\"Come along if you dare\", \"Been waiting a while for something like X\", \"X almost talked me into a limp\"), and slot-insertion produces grammar artifacts no human would type, like \"Checking. not much doesn't want a big pot\" and \"something thin. Free card sounds good.\" Calls are justified with suspiciously precise equity percentages (\"About 90 percent with the price at 35\"), and the table-read tag \"The raiser plays almost anything — seen it plenty\" is appended mechanically to nearly every Vera/Priya line once triggered, even on folds where it adds nothing. The personas are differentiated (Mikko loose-aggro, Priya patient, Vera math-talk) and the leaky-recreational lines themselves are plausible, which lifts it off the floor, but the surface reads as scripted state-machines with flavor text, not people."
+    },
+    {
+      "block": "G",
+      "judge": 1,
+      "verdict": "mechanical",
+      "humanness": 1,
+      "confidence": "high",
+      "rationale": "Every stated reason is a verbatim frequency-table algorithm: percentile lookup, position-indexed open/defend frequency, and an explicit RNG roll against a threshold (\"roll 0.67 said open\"), with postflop decisions as identical strength-vs-pot-odds arithmetic templates. There are no moods, no memory of prior hands, no bad human logic — player differences are just different numeric parameters, and the \"opponent read\" is a fixed config tag repeated verbatim. The betting lines alone could pass for loose recreational play, but the reasoning is unmistakably scripted."
+    },
+    {
+      "block": "G",
+      "judge": 2,
+      "verdict": "mechanical",
+      "humanness": 1,
+      "confidence": "high",
+      "rationale": "Every stated decision across all five opponents is a literal frequency-plus-RNG computation (\"opens 95% of the time — roll 0.67 said open\"; \"81% strength vs 25% needed. Calls.\"), using one identical phrasing template and verbatim repeated opponent tags. There is zero emotional texture, table awareness, or idiosyncratic voice; players differ only in numeric range parameters. The betting lines are behaviorally plausible for loose recreational players, which is the only thing keeping the score above 0."
+    },
+    {
+      "block": "H",
+      "judge": 1,
+      "verdict": "mechanical",
+      "humanness": 3,
+      "confidence": "high",
+      "rationale": "Only three opponents appear (Dunn, Mikko, Oyelaran) and each speaks from a small fixed template bank: the tag \"The raiser plays almost anything — seen it plenty\" is stamped verbatim on ~20 decisions regardless of context (even on Dunn's own fold when nobody re-raised light), Dunn always says \"X is hopeless even for me,\" Mikko \"nearly limped X out of boredom\" five times word-for-word, and value lines like \"a piece of this — betting for value\" recur identically. Personas are distinguishable (Dunn the call-station, Oyelaran the odds-quoter, Mikko the loose aggressor) and pot-odds math adds flavor, but the zero variation in phrasing, no reaction to prior hands or moods, and slot-filled sentences read as a script with persona presets, not people."
+    },
+    {
+      "block": "H",
+      "judge": 2,
+      "verdict": "mechanical",
+      "humanness": 3,
+      "confidence": "high",
+      "rationale": "Each player runs a tiny bank of slot-filled templates (\"[hand] is hopeless even for me\", \"Nearly limped [hand] out of boredom. Nah\", \"Roughly N percent against M needed. Call\") repeated verbatim across 30 hands, and the read tag \"The raiser plays almost anything — seen it plenty\" is stapled onto dozens of decisions, sometimes incoherently (appended to folds with no raiser context, or \"re-raises light\" after a simple open in hand 50). There are humanizing touches — distinct personas (Dunn the loose caller, Mikko the bored aggressor), tilt-flavored lines, occasional bad calls — but real recreational players never phrase the same thought identically twenty times or quote pot-odds percentages to the point. The variety is parameterized, not personal."
+    }
+  ]
+}

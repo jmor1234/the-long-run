@@ -44,11 +44,18 @@ function buildSrc(htmlPath, expectedSites){
     'newSession stream hook');
   src=mustReplace(src, 'function newHand(){', 'function newHand(){ __STREAM("deal");',
     'newHand stream hook');
-  // Extend ctx with the public betting state the legality normalizer needs
-  // (exp-only; shipped ctx carries myBet itself since the all-in-cap fix).
-  src=mustReplace(src, 'streetBets:S.streetBets||0, myBet:p.bet,',
-    'streetBets:S.streetBets||0, myBet:p.bet, currentBet:S.currentBet, minRaise:S.minRaise,',
-    'ctx betting-state extension');
+  // Extend ctx with the public betting state the legality normalizer needs.
+  // Two anchor generations: post-all-in-cap files carry myBet themselves;
+  // older builds (cross-version A/B arms) need it injected.
+  if(src.includes('streetBets:S.streetBets||0, myBet:p.bet,')){
+    src=mustReplace(src, 'streetBets:S.streetBets||0, myBet:p.bet,',
+      'streetBets:S.streetBets||0, myBet:p.bet, currentBet:S.currentBet, minRaise:S.minRaise,',
+      'ctx betting-state extension');
+  } else {
+    src=mustReplace(src, 'streetBets:S.streetBets||0,',
+      'streetBets:S.streetBets||0, currentBet:S.currentBet, minRaise:S.minRaise, myBet:p.bet,',
+      'ctx betting-state extension (legacy)');
+  }
 
   // Route all engine randomness through the injected generator.
   const n=src.split('Math.random()').length-1;
@@ -56,7 +63,8 @@ function buildSrc(htmlPath, expectedSites){
     ' Math.random() sites, found '+n+' in '+htmlPath+' — re-audit stream assignment');
   src=src.split('Math.random()').join('__RAND()');
 
-  src+='\nreturn {newHand, newSession, get roster(){return roster}, botDecide, pctOf, strengthVsRandom, openThreshold, posName, behindCount, get S(){return S}, get session(){return session}, applyAction, nextToAct, step, buildPots, evaluate, cmpHand, handStr, START, BB, SB, clampFreq, freshReads, shrinkReads, readLabel, BOT_STYLES, sampleTier, moodStep, moodDials};';
+  const moodExports=src.includes('function moodStep') ? ', moodStep, moodDials' : '';
+  src+='\nreturn {newHand, newSession, get roster(){return roster}, botDecide, pctOf, strengthVsRandom, openThreshold, posName, behindCount, get S(){return S}, get session(){return session}, applyAction, nextToAct, step, buildPots, evaluate, cmpHand, handStr, START, BB, SB, clampFreq, freshReads, shrinkReads, readLabel, BOT_STYLES, sampleTier'+moodExports+'};';
   srcCache.set(key, src);
   return src;
 }
