@@ -240,6 +240,10 @@ function runBaseline(seed, hands, opts={}){
     if(d.reason){
       scanned++;
       for(const re of BANNED) if(re.test(d.reason)) hits.push(String(re)+' -> '+d.reason.slice(0,70));
+      // Slot-binding honesty: a check may never speak fold language (the
+      // free-check bug class the round-2 panel caught).
+      if(d.action==='check' && /fold/i.test(d.reason))
+        hits.push('check speaks fold: '+d.reason.slice(0,70));
     }
     return d;
   };
@@ -345,9 +349,22 @@ function runBaseline(seed, hands, opts={}){
         govChecked++;
         if((d.dbg.cRoll<d.dbg.pCall)!==(d.action==='call')) govWrong++;
       }
-      if(d.dbg.openRoll!==undefined && d.dbg.f!==undefined && ctx.street==='preflop' && !ctx.raisedBefore){
+      if(d.dbg.openRoll!==undefined && d.dbg.f!==undefined && ctx.street==='preflop' && !ctx.raisedBefore
+         && ctx.myStack>ctx.toCall){
         govChecked++;
         if((d.dbg.openRoll<d.dbg.f)!==(d.action==='raise')) govWrong++;
+      }
+      if(d.dbg.premRoll!==undefined && d.dbg.threeBet!==undefined && ctx.myStack>ctx.toCall){
+        govChecked++;
+        if((d.dbg.premRoll<d.dbg.threeBet)!==(d.action==='raise')) govWrong++;
+      }
+      if(d.dbg.dRoll!==undefined && d.dbg.defendCall!==undefined){
+        govChecked++;
+        if((d.dbg.dRoll<d.dbg.defendCall)!==(d.action==='call')) govWrong++;
+      }
+      if(d.dbg.strongRoll!==undefined && d.dbg.raiseFreq!==undefined && ctx.myStack>ctx.toCall){
+        govChecked++;
+        if((d.dbg.strongRoll<d.dbg.raiseFreq)!==(d.action==='raise')) govWrong++;
       }
     }
     return d;
@@ -360,25 +377,55 @@ function runBaseline(seed, hands, opts={}){
     if(h2.G.session.hands===last) break;
     last=h2.G.session.hands;
   }
-  ok(govChecked>=100 && govWrong===0,
-    'every dbg roll GOVERNS its action (inequality matches the branch taken)',
+  ok(govChecked>=120 && govWrong===0,
+    'six dbg roll/threshold pairs govern their actions (guard-aware)',
     govChecked+' checked, '+govWrong+' wrong');
+  // Short stacks may never emit a raise, at any of the five raise sites.
+  const shortCtxBase={board:[{r:14,s:'d'},{r:9,s:'c'},{r:2,s:'s'}], street:'flop',
+    toCall:50, pot:200, myStack:30, myBet:10, position:'BTN', raisedBefore:true,
+    openThr:30, tableSize:3, inPosition:true, streetBets:1, facingReads:null,
+    aggressorHadInitiative:false,
+    style:{open:1,bet:3,fold:1,limp:0.2,size:1,sizeJitter:0.1,callTemp:0.03,tag:'solid'}};
+  let shortRaises=0;
+  for(let i=0;i<30;i++){
+    const a=h.G.botDecide({...shortCtxBase, myCards:[{r:14,s:'s'},{r:14,s:'h'}]});
+    if(a.action==='raise') shortRaises++;
+    const b=h.G.botDecide({...shortCtxBase, street:'preflop', board:[],
+      myCards:[{r:14,s:'s'},{r:14,s:'h'}]});
+    if(b.action==='raise') shortRaises++;
+    const c=h.G.botDecide({...shortCtxBase, street:'preflop', board:[],
+      raisedBefore:false, toCall:2, myStack:2, myBet:0,
+      myCards:[{r:14,s:'s'},{r:14,s:'h'}]});
+    if(c.action==='raise') shortRaises++;
+  }
+  ok(shortRaises===0,
+    'a stack short of the call never emits a raise (open, 3-bet, postflop sites)',
+    shortRaises+' illegal raises in 90 crafted spots');
   // Static exhaustive bank scan: every variant of every slot, banned tokens.
+  // Each slot gets ONLY the fields its real call site passes, so a variant
+  // referencing anything else leaks "undefined" here instead of to a player.
   const BANNED=[/roll/i, /\d+ of \d+/, /% of the time/i, /\bbranch\b/i, /\bhero\b/i, /Math\./];
-  const dummy={nm:'K9s', hand:'a solid hand', draw:'Four to a flush', eff:40, need:30};
+  const SAMPLE={nm:'K9s', hand:'a solid hand', draw:'Four to a flush', eff:40, need:30};
+  const FIELDS={open:['nm'],limp:['nm'],foldWeak:['nm'],limpPass:['nm'],prem3bet:['nm'],
+    premFlat:['nm'],defendCall:['nm'],defendFold:['nm'],spewCall:['nm'],bluff3bet:['nm'],
+    outsideFold:['nm'],freeCheck:['nm'],bet:['hand'],check:['hand'],airBet:[],
+    semiBluff:['draw'],strongRaise:[],slowCall:[],bluffRaise:['draw'],
+    edgeCall:['eff','need'],edgeFold:['eff','need'],tilt:[],rush:[]};
   let variants=0; const bad=[];
   for(const [tag,slots] of Object.entries(h.G.VOICE)){
     for(const [slot,bank] of Object.entries(slots)){
+      if(!(slot in FIELDS)){ bad.push('unmapped slot '+slot+' — add its call-site fields'); continue; }
+      const d=Object.fromEntries(FIELDS[slot].map(k=>[k,SAMPLE[k]]));
       for(const t of bank){
         variants++;
-        const txt=t(dummy);
+        const txt=t(d);
         for(const re of BANNED) if(re.test(txt)) bad.push(tag+'.'+slot+': '+txt.slice(0,50));
-        if(/undefined/.test(txt)) bad.push(tag+'.'+slot+' has an unfilled slot: '+txt.slice(0,50));
+        if(/undefined/.test(txt)) bad.push(tag+'.'+slot+' uses a field its call site never passes: '+txt.slice(0,50));
       }
     }
   }
   ok(variants>=200 && bad.length===0,
-    'entire VOICE bank is statically clean (every variant of every slot)',
+    'entire VOICE bank is statically clean (call-site-accurate fields)',
     bad[0]||(variants+' variants scanned'));
 }
 

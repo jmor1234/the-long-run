@@ -1,0 +1,144 @@
+{
+  "date": "2026-07-30",
+  "judges": "fable",
+  "format": "action-only",
+  "engines": {
+    "old": "8f0bada",
+    "new": "a495960"
+  },
+  "seed": "feelab3",
+  "result": {
+    "newMean": 3.13,
+    "oldMean": 2.88
+  },
+  "verdicts": [
+    {
+      "block": "A",
+      "judge": 1,
+      "verdict": "mechanical",
+      "humanness": 3,
+      "confidence": "medium",
+      "rationale": "The frequencies are wildly wrong for recreational humans: shorthanded home-game players do not open-fold the small blind heads-up over and over (hands 44, 47, 49, 56, 60) or fold the button constantly, producing ~20 of 30 hands as walk-or-steal non-events. When pots do happen, sizing looks formulaic — Priya's 7/24/79 ladder in hand 34 is a near-perfect pot-geometric progression, and preflop opens sit in a tight 5-7 band for everyone. There are a few human-feeling moments (Vera's limp-fold, Oyelaran's river check-raise stack-off in hand 43), and the three players are mildly differentiated, but no real session drift or tilt after Vera busts stacks, and the overall texture reads like tight scripted policies rather than loose recreational people."
+    },
+    {
+      "block": "A",
+      "judge": 2,
+      "verdict": "mechanical",
+      "humanness": 3,
+      "confidence": "medium",
+      "rationale": "Across 30 hands no opponent ever folds postflop — every contested pot is a bet-call chain to showdown, and in hand 43 two players call off stacks into a huge river check-raise on a flush-completing board with worse than two pair. Preflop tendencies differ per player (raisey Oyelaran, defend-happy Priya, tight Vera), but that reads as static parameter tuning: no tilt, no adaptation after big wins/losses, no bluff-raises or hero folds. Sizing escalation is formulaic (7/24/79 pot-fraction steps). Confidence is medium because the sample is small and mostly uncontested hands."
+    },
+    {
+      "block": "B",
+      "judge": 1,
+      "verdict": "mechanical",
+      "humanness": 2,
+      "confidence": "high",
+      "rationale": "Only two opponents appear (not five), and they are statistically indistinguishable: every open is exactly 3x with zero limps or size variance across 30 hands, the small blind open-folds blind-vs-blind with metronomic regularity, and postflop bets track a fixed half-pot formula. There is no personality separation, no tilt or drift after the one big pot, and oddities like a min-click river check-raise with trips read as sizing rules, not human intent."
+    },
+    {
+      "block": "B",
+      "judge": 2,
+      "verdict": "mechanical",
+      "humanness": 3,
+      "confidence": "medium",
+      "rationale": "Every preflop raise from both opponents is exactly 3x (to 6) across all 30 hands, with zero limps, zero 3-bets, and an implausibly high uncontested-fold rate for what is effectively heads-up play — bored humans splash more and vary sizes. Vera and Oyelaran are statistically interchangeable rather than distinct personalities, and their decisions feel like frequency dice. The few postflop hands (e.g. the trip-aces slowplay in hand 47) are locally sensible, which keeps the score off the floor, but session-level texture reads scripted. Confidence is medium rather than high because only ~4 hands reach postflop, limiting the evidence."
+    },
+    {
+      "block": "C",
+      "judge": 1,
+      "verdict": "mechanical",
+      "humanness": 3,
+      "confidence": "medium",
+      "rationale": "Every preflop raise from all three players is exactly 6 with zero variance, and postflop bets (13, 21, 47, 94) look like pot-fraction arithmetic rather than the round numbers recreational players use. The table is also implausibly tight for a 4-handed home game: half the hands fold around, one limp in 30 hands. There are some human-flavored leaks (stationy calls, a high-card call-down) and mild player differentiation, but they feel scripted onto a rigid engine, with no tendency drift or tilt even after the huge hand-59 pot. Confidence is medium because most hands ended preflop, leaving a small behavioral sample."
+    },
+    {
+      "block": "C",
+      "judge": 2,
+      "verdict": "mechanical",
+      "humanness": 4,
+      "confidence": "medium",
+      "rationale": "All five opponents open to exactly 3x (6) with zero sizing variance over 30 hands, and the session is an unnaturally tight loop of fold-arounds and raise-take-its — real recreational home games are looser and messier. Postflop hands do show some humanlike texture (odd small turn bets, a limp, light call-downs won with high card, a passive short-stacked Vera vs an aggressive Priya), which lifts the score, but the rigid sizing and repetitive preflop rhythm read as scripted frequency tables wearing personas."
+    },
+    {
+      "block": "D",
+      "judge": 1,
+      "verdict": "mechanical",
+      "humanness": 2,
+      "confidence": "high",
+      "rationale": "All five opponents open to exactly 6 every single time with zero limps in 30 hands, and identical postflop sizing ladders recur verbatim across different players (7/14/50 in hands 3 and 17, 12/33 in hands 8 and 13), which reads as one shared pot-fraction formula rather than five people. There is no personality separation, no 3-betting to speak of, no tendency drift after stack-offs or as the table shortens, and the overall pot-contest rate is far too low for a recreational home game."
+    },
+    {
+      "block": "D",
+      "judge": 2,
+      "verdict": "mechanical",
+      "humanness": 4,
+      "confidence": "medium",
+      "rationale": "Every open by all five players is exactly 6 with zero limps in 30 hands, and identical postflop sizing ladders (7/14/50 in hands 3 and 17, 12/33 in hands 8 and 13) recur across different players, pointing to one shared sizing function. Line-level texture (a calling station busting, checked-down 3-bet pot, one-and-done stabs) is plausibly recreational, but tendencies show no drift and the players are structurally interchangeable outside those scripted leaks."
+    },
+    {
+      "block": "E",
+      "judge": 1,
+      "verdict": "mechanical",
+      "humanness": 2,
+      "confidence": "high",
+      "rationale": "All five opponents open to exactly 6 every time with zero sizing variance, fold to opens at near-100%, and are statistically interchangeable — no player has a distinct style and nothing drifts over the session. The table is far too tight and non-limpy for a recreational home game, and the two monster pots (hands 21, 26) erupt from and snap back to the nitty baseline with no tilt or behavioral aftermath, reading as a scripted commit-branch rather than human escalation."
+    },
+    {
+      "block": "E",
+      "judge": 2,
+      "verdict": "mechanical",
+      "humanness": 3,
+      "confidence": "high",
+      "rationale": "Every open by all five opponents is exactly 3x (6) with zero variance over 30 hands, blind defense is near-zero (the opposite of recreational tendencies), and only two limps appear all session. Dunn checking down a rivered full house heads-up without ever betting is a strength-blind passivity script. Players are interchangeable preflop with no tilt, drift, or adjustment after 500-chip pots; the two big hands follow the same templated turn-raise-war cooler shape."
+    },
+    {
+      "block": "F",
+      "judge": 1,
+      "verdict": "mechanical",
+      "humanness": 3,
+      "confidence": "medium",
+      "rationale": "Preflop play is templated: near-uniform 2.5-3x opens, zero 3-bets, and essentially 100% fold-to-open including blind defense, which is unrecognizable as a recreational home game. Behavior is bimodal — extreme nittiness for 24+ hands, then two hands (21, 26) where multiple players robotically call off full stacks, busting three players. Faint player differentiation (Dunn's limps, Vera's check-calls) exists but there is no session drift, tilt, or the loose multiway limping real rec tables produce."
+    },
+    {
+      "block": "F",
+      "judge": 2,
+      "verdict": "mechanical",
+      "humanness": 3,
+      "confidence": "medium",
+      "rationale": "Frequencies are the tell: 30 hands with zero big-blind defends, zero preflop 3-bets, and no medium-sized contested pots — action is bimodal between instant preflop folds and two wild multiway all-in hands, which is a scripted signature rather than recreational play. Even 3-handed, players fold every button and blind, something real humans never do. The bots do have distinguishable sizing fingerprints (Dunn 4-5 and limpy, Mikko 6-8, Oyelaran a triple-barreler), which earns some humanness points, but there is no session drift, no tilt after bust-outs, and the big hands follow textbook scripted lines (check-call twice fold river; bet-check-bomb)."
+    },
+    {
+      "block": "G",
+      "judge": 1,
+      "verdict": "mechanical",
+      "humanness": 3,
+      "confidence": "medium",
+      "rationale": "Sizing is metronomic (Vera opens to exactly 5 every time, Oyelaran to a fixed 6/7 by position), with zero limps, zero 3-bets, and ~22 of 30 hands ending in instant fold-around walks — far tighter and more uniform than any recreational 3-handed game. There is no drift or emotional response: after a 289-chip stack-shifting pot in hand 47, both players resume identical patterns with no tilt or size changes. Hand 47's slowplayed-trips check-call line is the lone human-feeling moment, which keeps the score off the floor, but overall the two opponents read as threshold-range scripts. Confidence is medium rather than high mainly because the sample is small and mostly preflop folds."
+    },
+    {
+      "block": "G",
+      "judge": 2,
+      "verdict": "mechanical",
+      "humanness": 3,
+      "confidence": "medium",
+      "rationale": "Only two opponents are actually active (Vera, Oyelaran) and both behave like tight scripts: 3-handed, they fold the small blind or button hand after hand at a rate no recreational player sustains short-handed, and roughly 24 of 30 hands end uncontested. Sizing is rigidly quantized per player (Vera opens to exactly 5 every single time; Oyelaran to 6-7) with zero drift, no limps, no tilt after Oyelaran loses a 289-chip pot in hand 47, and postflop lines are mostly passive check-downs. Hand 47 (Vera's flop-lead-then-triple-check-call with trips, Oyelaran barreling into it) is the lone human-feeling texture, but the session's overall determinism and lack of any loose recreational splash reads algorithmic."
+    },
+    {
+      "block": "H",
+      "judge": 1,
+      "verdict": "mechanical",
+      "humanness": 3,
+      "confidence": "medium",
+      "rationale": "Thirty hands with zero limps, near-zero blind defense, and uniform 2-3.5x open sizes across all five players is not how a recreational 1/2 home game looks. Behavior is bimodal: long ultra-nit fold-fests punctuated by two implausible 200bb stack-offs (calling 47/142 overbets, or calling three streets with less than one pair), plus a 3-bet pot checked down on all streets and won by high card — classic scripted-agent artifacts. Player identities barely differentiate and nobody adjusts after huge pots, so the seats feel like parameterized instances of one algorithm rather than five different people."
+    },
+    {
+      "block": "H",
+      "judge": 2,
+      "verdict": "mechanical",
+      "humanness": 4,
+      "confidence": "medium",
+      "rationale": "Individual big pots (Mikko's station calldowns, Dunn's stack-off, Priya's one-pair overplay) have believable recreational shapes and consistent personas, but the table-level texture betrays scripting: zero limps in 30 hands of a 1/2 home game, big blinds folding to small raises nearly 100%, and no loosening at all when the table goes 4-handed — hands 15-27 are almost all fold-around walks. Real recs are loose, limpy, and adjust socially short-handed; these ranges execute uniformly regardless of context."
+    }
+  ]
+}

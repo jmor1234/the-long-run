@@ -68,7 +68,7 @@ of new-arm blocks. Secondary signal: majority of shared-seed pairs new > old.
 | bare round (feelab3) | fable | action-only | 2.88 | 3.13 |
 | FINAL (feelab4) | opus-5 medium | action-only | 2.13 | 3.00 |
 
-Judge model changed to claude-opus-5 medium (owner directive, 2026-07-31);
+Judge model changed to claude-opus-5 medium (owner directive, 2026-07-30);
 all future panels use opus-5 medium. The 5.0 bar was never met on the
 transcript instrument and is recorded as unmet — the surviving tells
 (verbatim bank repetition, exhaustive narration) are format properties the

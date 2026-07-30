@@ -508,7 +508,7 @@ per-hand *effective* style can drift with mood (below).
 
 ### Humanize layer (sizing, judgment blur, voice, mood)
 
-Added 2026-07-31 after a blind-panel measurement scored the original bots
+Added 2026-07-30 after a blind-panel measurement scored the original bots
 1–1.5/10 on "reads like a human" (evidence, verdicts, and the full design
 history live in `exp/ref/`). Four mechanisms, all dial-shaped:
 
@@ -524,11 +524,14 @@ history live in `exp/ref/`). Four mechanisms, all dial-shaped:
 - **Voice** (`VOICE` bank + `say()`, inside t3's scanned slice): ~280
   slot-filled strings, 2–3 variants per slot per persona. Truthfulness is
   structural — a slot is only reachable from the branch whose facts it
-  states; bluffs talk pressure, never value; a free check never speaks fold
-  language. Read mentions are occasional (35%, passive decisions only) and
-  tiered by evidence (`unknown/lean/solid`), never raw counters. Text bans
-  (no roll talk, no counter quoting, no frequency self-narration) are
-  enforced by an exhaustive static scan in `exp/t-exp.js`.
+  states, and a variant may claim only what that branch established (an
+  `airBet` knows its equity is low, NOT that it holds no pair — the strings
+  are worded to the branch's actual knowledge); bluffs talk pressure, never
+  value; a free check never speaks fold language (emission-tested). Read
+  mentions are occasional (35%, passive decisions only) and tiered by
+  evidence (`unknown/lean/solid`), never raw counters. Text bans are
+  enforced by an exhaustive static scan in `exp/t-exp.js` that feeds each
+  slot only its real call-site fields.
 - **Mood** (`moodStep`/`moodDials`): one decaying scalar per bot driven ONLY
   by its own chip swings (public info; decay ×0.75/hand, ±25BB ≈ ±0.4,
   clamped [-1,1]). Consumed in exactly one place — per-hand effective dials
@@ -540,18 +543,24 @@ history live in `exp/ref/`). Four mechanisms, all dial-shaped:
 
 Decisions also carry a `dbg` field (governing roll + threshold + equity
 numbers) — invisible in the UI, load-bearing for the gates: `exp/t-exp.js`
-asserts every dbg roll was drawn by that decision AND that its inequality
-matches the action taken.
+asserts every dbg roll was drawn by that decision, and that the six
+highest-volume roll/threshold pairs (open, premium 3-bet, defend, bet,
+strong-raise, edge call) decide their branch — inequality vs action taken,
+guard-aware.
 
 What replacing the bots with LLM API calls would have done instead was
 measured first and rejected — pre-registered experiment in `exp/PLAN.md`:
 +2 points of humanness, still unanimously judged mechanical, and it
 hallucinated its reasoning (fabricated narration is disqualifying when
-reasons are the curriculum). Measured trajectory of this coded layer:
-1.0 → 3.0 (full transcripts), 2.9 → 3.1+ (action-only), all shared-seed
-pairs improved in every round; the residual gap on transcripts is the
-narration format itself (finite banks repeat; no table of humans narrates
-500 decisions), which the in-game player never experiences.
+reasons are the curriculum). Measured outcome of this coded layer, stated
+plainly: the pre-registered bar was new-arm mean ≥ 5.0 on full transcripts,
+and it was NOT met — measured 1.0 → 3.0 (Fable judges), and on the archived
+FINAL action-only panel (opus-5-medium judges, `exp/ref/
+feel-panel-final.json`) old 2.13 vs new 3.00 with all 16 blocks still
+judged mechanical. Every shared-seed pair improved in every round on every
+instrument. The residual transcript gap is the narration format itself
+(finite banks repeat; no table of humans narrates 500 decisions), which
+the in-game player never experiences — but that is a diagnosis, not a pass.
 
 ### Cross-hand reads
 

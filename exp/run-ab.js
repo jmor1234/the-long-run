@@ -28,7 +28,7 @@ const args={};
 const OLD=args.old||'8f0bada';   // last pre-humanize engine commit
 const SEED=args.seed||'feelab1';
 if(!/^[A-Za-z0-9_-]+$/.test(SEED)) fatal('--seed must be filename-safe');
-if(!/^[A-Za-z0-9_./-]+$/.test(OLD)) fatal('--old must be a plain commitish');
+if(!/^[A-Za-z0-9][A-Za-z0-9_./-]*$/.test(OLD)) fatal('--old must be a plain commitish (no leading option chars)');
 
 const outDir=path.join(__dirname,'out');
 fs.mkdirSync(outDir,{recursive:true});

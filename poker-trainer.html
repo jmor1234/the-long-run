@@ -761,6 +761,8 @@ function botDecide(ctx){
       const f = clampFreq(openFreq(pct, thr));
       const openRoll = draw();
       if(openRoll < f){
+        if(myStack <= toCall) return {action:'call', pct, dbg:{openRoll, f},
+          reason:say(style,'limp',{nm},draw())};
         const size = Math.min(myBet+myStack, humanSize(BB * (style.openSize==null ? 3 : style.openSize)));
         return {action:'raise', amount:size, pct, dbg:{openRoll, f},
           reason:say(style,'open',{nm},draw())};
@@ -792,14 +794,14 @@ function botDecide(ctx){
 
     if(pct <= defend*0.30){
       const premRoll = draw();
-      if(premRoll<threeBet && myStack>toCall) return {action:'raise', amount:Math.min(myBet+myStack, humanSize((pot+toCall)*sizeMult)), pct, dbg:{premRoll},
+      if(premRoll<threeBet && myStack>toCall) return {action:'raise', amount:Math.min(myBet+myStack, humanSize((pot+toCall)*sizeMult)), pct, dbg:{premRoll, threeBet},
         reason:say(style,'prem3bet',{nm},draw())};
-      return {action:'call', pct, dbg:{premRoll},
+      return {action:'call', pct, dbg:{premRoll, threeBet},
         reason:say(style,'premFlat',{nm},draw())};
     }
     if(pct <= defend){ const dRoll = draw(); return dRoll<defendCall
-      ? {action:'call', pct, dbg:{dRoll}, reason:say(style,'defendCall',{nm},draw())+readTag()+moodTag()}
-      : {action:'fold', pct, dbg:{dRoll}, reason:say(style,'defendFold',{nm},draw())+readTag()+moodTag()}; }
+      ? {action:'call', pct, dbg:{dRoll, defendCall}, reason:say(style,'defendCall',{nm},draw())+readTag()+moodTag()}
+      : {action:'fold', pct, dbg:{dRoll, defendCall}, reason:say(style,'defendFold',{nm},draw())+readTag()+moodTag()}; }
     if(pct <= defend*2.2){ const sRoll = draw(); if(sRoll<spewCall) return {action:'call', pct, dbg:{sRoll},
       reason:say(style,'spewCall',{nm},draw())+readTag()}; }
     if(pct <= thr*1.3 && myStack>toCall && draw() < bluff3) return {action:'raise', amount:Math.min(myBet+myStack, humanSize((pot+toCall)*sizeMult)), pct,
@@ -830,11 +832,11 @@ function botDecide(ctx){
     if(betRoll<betFreq){
       const amt = Math.min(myBet+myStack, humanSize((bucket==='strong'?fullPot:halfPot)*sizeMult));
       return {action:'bet', amount:amt, dbg:{betRoll, betFreq},
-        reason: bucket==='weak'
+        reason: (bucket==='weak'
           ? (dr.any
              ? say(style,'semiBluff',{draw:dr.flushDraw?'Four to a flush':'An open-ended draw'},draw())
              : say(style,'airBet',{},draw()))
-          : say(style,'bet',{hand:bucket==='strong'?'a big hand':bucket==='good'?'a solid hand':'a piece of this'},draw())+moodTag()};
+          : say(style,'bet',{hand:bucket==='strong'?'a big hand':bucket==='good'?'a solid hand':'a piece of this'},draw()))+moodTag()};
     }
     return {action:'check', dbg:{betRoll, betFreq},
       reason:say(style,'check',{hand:bucket==='strong'?'a monster':bucket==='good'?'a decent hand':bucket==='marginal'?'something thin':'not much'},draw())+moodTag()};
@@ -846,9 +848,9 @@ function botDecide(ctx){
   if(bucket==='strong'){
     const raiseFreq = clampFreq(0.55 * style.bet * nudge.raiseMult);
     const strongRoll = draw();
-    if(strongRoll<raiseFreq && canRaise) return {action:'raise', amount:Math.min(myBet+myStack, myBet+toCall+humanSize(pot*0.9*sizeMult)), dbg:{strongRoll},
+    if(strongRoll<raiseFreq && canRaise) return {action:'raise', amount:Math.min(myBet+myStack, myBet+toCall+humanSize(pot*0.9*sizeMult)), dbg:{strongRoll, raiseFreq},
       reason:say(style,'strongRaise',{},draw())};
-    return {action:'call', dbg:{strongRoll},
+    return {action:'call', dbg:{strongRoll, raiseFreq},
       reason:say(style,'slowCall',{},draw())};
   }
   const bluffRaise = clampFreq(0.07 * style.bet * nudge.raiseMult * (inPosition?1.15:0.85));
@@ -892,7 +894,7 @@ nit:{
   bluff3bet:[d=>`${d.nm}... he doesn't have it every time. Raise.`, d=>`Even I get to steal one. Raise.`],
   outsideFold:[d=>`${d.nm} against a raise? Not paying it.`, d=>`Too rich for ${d.nm}. Fold.`, d=>`They can fight it out. ${d.nm} folds.`],
   bet:[d=>`${d.hand} here. I'll bet while I'm ahead of most.`, d=>`I have ${d.hand}. Small bet, keep it tidy.`, d=>`Betting ${d.hand} before the board gets scary.`],
-  airBet:[d=>`Nothing much — but nobody's shown anything either. Small stab.`, d=>`I don't have it. Sometimes you bet anyway.`],
+  airBet:[d=>`Way behind if anyone has anything. Small stab anyway.`, d=>`This hand won't win a showdown. Sometimes you bet anyway.`],
   semiBluff:[d=>`${d.draw} — a bet might just take it now.`, d=>`${d.draw}. Bet now, hit later.`],
   check:[d=>`${d.hand}. No need to build a pot. Check.`, d=>`Checking — with ${d.hand} I don't want a big pot.`, d=>`Tap. Show me a cheap card.`],
   strongRaise:[d=>`This is what I sat here all night for. Raise.`, d=>`Now we raise. Finally.`],
@@ -917,7 +919,7 @@ solid:{
   bluff3bet:[d=>`${d.nm} — taking a stab at this one. Re-raise.`, d=>`He opens light. ${d.nm} re-raises.`],
   outsideFold:[d=>`${d.nm} doesn't continue against a raise. Fold.`, d=>`Out of range. Fold.`, d=>`${d.nm} — not the hand for this. Fold.`],
   bet:[d=>`${d.hand} — betting it.`, d=>`I'm ahead often enough with ${d.hand}. Bet.`, d=>`${d.hand}, standard bet.`],
-  airBet:[d=>`Missed, but so did the board for everyone. Taking a stab.`, d=>`No hand — betting at a pot nobody wants.`],
+  airBet:[d=>`Weak hand, but nobody's shown strength. Taking a stab.`, d=>`Not much to show down — betting at a pot nobody wants.`],
   semiBluff:[d=>`${d.draw} plus fold equity. Betting.`, d=>`${d.draw} — bet is best either way.`],
   check:[d=>`${d.hand} — checking to control the pot.`, d=>`Not strong enough to bet. Check.`, d=>`${d.hand}. Check and evaluate.`],
   strongRaise:[d=>`Raising for value.`, d=>`This one's big — raise.`],
@@ -942,7 +944,7 @@ maniac:{
   bluff3bet:[d=>`${d.nm} — doesn't matter. He folds or he pays. Raise.`, d=>`Re-raise. Let's see how real he is.`],
   outsideFold:[d=>`Fine, ${d.nm} goes away. This once.`, d=>`${d.nm} folds. Ugh.`, d=>`Take it. Next hand's mine.`],
   bet:[d=>`${d.hand} — bet. Keep the pressure on.`, d=>`Betting ${d.hand}. Come along if you dare.`, d=>`${d.hand}. More chips in.`],
-  airBet:[d=>`Total air. Betting anyway — that's the game.`, d=>`Nothing. Absolutely nothing. Bet.`],
+  airBet:[d=>`Behind everything that matters. Betting anyway — that's the game.`, d=>`This hand wins exactly one way. Bet.`],
   semiBluff:[d=>`${d.draw}? That's a green light. Bet.`, d=>`${d.draw} — hammer it.`],
   check:[d=>`Checking. Don't read into it.`, d=>`${d.hand}. I'll let this one breathe.`, d=>`A check. Rare collector's item.`],
   strongRaise:[d=>`Raise. Pay me.`, d=>`Big one. Raise it up.`],
@@ -967,7 +969,7 @@ selective:{
   bluff3bet:[d=>`${d.nm} — he opens too much for me to always have it. Raise.`, d=>`He won't expect it. Re-raise.`],
   outsideFold:[d=>`${d.nm} against a raise is a losing habit. Fold.`, d=>`${d.nm} — out. Waiting is free.`, d=>`Fold. My hand will come.`],
   bet:[d=>`${d.hand} — now I punch. Bet.`, d=>`Betting ${d.hand}. This is why I waited.`, d=>`Betting ${d.hand}. On schedule.`],
-  airBet:[d=>`Nothing — but nobody else looks strong either. Stab.`, d=>`Empty hand, good moment. Bet.`],
+  airBet:[d=>`Thin hand — but nobody else looks strong either. Stab.`, d=>`Weak holding, good moment. Bet.`],
   semiBluff:[d=>`${d.draw} — betting takes it now or makes it later.`, d=>`${d.draw}. Two ways to win. Bet.`],
   check:[d=>`${d.hand}. Nothing to attack yet. Check.`, d=>`Checking — the moment isn't right.`, d=>`Patience. Check.`],
   strongRaise:[d=>`Spring it. Raise.`, d=>`The ambush pays. Raise.`],
@@ -992,7 +994,7 @@ station:{
   bluff3bet:[d=>`Feeling something with ${d.nm}. Raise!`, d=>`${d.nm} raise! Gut call.`],
   outsideFold:[d=>`${d.nm} is hopeless even for me.`, d=>`Okay, ${d.nm} folds. This time.`, d=>`${d.nm} — pass. Sadly.`],
   bet:[d=>`${d.hand} — might as well bet it.`, d=>`${d.hand}! Betting.`, d=>`Chips in with ${d.hand}.`],
-  airBet:[d=>`Got nothing... betting anyway. Feels right.`, d=>`No pair, no draw, no fear. Bet.`],
+  airBet:[d=>`Not much of a hand... betting anyway. Feels right.`, d=>`Bad hand, no fear. Bet.`],
   semiBluff:[d=>`${d.draw} — so many cards can save me. Bet.`, d=>`${d.draw}! One of those always comes. Bet.`],
   check:[d=>`With ${d.hand}, a free card sounds good.`, d=>`Checking. Let's see the next one first.`, d=>`Tap tap. Next card please.`],
   strongRaise:[d=>`Finally! Raise!`, d=>`A real hand! Raise!`],
@@ -1036,11 +1038,7 @@ function moodDials(st, m){
     size:(st.size==null?1:st.size)*Math.min(1.2, 1+0.2*tilt)};
 }
 
-function say(style, slot, d, v){
-  const bank=(VOICE[style.tag]||VOICE.solid)[slot];
-  const t=bank[Math.min(bank.length-1, v<0.5?0:1)];
-  return t(d);
-}
+
 
 /* ============================================================
    GAME STATE

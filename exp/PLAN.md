@@ -32,8 +32,10 @@ Exploitability probes: 30 sessions x ≤200 hands each, seed `probe1`, no rebuys
 3bet-preflop **−612**, check-fold **−33** bb/100.
 
 Dossier labels at hand 31, 30 sessions, seed `label1` (correct% / contradiction%):
-nit 73/3, solid 43/10, maniac 33/20, selective 70/0, station 33/23 — reproducible via
-`node exp/run-labels.js` (`exp/out/labels-baseline.json`).
+nit 73/3, solid 43/10, maniac 33/20, selective 70/0, station 33/23 — reproducible on
+the ORIGINAL engine via `node exp/run-labels.js --sessions 30 --html <8f0bada build>
+--sites 5` (the script's default later moved to 90 sessions when the readability
+lock was re-instrumented; see the comment in run-labels.js).
 Label mapping (fragment sets, fixed):
 correct — nit {tight, folds often}; solid {folds often}; maniac {loose, 3-bets light,
 aggressive, sticky}; selective {tight, folds often, aggressive}; station {loose,
@@ -122,7 +124,7 @@ opt-in via `--live`; API key from environment only; `exp/out/` gitignored and
 Vercel-ignored; per-decision prompts/responses/seeds persisted so results are
 recomputable without re-spending.
 
-## Status — EXPERIMENT CONCLUDED (2026-07-31)
+## Status — EXPERIMENT CONCLUDED (2026-07-30)
 
 - Steps 1–3 ran as registered. The pilot ($0.90, 150 hands, 1005 decisions)
   PASSED criteria 1 and 5 (0.10% illegality; zero fairness tripwires; cache

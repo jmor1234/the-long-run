@@ -2,7 +2,13 @@
 // coded persona at hand 31, across sessions. The frozen rates in PLAN.md come
 // from this script (seed label1, 30 sessions) — reproducible, not ad hoc.
 //
-//   node exp/run-labels.js [--sessions 30] [--seed label1]
+//   node exp/run-labels.js [--sessions 90] [--seed label1] [--html <engine.html> --sites <n>]
+//
+// --html/--sites run the measurement against another engine build (the lock's
+// pre-change reference reproduces with:
+//   git show 8f0bada:poker-trainer.html > exp/out/old.html
+//   node exp/run-labels.js --html exp/out/old.html --sites 5 )
+// The original 30-session registration numbers reproduce with --sessions 30.
 
 const fs=require('fs');
 const path=require('path');
@@ -14,7 +20,7 @@ const args={};
   const argv=process.argv.slice(2);
   for(let i=0;i<argv.length;i++){
     const a=argv[i];
-    if(!a.startsWith('--')||!['sessions','seed'].includes(a.slice(2))) fatal('unknown arg '+a);
+    if(!a.startsWith('--')||!['sessions','seed','html','sites'].includes(a.slice(2))) fatal('unknown arg '+a);
     const v=argv[i+1];
     if(v===undefined||v.startsWith('--')) fatal('flag '+a+' needs a value');
     args[a.slice(2)]=v; i++;
@@ -43,7 +49,9 @@ const checkFoldHero=(G)=>{
 
 const tally={}, classed={};
 for(let s=0;s<SESSIONS;s++){
-  const h=make(checkFoldHero,{seed:`${SEED}|s${s}`});
+  const h=make(checkFoldHero,{seed:`${SEED}|s${s}`,
+    htmlPath:args.html||undefined,
+    expectedRandSites:args.sites===undefined?undefined:+args.sites});
   h.G.newSession(); h.drain();
   while(h.G.session.hands<HAND_AT && !h.G.session.over){ h.G.newHand(); h.drain(); }
   for(const r of h.G.roster.filter(r=>r.style)){
@@ -74,13 +82,18 @@ fs.writeFileSync(path.join(outDir,'labels-baseline.json'), JSON.stringify(report
 console.log('\nwrote exp/out/labels-baseline.json');
 
 // Readability DRIFT DETECTOR: bots must stay within 10pp of the pre-humanize
-// engine's readability. RE-INSTRUMENTED 2026-07-31 at 90 sessions: at the
+// engine's readability. RE-INSTRUMENTED 2026-07-30 at 90 sessions: at the
 // original 30, one label = 3.3pp against ~8pp binomial noise, so the lock
 // bounced personas across its own line (solid oscillated 27-33 on unrelated
-// dial changes). Bounds = pre-change engine (8f0bada arm via harness
-// htmlPath) measured at 90 sessions — nit 74/1, solid 36/20, maniac 27/23,
-// selective 67/1, station 41/17 — minus/plus the same contracted 10pp.
-// Same contract, resolution the contract can actually be judged at.
+// dial changes). Bounds = pre-change engine measured at 90 sessions via the
+// --html flag above — nit 74/1, solid 36/20, maniac 27/23, selective 67/1,
+// station 41/17 — minus/plus the same contracted 10pp. Same contract,
+// resolution the contract can actually be judged at. Disclosed plainly:
+// the re-instrumentation landed alongside the texture dials because the
+// texture pass exposed the resolution problem, the old 30-session lock
+// would (noisily) fail at HEAD, and two personas sit at/within 1pp of
+// their floors (solid 27 vs 26, selective 57 vs 57) — the contract line,
+// honored with zero spare.
 let locked=0;
 if(SESSIONS===90 && SEED==='label1'){
   const LOCK={nit:{minCorrect:64,maxContra:11}, solid:{minCorrect:26,maxContra:30},
