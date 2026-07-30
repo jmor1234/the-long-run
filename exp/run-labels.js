@@ -20,7 +20,7 @@ const args={};
     args[a.slice(2)]=v; i++;
   }
 }
-const SESSIONS=args.sessions===undefined?30:+args.sessions;
+const SESSIONS=args.sessions===undefined?90:+args.sessions;
 const SEED=args.seed||'label1';
 const HAND_AT=31; // first hand at/after READS_MIN_HANDS(30)
 if(!Number.isInteger(SESSIONS)||SESSIONS<1) fatal('--sessions must be a positive integer');
@@ -73,18 +73,19 @@ fs.mkdirSync(outDir,{recursive:true});
 fs.writeFileSync(path.join(outDir,'labels-baseline.json'), JSON.stringify(report,null,2));
 console.log('\nwrote exp/out/labels-baseline.json');
 
-// Readability DRIFT DETECTOR: bots must stay roughly as readable as the
-// pre-humanize engine. Bounds = pre-change measurement @ 8f0bada (73/3,
-// 43/10, 33/20, 70/0, 33/23) minus/plus 10pp — a floor against decay, not an
-// independent oracle of what a read should say (the mapping encodes design
-// intent). Post-C3 measured margins are thin for solid (37 vs 33) and
-// station (30 vs 23): that is the detector working near its line, by design.
-// Enforced only at the frozen config.
+// Readability DRIFT DETECTOR: bots must stay within 10pp of the pre-humanize
+// engine's readability. RE-INSTRUMENTED 2026-07-31 at 90 sessions: at the
+// original 30, one label = 3.3pp against ~8pp binomial noise, so the lock
+// bounced personas across its own line (solid oscillated 27-33 on unrelated
+// dial changes). Bounds = pre-change engine (8f0bada arm via harness
+// htmlPath) measured at 90 sessions — nit 74/1, solid 36/20, maniac 27/23,
+// selective 67/1, station 41/17 — minus/plus the same contracted 10pp.
+// Same contract, resolution the contract can actually be judged at.
 let locked=0;
-if(SESSIONS===30 && SEED==='label1'){
-  const LOCK={nit:{minCorrect:63,maxContra:13}, solid:{minCorrect:33,maxContra:20},
-    maniac:{minCorrect:23,maxContra:30}, selective:{minCorrect:60,maxContra:10},
-    station:{minCorrect:23,maxContra:33}};
+if(SESSIONS===90 && SEED==='label1'){
+  const LOCK={nit:{minCorrect:64,maxContra:11}, solid:{minCorrect:26,maxContra:30},
+    maniac:{minCorrect:17,maxContra:33}, selective:{minCorrect:57,maxContra:11},
+    station:{minCorrect:31,maxContra:27}};
   for(const [tag,b] of Object.entries(LOCK)){
     const r=report.rates[tag];
     if(!r){ console.log(`FAIL ${tag}: no rate measured`); locked++; continue; }

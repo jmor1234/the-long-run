@@ -782,11 +782,13 @@ function botDecide(ctx){
     }
 
     // facing a raise: continue with a tighter slice, plus a small bluff frequency.
-    const defend = thr * 0.55;
+    // The BB defends wider — the blind discount is real, and a table where
+    // nobody ever defends the blind reads dead (measured panel tell).
+    const defend = thr * 0.55 * (position==='BB' ? 1.25 : 1);
     const threeBet = clampFreq(0.62 * style.bet * nudge.raiseMult);
     const defendCall = clampFreq(0.72 / style.fold * nudge.callMult);
     const spewCall = clampFreq(0.20 * nudge.callMult);
-    const bluff3 = clampFreq(0.038 * style.bet * nudge.raiseMult);
+    const bluff3 = clampFreq(0.055 * style.bet * nudge.raiseMult);
 
     if(pct <= defend*0.30){
       const premRoll = draw();
@@ -1048,15 +1050,15 @@ const NAMES=['Vera','Oyelaran','Mikko','Priya','Dunn'];
    open/bet > 1 = looser/more aggressive; fold > 1 = folds more under pressure. */
 const BOT_STYLES=[
   // Recreational leaks (beginner–intermediate), not GTO. fold<1 = sticky under pressure.
-  {open:0.70, bet:0.70, fold:1.35, limp:0.03, openSize:2.6, size:0.85, sizeJitter:0.10, callTemp:0.020, tag:'nit',
+  {open:0.70, bet:0.70, fold:1.35, limp:0.06, openSize:2.6, size:0.85, sizeJitter:0.10, callTemp:0.020, tag:'nit',
    blurb:'Nitty recreational. Narrow opens, the odd limp, folds when pressured.'},
   {open:1.00, bet:1.00, fold:1.12, limp:0.09, openSize:3.0, size:1.00, sizeJitter:0.14, callTemp:0.028, tag:'solid',
    blurb:'Straightforward regular. Mostly raise-or-fold; occasional limp.'},
-  {open:1.35, bet:1.40, fold:0.70, limp:0.08, openSize:3.4, size:1.25, sizeJitter:0.22, callTemp:0.045, tag:'maniac',
+  {open:1.35, bet:1.40, fold:0.70, limp:0.14, openSize:3.4, size:1.25, sizeJitter:0.22, callTemp:0.045, tag:'maniac',
    blurb:'Spewy and aggressive. Plays too many hands and keeps betting at you.'},
   {open:0.85, bet:1.25, fold:0.98, limp:0.02, openSize:3.0, size:1.05, sizeJitter:0.16, callTemp:0.020, tag:'selective',
    blurb:'Selective preflop, punches when involved. Rarely just calls.'},
-  {open:1.20, bet:0.75, fold:0.72, limp:0.40, openSize:2.4, size:0.90, sizeJitter:0.12, callTemp:0.055, tag:'station',
+  {open:1.20, bet:0.75, fold:0.72, limp:0.48, openSize:2.4, size:0.90, sizeJitter:0.12, callTemp:0.055, tag:'station',
    blurb:'Calling station. Limps in, pays off too light, rarely raises for value.'}
 ];
 const SB=1, BB=2, START=200;
