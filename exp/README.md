@@ -88,6 +88,17 @@ tracked `exp/ref/`, in two kinds — don't conflate them:
 Either way it is history: fresh `exp/out/` results are EXPECTED to diverge as the
 bots change — never "fix" that divergence, and never regenerate into `exp/ref/`.
 
+⚠ **Two of these cannot be recreated at any price, so don't "clean them up".**
+`pilot-api-pilot1.jsonl` is the paid LLM pilot (1005 decisions, ~$0.90) and the only
+record in which you can *see* a bot claim a draw that isn't on the board — the
+hallucination finding that killed the LLM approach. `feel-packet.txt` is the
+transcript set behind the original 1–1.5/10 baseline; it **looks** regenerable via
+`run-feel.js` and is not — the pilot's cached decisions were recorded against the
+pre-humanize ctx, so the oracle's divergence check correctly refuses to replay them
+on today's engine (verified 2026-07-30), and `run-feel.js` has no `htmlPath` option
+to load the old build. Together they are ~83% of `exp/`'s bytes and they are the
+evidentiary base for the two largest decisions in the project.
+
 ⚠ **Nothing enforces that but you.** No test, no ignore rule — and every runner
 writes to `exp/out/` under the *same filename* as its `ref/` counterpart
 (`probes-baseline.json`, `labels-baseline.json`, `baseline-metrics.json`,
