@@ -45,9 +45,9 @@ function buildSrc(htmlPath, expectedSites){
   src=mustReplace(src, 'function newHand(){', 'function newHand(){ __STREAM("deal");',
     'newHand stream hook');
   // Extend ctx with the public betting state the legality normalizer needs
-  // (currentBet/minRaise/myBet are public info; exp-only, shipped ctx unchanged).
-  src=mustReplace(src, 'streetBets:S.streetBets||0,',
-    'streetBets:S.streetBets||0, currentBet:S.currentBet, minRaise:S.minRaise, myBet:p.bet,',
+  // (exp-only; shipped ctx carries myBet itself since the all-in-cap fix).
+  src=mustReplace(src, 'streetBets:S.streetBets||0, myBet:p.bet,',
+    'streetBets:S.streetBets||0, myBet:p.bet, currentBet:S.currentBet, minRaise:S.minRaise,',
     'ctx betting-state extension');
 
   // Route all engine randomness through the injected generator.
@@ -92,7 +92,9 @@ function make(heroPolicy, opts={}){
   const __DECIDE=(ctx, fall)=>{
     const meta={hand:state.hand, index:state.decision++};
     state.lastBotCtx=ctx;
-    gen=stream(`${seed}|dec|${meta.hand}|${meta.index}`);
+    state.lastDraws=[];
+    const g=stream(`${seed}|dec|${meta.hand}|${meta.index}`);
+    gen=()=>{ const v=g(); state.lastDraws.push(v); return v; };
     try{
       return opts.decide ? opts.decide(ctx, meta, fall) : fall(ctx);
     } finally {

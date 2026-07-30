@@ -5,6 +5,13 @@ The humanness measurement used for the LLM experiment's step-4 read
 comparable; any change to the prompt or protocol makes scores incomparable
 and must be called a new instrument.
 
+## CONTAMINATION WARNING
+
+This directory contains the unblinding key (feel-key.json) and all prior
+verdicts. A judge must NEVER be given repository access — hand each judge
+ONLY its one extracted block file, exactly as the baseline run did. Any
+judge that has seen this repo is burned for scoring purposes.
+
 ## Protocol
 
 - Transcript blocks of 30 consecutive hands, one table, hero sitting out

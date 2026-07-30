@@ -73,15 +73,18 @@ fs.mkdirSync(outDir,{recursive:true});
 fs.writeFileSync(path.join(outDir,'labels-baseline.json'), JSON.stringify(report,null,2));
 console.log('\nwrote exp/out/labels-baseline.json');
 
-// Readability lock: bots must stay readable as behavior gains texture.
-// Bounds = measured @ 8f0bada (73/3, 43/10, 33/20, 70/0, 33/23) with 10pp
-// headroom each way. Enforced only at the frozen config; exploratory runs
-// report without failing.
+// Readability DRIFT DETECTOR: bots must stay roughly as readable as the
+// pre-humanize engine. Bounds = pre-change measurement @ 8f0bada (73/3,
+// 43/10, 33/20, 70/0, 33/23) minus/plus 10pp — a floor against decay, not an
+// independent oracle of what a read should say (the mapping encodes design
+// intent). Post-C3 measured margins are thin for solid (37 vs 33) and
+// station (30 vs 23): that is the detector working near its line, by design.
+// Enforced only at the frozen config.
+let locked=0;
 if(SESSIONS===30 && SEED==='label1'){
   const LOCK={nit:{minCorrect:63,maxContra:13}, solid:{minCorrect:33,maxContra:20},
     maniac:{minCorrect:23,maxContra:30}, selective:{minCorrect:60,maxContra:10},
     station:{minCorrect:23,maxContra:33}};
-  let locked=0;
   for(const [tag,b] of Object.entries(LOCK)){
     const r=report.rates[tag];
     if(!r){ console.log(`FAIL ${tag}: no rate measured`); locked++; continue; }
@@ -90,6 +93,8 @@ if(SESSIONS===30 && SEED==='label1'){
       locked++;
     }
   }
-  process.exitCode=locked?1:0;
   if(!locked) console.log('readability lock: all personas within bounds');
+} else {
+  console.log('lock skipped: exploratory config');
 }
+process.exitCode=locked?1:0;

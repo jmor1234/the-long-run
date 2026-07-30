@@ -18,9 +18,9 @@ const {G,drain}=make(policy);
 for(let sess=0; sess<120; sess++){
   G.newSession(); drain();
   let hands=0;
-  // Cap sized for the post-sizing-spread session-length distribution: smaller
-  // average opens (station 4.8, nit 5.2) mean slower busts than the flat 6s.
-  // A genuine stalemate would blow any cap; 900 keeps the ending check honest.
+  // Unseeded endurance check: observed tail reaches ~400 hands since the
+  // sizing/boundary changes (typical max ~160). 900 is headroom against the
+  // tail, not a claim about typical length; a genuine stalemate blows any cap.
   while(!G.session.over && hands<900){
     const total=G.roster.reduce((a,p)=>a+p.stack,0);
     if(total!==1200){ chipErr++; if(chipErr<3){console.log('  [mid-loop] total',total,'at',G.S.n,'handed, over=',G.session.over); G.roster.forEach(r=>console.log('     ',r.name,r.stack));} }

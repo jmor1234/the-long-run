@@ -66,6 +66,7 @@ if(SESSIONS!==30||HANDS!==200||SEED!=='probe1')
   console.log(`NOTE: config differs from the frozen registration (30x200, probe1) — output is exploratory`);
 
 const report={config:{sessions:SESSIONS, hands:HANDS, seed:SEED}, probes:{}};
+let bugs=0;
 for(const [name,policy] of Object.entries(PROBES)){
   let net=0, hands=0, busts=0, stray=0, conservation=0;
   const perSession=[];
@@ -95,8 +96,8 @@ for(const [name,policy] of Object.entries(PROBES)){
   }
   const rate=bb100(net, hands, BB);
   report.probes[name]={bb100:rate, net, hands, busts, sessions:SESSIONS, BB, START, perSession};
-  if(stray) console.log(`BUG ${name}: ${stray} stray RNG draws`);
-  if(conservation) console.log(`BUG ${name}: chips drifted in ${conservation} hands`);
+  if(stray){ console.log(`BUG ${name}: ${stray} stray RNG draws`); bugs++; }
+  if(conservation){ console.log(`BUG ${name}: chips drifted in ${conservation} hands`); bugs++; }
   console.log(`  ${name.padEnd(14)} ${String(rate).padStart(6)} bb/100   ${hands} hands, busted ${busts}/${SESSIONS}`);
 }
 
@@ -106,17 +107,20 @@ fs.writeFileSync(path.join(outDir,'probes-baseline.json'), JSON.stringify(report
 console.log('\nwrote exp/out/probes-baseline.json');
 
 // Exploitability lock: degenerate strategies must keep losing hard even as
-// the bots gain looseness/texture. Thresholds have wide headroom against the
-// values measured @ 8f0bada (-992 / -898 / -612 / -33). Enforced only at the
-// frozen config; exploratory runs report without failing.
+// the bots gain looseness/texture. Thresholds = ~50% of the values measured
+// @ 6cd6b29 (-1111 / -1056 / -787 / -36), so a halving of exploitability
+// resistance fails the gate, not just a total collapse. Re-freeze alongside
+// any deliberate dial change. Enforced only at the frozen config.
+let locked=0;
 if(SESSIONS===30 && HANDS===200 && SEED==='probe1'){
-  const LOCK={'always-raise':-300,'call-station':-300,'3bet-preflop':-300,'check-fold':-15};
-  let locked=0;
+  const LOCK={'always-raise':-550,'call-station':-500,'3bet-preflop':-390,'check-fold':-18};
   for(const [name,maxRate] of Object.entries(LOCK)){
     const p=report.probes[name];
     if(!p){ console.log(`FAIL ${name}: probe missing`); locked++; continue; }
     if(!(p.bb100<=maxRate)){ console.log(`FAIL ${name}: ${p.bb100} bb/100 (must be <= ${maxRate})`); locked++; }
   }
-  process.exitCode=locked?1:0;
   if(!locked) console.log('exploitability lock: all probes within bounds');
+} else {
+  console.log('lock skipped: exploratory config');
 }
+process.exitCode=(locked||bugs)?1:0;

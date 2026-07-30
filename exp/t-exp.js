@@ -87,7 +87,7 @@ function runBaseline(seed, hands, opts={}){
 
 // --- 3b. sizing spread (C2 gate; numbers frozen from the reachable-set table)
 {
-  const opens={}, postflop=new Set();
+  const opens={}, postflop=new Set(), betRatios={};
   let underMin=0, overStack=0, betsSeen=0;
   const spy=(ctx,meta,fall)=>{
     const d=fall(ctx);
@@ -102,7 +102,11 @@ function runBaseline(seed, hands, opts={}){
       }
       if(ctx.street==='preflop' && !ctx.raisedBefore && d.action==='raise')
         (opens[ctx.style.tag]=opens[ctx.style.tag]||[]).push(d.amount);
-      if(ctx.street!=='preflop') postflop.add(d.amount);
+      if(ctx.street!=='preflop'){
+        postflop.add(d.amount);
+        if(d.action==='bet' && ctx.pot>0)
+          (betRatios[ctx.style.tag]=betRatios[ctx.style.tag]||[]).push(d.amount/ctx.pot);
+      }
     }
     return d;
   };
@@ -128,7 +132,13 @@ function runBaseline(seed, hands, opts={}){
   ok(m.station<m.nit && m.nit<Math.min(m.solid,m.selective) && Math.max(m.solid,m.selective)<m.maniac,
     'open size means ordered station < nit < solid~selective < maniac',
     JSON.stringify(m,(k,v)=>typeof v==='number'?+v.toFixed(2):v));
-  ok(postflop.size>=6, 'postflop bet/raise amounts show spread', postflop.size+' distinct');
+  // Discriminative postflop check: mean bet-to-pot ratio must follow the size
+  // dial (maniac 1.25 > solid 1.00 > nit 0.85) — false on the pre-C2 engine.
+  const rMean=t=>{const a=betRatios[t]||[]; return a.reduce((x,y)=>x+y,0)/(a.length||1);};
+  ok((betRatios.maniac||[]).length>=15 && (betRatios.solid||[]).length>=15 && (betRatios.nit||[]).length>=10
+     && rMean('maniac')>rMean('solid') && rMean('solid')>rMean('nit'),
+    'postflop bet/pot ratio follows the size dial (maniac > solid > nit)',
+    `maniac ${rMean('maniac').toFixed(2)}, solid ${rMean('solid').toFixed(2)}, nit ${rMean('nit').toFixed(2)}`);
   ok(underMin===0 && overStack===0,
     'zero emitted amounts altered by the engine floor (normalize oracle)',
     betsSeen+' bets checked');
@@ -136,21 +146,22 @@ function runBaseline(seed, hands, opts={}){
 
 // --- 3c. soft call/fold boundary (C3 gate) -----------------------------
 // Boundary "errors" are read from the emitted equity narrative (independent
-// of the logistic's internals). Frozen from the measured 5-seed batch:
-// station 3 loose calls + 5 tight folds, nit 0 + 0.
+// of the logistic's internals) and normalized by opportunities so the check
+// tests persona SHAPE, not sample-size artifacts.
 {
-  const loose={}, tight={};
+  const loose={}, tight={}, opps={};
   const spy=(ctx,meta,fall)=>{
     const d=fall(ctx);
     let m;
-    if(d.reason && (m=d.reason.match(/~(\d+)% vs (\d+)% needed\. (Calls|Folds)\./))){
+    if(d.reason && (m=d.reason.match(/~(\d+)% vs (\d+)% needed — calls here \d+% of the time; roll \d+\.\d+ said (call|fold)\./))){
       const t=ctx.style.tag, eff=+m[1], need=+m[2];
-      if(m[3]==='Calls' && eff<need) loose[t]=(loose[t]||0)+1;
-      if(m[3]==='Folds' && eff>need) tight[t]=(tight[t]||0)+1;
+      opps[t]=(opps[t]||0)+1;
+      if(m[3]==='call' && eff<need) loose[t]=(loose[t]||0)+1;
+      if(m[3]==='fold' && eff>need) tight[t]=(tight[t]||0)+1;
     }
     return d;
   };
-  for(let i=1;i<=5;i++){
+  for(let i=1;i<=10;i++){
     const h=make(checkFoldHero,{seed:'soft-'+i, decide:spy});
     h.G.newSession(); h.drain();
     let last=h.G.session.hands;
@@ -160,12 +171,62 @@ function runBaseline(seed, hands, opts={}){
       last=h.G.session.hands;
     }
   }
-  const tot=t=>(loose[t]||0)+(tight[t]||0);
+  const rate=t=>((loose[t]||0)+(tight[t]||0))/(opps[t]||1);
   ok((loose.station||0)>=1, 'station makes genuinely loose calls (equity below price)',
     (loose.station||0)+' loose calls');
-  ok(tot('station')>=3 && tot('nit')<=2 && tot('station')>tot('nit'),
-    'boundary blur is persona-shaped: station blurry, nit sharp',
-    `station ${tot('station')}, nit ${tot('nit')}`);
+  ok((opps.nit||0)>=25 && (opps.station||0)>=40,
+    'boundary sample is large enough per persona',
+    `nit ${opps.nit||0} spots, station ${opps.station||0}`);
+  ok(((loose.station||0)+(tight.station||0))>=3 && rate('station')>=2*rate('nit'),
+    'boundary error RATE is persona-shaped: station at least twice nit',
+    `station ${(rate('station')*100).toFixed(1)}%, nit ${(rate('nit')*100).toFixed(1)}%`);
+}
+
+// --- 3d. reason-roll correspondence (C1 invariant, preflop-exact) -------
+// Preflop decisions consume no equity Monte Carlo, so the draw sequence is
+// tiny and exact: the roll a reason quotes must be the draw that governed
+// its branch, and a declined limp must have consumed TWO draws (a shared-
+// roll regression collapses it back to one).
+{
+  let checked=0, wrong=0, limpTwo=0, limpSeen=0;
+  let cur=null;
+  const spy=(ctx,meta,fall)=>{
+    const d=fall(ctx);
+    if(ctx.street==='preflop' && d.reason && cur){
+      const draws=cur.state.lastDraws;
+      const q=d.reason.match(/roll (\d+\.\d+)/g);
+      if(q){
+        checked++;
+        const quoted=q.map(x=>x.slice(5));
+        const drawn=draws.map(v=>v.toFixed(2));
+        if(!quoted.every(x=>drawn.includes(x))) wrong++;
+      }
+      if(/passed on the limp too|said limp/.test(d.reason)){
+        limpSeen++;
+        if(draws.length===2) limpTwo++;
+      }
+    }
+    return d;
+  };
+  for(let i=1;i<=4;i++){
+    const h=make(checkFoldHero,{seed:'rollq-'+i, decide:spy});
+    cur=h;
+    h.G.newSession(); h.drain();
+    let last=h.G.session.hands;
+    while(h.G.session.hands<40 && !h.G.session.over){
+      h.G.newHand(); h.drain();
+      if(h.G.session.hands===last) break;
+      last=h.G.session.hands;
+    }
+  }
+  ok(checked>=100 && wrong===0,
+    'every quoted preflop roll was actually drawn by that decision',
+    `${checked} reasons checked`);
+  ok(limpSeen>=5 && limpTwo===limpSeen,
+    'limp-band decisions consume two independent draws (decorrelation live)',
+    `${limpTwo}/${limpSeen}`);
+  ok(make.EXPECTED_RAND_SITES===4,
+    'harness site-count constant matches the C1 contract');
 }
 
 // --- 4. ctx carries the betting state the legality view needs ----------

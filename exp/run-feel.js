@@ -18,7 +18,11 @@ const make=require('./exp-harness');
 const {makeOracle}=require('./oracle');
 const {stream}=require('./prng');
 
-const PILOT_JSONL=path.join(__dirname,'out','pilot-api-pilot1.jsonl');
+// Prefer the tracked archive (survives clones and cleaned scratch dirs); the
+// gitignored out/ copy only exists right after a fresh pilot run.
+const PILOT_JSONL=[path.join(__dirname,'ref','pilot-api-pilot1.jsonl'),
+                   path.join(__dirname,'out','pilot-api-pilot1.jsonl')]
+  .find(p=>fs.existsSync(p)) || path.join(__dirname,'ref','pilot-api-pilot1.jsonl');
 const SESSION_SEEDS=['pilot1|s0','pilot1|s1'];
 const RANGES=[[1,30],[31,60]]; // two 30-hand blocks per 75-hand session
 

@@ -45,8 +45,10 @@ Outputs land in `exp/out/` (gitignored scratch; also excluded from Vercel
 deploys via `.vercelignore` along with all of `exp/`). Frozen reference
 evidence lives in tracked `exp/ref/` — baseline metrics/probes/labels, the
 blind feel packet + key + panel verdicts, the pilot's paid decision records,
-and the frozen panel instrument (`feel-panel.md`). Runners write only to
-`exp/out/`; never regenerate into `exp/ref/`.
+and the frozen panel instrument (`feel-panel.md`). All of it was measured on
+the PRE-HUMANIZE engine (8f0bada and earlier): it is preserved history, so
+fresh `exp/out/` results are EXPECTED to diverge from it as the bots change —
+never "fix" that divergence, and never regenerate into `exp/ref/`.
 
 `exp/t-exp.js` runs as part of `run-all.sh`, so if `poker-trainer.html`
 drifts — a `Math.random` site added, a rewrite anchor renamed — the harness
