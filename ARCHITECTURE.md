@@ -265,10 +265,13 @@ at your edit.
 
 **Exploitability is enforced, not assumed.** `exp/run-probes.js` runs degenerate hero
 strategies (always-raise, call-station, always-3bet, check-fold) against the table and
-**fails the build** if any stops losing badly — thresholds hardcoded at roughly half
-the measured margin, so a real erosion trips it long before the bots become beatable.
-This is the guard that lets the humanize dials (looser calls, tilt, wider limps) be
-tuned without quietly turning the table into a cash machine.
+**fails the build** if any stops losing badly. The thresholds (−550/−500/−390/−18
+bb/100) are ~50% of the margins measured at `6cd6b29` — the numbers in the script's
+own comment — which is ~55–65% of PLAN.md's older frozen baseline; **re-freeze both
+sets alongside any deliberate dial change.** Either way there is enough headroom that
+a real erosion trips the lock long before the bots become beatable, which is what lets
+the humanize dials (looser calls, tilt, wider limps) be tuned without quietly turning
+the table into a cash machine.
 
 ---
 
@@ -504,7 +507,7 @@ suspect the harness first.**
 | `t6.js` | elimination, table shrinking 6→2, chip conservation, heads-up blind rules |
 | `audit.js` | VPIP scope, session bb, incomplete raises, styles/limps, forced 3-bet & fold-to-cbet spots |
 | `exp/t-exp.js` | seeded-harness gate suite, two halves: **humanize** (sizing spread + zero engine-floor clamps via the legality oracle, boundary blur persona-shaped by *rate*, dbg-roll drawn-and-governs, short-stack never raises, exhaustive VOICE text-ban scan, mood arithmetic vs a hand-computed table + call-site fidelity) and **experiment infrastructure** (determinism, stream isolation, cross-arm deal identity, oracle replay, legality unit + engine integration, prompt purity) |
-| `exp/run-probes.js` | exploitability LOCK: degenerate heroes must lose ≥ hardcoded bb/100 thresholds (~55–65% of the measured margin), nonzero exit |
+| `exp/run-probes.js` | exploitability LOCK: degenerate heroes must lose ≥ hardcoded bb/100 thresholds (see §3.4 for the numbers and their baseline), nonzero exit |
 | `exp/run-labels.js` | readability LOCK: per-persona dossier labels at hand 31 within 10pp of the pre-humanize engine, measured at 90 sessions (at 30, one label = 3.3pp against ~8pp of noise, so the lock bounced personas across its own line). Two personas sit within 1pp of their bound **by construction** — a marginal failure here is expected sensitivity, not automatically a regression; re-measure the old engine with `--html`/`--sites` before assuming |
 
 All of the above run in `run-all.sh`, which exits nonzero on any suite failure
@@ -609,16 +612,29 @@ gated on evidence that it's worth the complexity (blind-panel score, or your own
 7. **Per-seat trait DNA** — two bots of the same persona jittered to differ. Refused so
    far because fixed, learnable archetypes *are* the curriculum; revisit only if seat
    individuation beats seat legibility for a real player
-8. **Multiway awareness** — bots evaluate against one opponent regardless of how many
-   are live. Deferred because the exploitability lock hasn't fired; build it if looser
-   dials ever trip the probes
+8. **Multiway awareness** — `strengthVsRandom` evaluates against exactly **one** random
+   hand no matter how many players are live, and the `multiway` factor is misnamed: it
+   keys off bets this street (`streetBets >= 2`), not opponent count. ⚠ Don't "fix" the
+   name without fixing the model. Deferred, but note the dissent: one of the three
+   designs shipped a `liveOpps` bound specifically as the safety valve for
+   mood-loosening ("without it, tilt produces absurd five-way spew"); the other two
+   ruled it out of scope, and the exploitability lock has not fired since. Build it if
+   looser dials ever trip the probes
 9. **Deeper table texture** — the action-only panel still cites thin blind defense and
    too few contested pots; this is the largest remaining measured gap
 
-Explicitly **not** priorities: LLM as primary decision maker (measured and rejected —
-§0, `exp/PLAN.md`); a no-repeat phrase ring (humans repeat themselves; two independent
-designs refused it); UI labelling bot mood (hands the player the read they should be
-learning to make); profiles menu; cross-session persistence; rewriting pot/sidepot math.
+**Settled rejections — reasons attached, so they don't get re-litigated:**
+
+| Rejected | Why |
+|---|---|
+| LLM as decision maker *or* narrator | Measured and rejected: hallucinated reasoning (§0, `exp/PLAN.md`) |
+| `style.misread` — bots holding false beliefs about their own hand | Violates truthful-reasons; that is why bot error comes from the soft boundary and mood, never from corrupting the strength estimate. Allowed *in principle* as item 6 above, but only with its own increment and measurement |
+| Splitting `READS_PRIOR`, or doubling `facingNudge`'s coefficients | Creates a second source of truth for "how much evidence counts as evidence"; "the bot's gut is looser than the UI admits" reintroduces exactly the fake certainty the shrinkage prior exists to prevent |
+| Narrating mood in the UI (`readsLiveLine`) | An explicit "steaming" label hands the learner the read the prose is meant to teach them to make |
+| A no-repeat phrase ring | Humans repeat themselves; two independent designs refused it. Fix bank *depth* instead |
+| Tracery-style grammars, Perlin noise, an N×N grudge matrix, mid-session style mutation, showdown-derived state, decision-latency simulation | All considered during the humanize design and cut as complexity that no measurement asked for. A single grudge/nemesis slot was unanimous across all three designs and still deliberately not built — it had no defined behavioral consumer |
+| Profiles menu, cross-session persistence, `localStorage` | §0 — sandbox failures plus clean-slate sessions |
+| Rewriting pot/sidepot math | Works, tested, and the odd-chip rule is a real cardroom rule (§3.2) |
 
 ---
 
