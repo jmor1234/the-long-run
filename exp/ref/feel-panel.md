@@ -69,7 +69,10 @@ of new-arm blocks. Secondary signal: majority of shared-seed pairs new > old.
 | FINAL (feelab4) | opus-5 medium | action-only | 2.13 | 3.00 |
 
 Judge model changed to claude-opus-5 medium (owner directive, 2026-07-30);
-all future panels use opus-5 medium. The 5.0 bar was never met on the
+all future panels use opus-5 medium. Caveat on feelab1-3: those rounds ran
+with a say()-shadowing bug (found post-hoc, fixed at 1531453) that halved
+variant diversity and disabled sentence capitalization — their new-arm
+scores understate the fixed voice. The 5.0 bar was never met on the
 transcript instrument and is recorded as unmet — the surviving tells
 (verbatim bank repetition, exhaustive narration) are format properties the
 in-game player never experiences; on action-only play the new engine leads
