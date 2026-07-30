@@ -29,11 +29,14 @@ reads** model — not LLMs, not GTO solvers.
 | Goal | Touch |
 |---|---|
 | Bot decisions / frequencies | `botDecide` in `poker-trainer.html` (BOT POLICY) |
-| Styles / limps / blurbs | `BOT_STYLES` + limp branch in `botDecide` |
+| Styles / limps / sizing / blurbs | `BOT_STYLES` (dials incl. `openSize`, `size`, `sizeJitter`, `callTemp`) |
+| What bots *say* | `VOICE` bank + `say()` (BOT VOICE section, §12) |
+| Tilt / heaters | `moodStep` + `moodDials` (MOOD section, §12) |
 | Cross-hand memory | `freshReads` / `applyAction` reads block / `facingNudge` / `readLabel` |
 | Table / pots / streets | GAME STATE (`step`, `applyAction`, `buildPots`, `endHand`) |
 | Seats, dossiers, strip, export | RENDER |
-| Tests | `harness.js` + `t*.js` / `audit.js` — keep `function botDecide(ctx){` literal |
+| Tests | root `t*.js` / `audit.js` (via `harness.js`) **and** `exp/t-exp.js` + the locks (via `exp/exp-harness.js`) — keep `function botDecide(ctx){` literal |
+| Re-measuring "does this feel human" | `exp/run-ab.js` + the frozen protocol in `exp/ref/feel-panel.md` |
 
 ### Load-bearing decisions (do not casually reverse)
 
@@ -41,7 +44,8 @@ reads** model — not LLMs, not GTO solvers.
 |---|---|
 | **Frequencies, not fixed rules** | A bot that always folds to 3-bets teaches a habit that dies at a real table (§3.4) |
 | **`botDecide` is ctx-only** | Fairness is structural: never read `S` or others’ hole cards; `t3.js` enforces it |
-| **Coded policy, not LLM decisions** | LLMs are weak/unreliable at NLHE, break offline/simple/testable fairness, and separate “reason” from cause. Optional LLM *narration* of public stats is a later experiment — not the action chooser |
+| **Coded policy, not LLM decisions** | **Tested, not assumed** (2026-07-30, `exp/PLAN.md`): an LLM arm played legally and felt marginally more human — and *hallucinated its own reasoning* (claimed draws that weren't there, said "checking" while betting). Since the stated reason is the curriculum, fabricated narration is disqualifying. It also costs offline play, free instant tests, and ~1.6 s per decision |
+| **Bots feel human via texture, not intelligence** | The humanize layer (§12) — varied sizing, real mistakes, five voices, mood — came from a blind panel telling us exactly which four things read as robotic. Measured, not guessed; every claim has archived evidence in `exp/ref/`. It improved every comparison and still missed its own target — see §10 |
 | **Recreational leaks, not GTO** | Target is beginner–intermediate opponents you can learn to read (limp, station, maniac), not solver-perfect play |
 | **One shared reads model** | UI dossiers, export, and bot nudges share one public counter set. If bots used a richer private model, the UI would lie — review becomes theatre |
 | **Priors + confidence tiers** | Small samples must not print fake certainty (`unknown` → `lean` → `solid`) |
@@ -80,7 +84,7 @@ reasons).
 
 ## 2. File layout
 
-**App:** `poker-trainer.html` (~1600 lines), three parts:
+**App:** `poker-trainer.html` (~1830 lines), three parts:
 
 ```
 <style>    design tokens + layout (including seat tips)
@@ -98,17 +102,40 @@ The script sections, in order (each has a banner comment):
 | `EQUITY` | Monte Carlo, range inference |
 | `READS` | public-action memory, labels, facing nudges |
 | `BOT POLICY` | the single decision function |
+| `BOT VOICE` | persona phrase banks + `say()` — what bots tell the player |
+| `MOOD` | `moodStep` / `moodDials` — tilt and heaters |
 | `GAME STATE` | table, positions, betting loop, pots, styles |
 | `RENDER` | all DOM writing (seats, tips, strip, export) |
 
-**Repo (flat — no `tests/` folder):**
+⚠ `t3.js` slices the fairness ban-scan from `function botDecide` to the `GAME STATE`
+banner — so **BOT VOICE and MOOD are inside the scanned region** (deliberately: they
+run during a decision). Code placed above `botDecide` escapes that scan; don't move
+decision-path helpers there.
+
+**Repo:**
 
 | Path | Role |
 |---|---|
-| `poker-trainer.html` | the app |
-| `harness.js` / `t*.js` / `audit.js` / `run-all.sh` | Node test suite |
+| `poker-trainer.html` | the app — the only file that ships |
+| `harness.js` / `t*.js` / `audit.js` | Node test suite for the shipped app |
+| `run-all.sh` | runs every suite **and** the two locks; exits nonzero on any failure |
+| `exp/` | measurement toolkit (see below) — never deployed (`.vercelignore`) |
 | `vercel.json` | `/` → `poker-trainer.html` |
 | `ARCHITECTURE.md` / `README.md` | handoff + how to run |
+
+**`exp/` — the measurement side.** Built for the LLM-bot experiment, kept because it
+is how any behavioral claim about the bots gets proven:
+
+| Path | Role |
+|---|---|
+| `exp-harness.js` | seeded harness: keyed RNG streams, `htmlPath` to load *another* engine build (cross-version A/B), asserted source rewrites |
+| `t-exp.js` | the behavior gate suite (sizing, boundary blur, roll governance, voice bans, mood, oracle, determinism) |
+| `run-probes.js` | exploitability LOCK — degenerate heroes must keep losing badly |
+| `run-labels.js` | readability LOCK — bots must stay as legible as before |
+| `run-ab.js` | generates blind A/B transcript packets, old engine vs current |
+| `ref/` | **frozen evidence** — panel verdicts, baselines, the LLM pilot's paid decisions, the judging protocol. Preserved history: never regenerate into it |
+| `PLAN.md` / `README.md` | the pre-registered experiment and its concluded verdict |
+| `prompt.js` `oracle.js` `legality.js` `spend.js` `run-pilot.js` `metrics.js` `prng.js` | LLM-arm machinery — the experiment concluded, kept as the record of how it was run |
 
 There is **no framework and no bundler.** Functions are hoisted and called directly.
 Global mutable state is documented in §5. This is deliberate: the file has to stay
@@ -126,12 +153,17 @@ but the suite may not catch it). Treat both as load-bearing.
 `botDecide(ctx)` takes a context object built in `step()`. Public fields only:
 
 ```js
-{ myCards, board, street, toCall, pot, myStack, position, raisedBefore, openThr, tableSize,
-  inPosition, streetBets, facingReads, aggressorHadInitiative, style }
+{ myCards, board, street, toCall, pot, myStack, myBet, position, raisedBefore, openThr,
+  tableSize, inPosition, streetBets, facingReads, aggressorHadInitiative, style, mood }
 ```
 
 `tableSize` is passed today but unused inside `botDecide` (kept for call-site symmetry /
-future HU logic — don’t invent policy around it without need).
+future HU logic — don’t invent policy around it without need). `myBet` is this bot's own
+chips already in on this street — needed so a bet-to total can reach the true all-in
+target (`myBet+myStack`) instead of understating it. `style` is the **effective** style
+for this hand (base dials filtered through mood, §12); `mood` is the raw scalar, passed
+only so the voice layer can mutter about it. Both are derived from public information —
+the bot's own chip swings — so neither weakens the guarantee below.
 
 Hero's cards / other hole cards are **not** parameters (except the acting bot's own
 `myCards`). `facingReads` is the aggressor’s **raw** `roster[].reads` counters (not
@@ -142,11 +174,18 @@ arguments. That is what makes the guarantee structural rather than a promise.
 **Return shape** (what `applyAction` consumes):
 
 ```js
-{ action: 'fold'|'check'|'call'|'bet'|'raise', amount?: number, reason: string, pct?: number }
+{ action: 'fold'|'check'|'call'|'bet'|'raise', amount?: number, reason: string,
+  pct?: number, dbg?: {…rolls, thresholds, equity} }
 ```
 
 `amount` is required for `bet`/`raise` (total chips to put in / raise-to sizing as the
 call site expects). Inventing `size`/`bet` instead of `amount` silently breaks sizing.
+
+`dbg` never reaches the UI — it carries the roll that decided this branch plus the
+threshold it was compared against, so tests can assert the stated randomness actually
+governed the action (§12). **A new stochastic branch should carry its roll and
+threshold in `dbg`**; the gate in `exp/t-exp.js` checks the inequality against the
+action for six such pairs and will not see a seventh you don't declare.
 
 `t3.js` proves fairness two ways: statically (the decision code contains no reference
 to `isHero`, `players[0]`, `hero`, or `S.`) and at runtime, by wrapping **every** other
@@ -177,23 +216,34 @@ money coming back.
 
 ### 3.4 Frequencies, never rules — **design intent (no `t4.js` in-repo)**
 
-Mixed actions (opens, bets, bluff-raises, limp rolls, many preflop continues) use
-`if (Math.random() < someFrequency)`. That is the property to protect.
-
-Honest nuance: some **postflop call/fold** branches are threshold-based
-(`effective` equity vs need + `edgeNeed`) rather than a fresh random roll — still not
-“always fold to pressure,” but not pure frequency either. Do **not** expand deterministic
-always-do-X spots (especially always-fold-to-3bet / always-fold-to-cbet); that teaches
-habits that die at a real table.
+Every mixed action (opens, bets, bluff-raises, limp rolls, preflop continues) is
+`if (draw() < someFrequency)`. **The postflop call/fold boundary is too**, since the
+humanize pass: it is a logistic on the equity margin with a per-persona `callTemp`,
+rolled like everything else (§12). It used to be a hard threshold — a bot literally
+could not make a bad call — and that was the single largest "reads like a robot"
+finding in the blind panel. Do **not** reintroduce deterministic always-do-X spots
+(especially always-fold-to-3bet / always-fold-to-cbet).
 
 ⚠ **This is the most important design property in the file and the easiest to
 accidentally destroy.** A bot that always folds to a re-raise teaches the player to
 always re-raise — a habit that gets punished immediately by real opponents. This is the
 documented failure mode of most beginner poker apps.
 
-Historical `tests/t4`-style checks (no `t4.js` in-repo) once confirmed no naive exploit
-beats them: a maniac loses ~3000 bb/100, "always re-raise when bet at" loses ~2500 bb/100.
-Do not treat that as currently CI-enforced.
+**One draw per choice.** Each stochastic decision point calls `draw()` for itself.
+This is not style: `botDecide` once shared a single `roll` across every branch, so one
+low number made a bot open *and* limp *and* bet *and* bluff-raise in cascade —
+frequencies that were individually right produced correlated, machine-looking lines.
+The gate in `exp/t-exp.js` asserts a limp-band decision consumes two *distinct* draws;
+a shared-roll regression collapses them to one and fails. (This is also why the file
+has exactly 4 `Math.random()` sites, not more: every decision draw routes through the
+one `draw()` helper — see §9.)
+
+**Exploitability is enforced, not assumed.** `exp/run-probes.js` runs degenerate hero
+strategies (always-raise, call-station, always-3bet, check-fold) against the table and
+**fails the build** if any stops losing badly — thresholds hardcoded at roughly half
+the measured margin, so a real erosion trips it long before the bots become beatable.
+This is the guard that lets the humanize dials (looser calls, tilt, wider limps) be
+tuned without quietly turning the table into a cash machine.
 
 ---
 
@@ -237,7 +287,10 @@ a lot of code relies on that, so preserve it if you reorder anything.
 Each roster entry also carries:
 
 ```js
-style: null | { open, bet, fold, limp, tag, blurb }  // bots only; fixed at newSession
+style: null | { open, bet, fold, limp,               // bots only; FIXED at newSession
+                openSize, size, sizeJitter, callTemp,
+                tag, blurb }
+mood: 0        // bots only; MUTATES each hand from this bot's own chip swing (§12)
 reads: {
   hands,
   vpipOpps, vpip, pfrOpps, pfr,
@@ -247,6 +300,11 @@ reads: {
   foldToCbetOpps, foldToCbet
 }
 ```
+
+`style` is the bot's permanent identity; `mood` is the only per-bot state that drifts
+during a session, and `endHand` is the only place that writes it. The *effective* style
+a bot decides with is `moodDials(style, mood)`, computed fresh at ctx build — the stored
+dials are never mutated, so a bot's identity survives any tilt.
 
 Per-hand `S` also tracks public action for bots: `streetBets`, `streetAggressor`,
 `preflopRaiser` (reset on street advance as appropriate).
@@ -419,9 +477,9 @@ suspect the harness first.**
 | `t3.js` | fairness — static scan + Proxy trap on **all other seats**, ctx leak check, control |
 | `t6.js` | elimination, table shrinking 6→2, chip conservation, heads-up blind rules |
 | `audit.js` | VPIP scope, session bb, incomplete raises, styles/limps, forced 3-bet & fold-to-cbet spots |
-| `exp/t-exp.js` | seeded-harness gates for the humanize layer: sizing spread + zero engine-floor clamps (normalize oracle), boundary blur persona-shaped by RATE, dbg-roll drawn-and-governs, exhaustive VOICE text-ban scan, mood arithmetic vs a hand-computed table + call-site fidelity, oracle replay, cross-arm deal identity |
-| `exp/run-probes.js` | exploitability LOCK: degenerate heroes must lose ≥ hardcoded bb/100 thresholds (~50% of measured), nonzero exit |
-| `exp/run-labels.js` | readability LOCK: per-persona dossier labels at hand 31 within 10pp of the pre-humanize engine, measured at 90 sessions (30 was inside binomial noise), nonzero exit |
+| `exp/t-exp.js` | seeded-harness gate suite, two halves: **humanize** (sizing spread + zero engine-floor clamps via the legality oracle, boundary blur persona-shaped by *rate*, dbg-roll drawn-and-governs, short-stack never raises, exhaustive VOICE text-ban scan, mood arithmetic vs a hand-computed table + call-site fidelity) and **experiment infrastructure** (determinism, stream isolation, cross-arm deal identity, oracle replay, legality unit + engine integration, prompt purity) |
+| `exp/run-probes.js` | exploitability LOCK: degenerate heroes must lose ≥ hardcoded bb/100 thresholds (~55–65% of the measured margin), nonzero exit |
+| `exp/run-labels.js` | readability LOCK: per-persona dossier labels at hand 31 within 10pp of the pre-humanize engine, measured at 90 sessions (at 30, one label = 3.3pp against ~8pp of noise, so the lock bounced personas across its own line). Two personas sit within 1pp of their bound **by construction** — a marginal failure here is expected sensitivity, not automatically a regression; re-measure the old engine with `--html`/`--sites` before assuming |
 
 All of the above run in `run-all.sh`, which exits nonzero on any suite failure
 or BUG/FAIL line (every suite sets a real exit code — added when it was
@@ -431,7 +489,9 @@ the Math.random site count lives in ONE place, its `EXPECTED_RAND_SITES`
 export. Frozen evidence (baselines, blind-panel verdicts, the paid LLM pilot
 decisions, the panel instrument) is tracked in `exp/ref/` — it is preserved
 history from the pre-humanize engine; new outputs are expected to diverge
-from it, never "fix" that.
+from it, never "fix" that. ⚠ Nothing enforces this: no test, no ignore rule.
+`exp/ref/` also holds every panel's answer key, so a judge must be handed a
+single block file and never repo access.
 
 ⚠ Several expectations in `t1b.js` look wrong and are not — they have comments
 explaining why (e.g. a set is ~75% against a flush draw, not 66%, because it redraws to a
@@ -450,9 +510,15 @@ bet, but it doesn't model board texture or bet sizing.
 
 **No rake.** Real games take a cut; win rates here are optimistic by a couple of bb/100.
 
-**No cross-session memory.** Reads and styles live in RAM for one session; refresh clears
-them. There is no profiles menu — bot diversity is fixed seat styles baked at
-`newSession`.
+**No cross-session memory.** Reads, styles and moods live in RAM for one session;
+refresh clears them. There is no profiles menu — bot *identity* is fixed seat styles
+baked at `newSession` (only mood drifts within a session).
+
+**The bots still read as bots.** Blind panels score them ~3/10 on "reads like a real
+person" against a target of 5 (§12). Two known causes: the phrase banks are finite, so
+a long session repeats lines verbatim; and two seats of different personas are still
+more distinguishable than two different *people* would be. Anyone claiming to have
+fixed this should re-measure with `exp/run-ab.js` rather than assert it.
 
 **Two VPIP numbers by design.** `session.vpip` is the hero's raw display counter (hands
 where they voluntarily put money in). `roster[i].reads.vpip` is an opportunity-based count
@@ -474,8 +540,26 @@ used for modeling with prior shrinkage. They are not interchangeable.
    gets Raise/Fold (bots already limp via style)
 5. **Better strength proxy** for `betLikelihood`, to close the 25%-vs-2% gap in §8.3
 
-Explicitly **not** current priorities: LLM as primary decision maker; profiles menu;
-cross-session persistence; rewriting pot/sidepot math.
+**Humanize backlog** — considered and deliberately deferred during the §12 work, each
+gated on evidence that it's worth the complexity (blind-panel score, or your own play):
+
+6. **Misread model** — a bot mis-evaluates its own hand strength and then plays *and
+   talks* consistently wrong about it. Ruled allowed-in-principle (a human misreading a
+   board is real poker, unlike the LLM arm narrating actions it didn't take) but never
+   built; it needs its own increment and its own measurement
+7. **Per-seat trait DNA** — two bots of the same persona jittered to differ. Refused so
+   far because fixed, learnable archetypes *are* the curriculum; revisit only if seat
+   individuation beats seat legibility for a real player
+8. **Multiway awareness** — bots evaluate against one opponent regardless of how many
+   are live. Deferred because the exploitability lock hasn't fired; build it if looser
+   dials ever trip the probes
+9. **Deeper table texture** — the action-only panel still cites thin blind defense and
+   too few contested pots; this is the largest remaining measured gap
+
+Explicitly **not** priorities: LLM as primary decision maker (measured and rejected —
+§0, `exp/PLAN.md`); a no-repeat phrase ring (humans repeat themselves; two independent
+designs refused it); UI labelling bot mood (hands the player the read they should be
+learning to make); profiles menu; cross-session persistence; rewriting pot/sidepot math.
 
 ---
 
@@ -522,24 +606,30 @@ history live in `exp/ref/`). Four mechanisms, all dial-shaped:
   happen at persona-tuned rates instead of never. NOT `clampFreq`'d (it is a
   probability; the tails must stay reachable).
 - **Voice** (`VOICE` bank + `say()`, inside t3's scanned slice): ~280
-  slot-filled strings, 2–3 variants per slot per persona. Truthfulness is
-  structural — a slot is only reachable from the branch whose facts it
-  states, and a variant may claim only what that branch established (an
-  `airBet` knows its equity is low, NOT that it holds no pair — the strings
-  are worded to the branch's actual knowledge); bluffs talk pressure, never
-  value; a free check never speaks fold language (emission-tested). Read
-  mentions are occasional (35%, passive decisions only) and tiered by
-  evidence (`unknown/lean/solid`), never raw counters. Text bans are
-  enforced by an exhaustive static scan in `exp/t-exp.js` that feeds each
-  slot only its real call-site fields.
+  slot-filled strings, 2–3 variants per slot per persona. **Why the strings
+  are policed so hard:** the rejected LLM arm was disqualified for narrating
+  things that never happened, and a bot that lies about its own hand teaches
+  the player a false read. So truthfulness here is structural — a slot is
+  only reachable from the branch whose facts it states, and a variant may
+  claim only what that branch established (an `airBet` knows its equity is
+  low, NOT that it holds no pair — the strings are worded to the branch's
+  actual knowledge); bluffs talk pressure, never value; a free check never
+  speaks fold language (emission-tested). Read mentions are occasional (35%,
+  passive decisions only) and tiered by evidence (`unknown/lean/solid`),
+  never raw counters. Text bans are enforced by an exhaustive static scan in
+  `exp/t-exp.js` that feeds each slot only its real call-site fields.
+  ⚠ `say()` is declared once, deliberately: a duplicate declaration shadowed
+  it for three commits (hoisting), silently killing a third of the bank.
 - **Mood** (`moodStep`/`moodDials`): one decaying scalar per bot driven ONLY
   by its own chip swings (public info; decay ×0.75/hand, ±25BB ≈ ±0.4,
-  clamped [-1,1]). Consumed in exactly one place — per-hand effective dials
-  at ctx build. Tilt loosens entries and folding and inflates sizing (caps
-  1.35/1.3/1.2); rush loosens entries ONLY (a heater widens what you play,
-  never how badly you call). **`open` is never scaled — what counts as a
-  premium range stays a stable, teachable concept.** Mood slips into voice
-  as occasional mutters when |mood| ≥ 0.3.
+  clamped [-1,1]). One behavioral consumer — the per-hand effective dials at
+  ctx build (the raw scalar also reaches ctx so voice can mutter about it,
+  but nothing else reads it). Tilt loosens entries and folding and inflates
+  sizing (caps 1.35/1.3/1.2); rush widens entry (`limp`) only — a heater
+  makes you play more hands, it does not make you call down worse.
+  **`open` is never scaled — what counts as a premium range stays a stable,
+  teachable concept, or the lesson moves whenever a bot runs bad.** Mood
+  slips into voice as occasional mutters when |mood| ≥ 0.3.
 
 Decisions also carry a `dbg` field (governing roll + threshold + equity
 numbers) — invisible in the UI, load-bearing for the gates: `exp/t-exp.js`
@@ -548,19 +638,16 @@ highest-volume roll/threshold pairs (open, premium 3-bet, defend, bet,
 strong-raise, edge call) decide their branch — inequality vs action taken,
 guard-aware.
 
-What replacing the bots with LLM API calls would have done instead was
-measured first and rejected — pre-registered experiment in `exp/PLAN.md`:
-+2 points of humanness, still unanimously judged mechanical, and it
-hallucinated its reasoning (fabricated narration is disqualifying when
-reasons are the curriculum). Measured outcome of this coded layer, stated
-plainly: the pre-registered bar was new-arm mean ≥ 5.0 on full transcripts,
-and it was NOT met — measured 1.0 → 3.0 (Fable judges), and on the archived
-FINAL action-only panel (opus-5-medium judges, `exp/ref/
-feel-panel-final.json`) old 2.13 vs new 3.00 with all 16 blocks still
-judged mechanical. Every shared-seed pair improved in every round on every
-instrument. The residual transcript gap is the narration format itself
-(finite banks repeat; no table of humans narrates 500 decisions), which
-the in-game player never experiences — but that is a diagnosis, not a pass.
+**Outcome, stated plainly: the pre-registered bar (blind-panel mean ≥ 5.0)
+was NOT met.** The layer measurably improved every comparison — the final
+archived panel scores the current engine 3.00 against the pre-humanize
+engine's 2.13, and every shared-seed pair improved in every round — but
+judges still call it mechanical. Full numbers, judge verdicts, instrument
+history and the LLM-arm rejection: `exp/ref/feel-panel.md` and
+`exp/PLAN.md`. Diagnosis (not a pass): the surviving tells are properties
+of the transcript format used to measure — finite phrase banks repeat, and
+no real table narrates 500 decisions in a row — which the in-game player
+never experiences.
 
 ### Cross-hand reads
 

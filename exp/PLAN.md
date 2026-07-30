@@ -92,7 +92,7 @@ never *penalized* by its own instructions.
 Documented losses regardless of outcome: stated-reason-as-cause becomes narrative;
 offline play; free instant regression testing; sustained outbound API traffic.
 
-## Staircase (remaining)
+## Staircase (as pre-registered — steps 5-7 never ran; see Status)
 
 - **Step 3 — pilot** (needs API key + owner go-ahead, hard cap **$5**): ~150–200
   hands, Variant A only, live API, bounded concurrency, per-persona cached prefixes
