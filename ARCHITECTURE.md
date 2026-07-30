@@ -419,6 +419,19 @@ suspect the harness first.**
 | `t3.js` | fairness — static scan + Proxy trap on **all other seats**, ctx leak check, control |
 | `t6.js` | elimination, table shrinking 6→2, chip conservation, heads-up blind rules |
 | `audit.js` | VPIP scope, session bb, incomplete raises, styles/limps, forced 3-bet & fold-to-cbet spots |
+| `exp/t-exp.js` | seeded-harness gates for the humanize layer: sizing spread + zero engine-floor clamps (normalize oracle), boundary blur persona-shaped by RATE, dbg-roll drawn-and-governs, exhaustive VOICE text-ban scan, mood arithmetic vs a hand-computed table + call-site fidelity, oracle replay, cross-arm deal identity |
+| `exp/run-probes.js` | exploitability LOCK: degenerate heroes must lose ≥ hardcoded bb/100 thresholds (~50% of measured), nonzero exit |
+| `exp/run-labels.js` | readability LOCK: per-persona dossier labels at hand 31 within 10pp of the pre-humanize engine, measured at 90 sessions (30 was inside binomial noise), nonzero exit |
+
+All of the above run in `run-all.sh`, which exits nonzero on any suite failure
+or BUG/FAIL line (every suite sets a real exit code — added when it was
+discovered none did). Every test in `exp/` runs on a **seeded** harness
+(`exp/exp-harness.js`: keyed RNG streams, `htmlPath` for cross-version A/B);
+the Math.random site count lives in ONE place, its `EXPECTED_RAND_SITES`
+export. Frozen evidence (baselines, blind-panel verdicts, the paid LLM pilot
+decisions, the panel instrument) is tracked in `exp/ref/` — it is preserved
+history from the pre-humanize engine; new outputs are expected to diverge
+from it, never "fix" that.
 
 ⚠ Several expectations in `t1b.js` look wrong and are not — they have comments
 explaining why (e.g. a set is ~75% against a flush draw, not 66%, because it redraws to a
@@ -475,19 +488,70 @@ At `newSession`, each bot gets a permanent entry from `BOT_STYLES` aimed at
 
 | tag | Role |
 |---|---|
-| nit | narrow opens, folds to pressure, never limps |
-| solid | mostly raise-or-fold; occasional limp (`limp:0.05`) |
-| maniac | plays/bets too wide |
-| selective | tight-aggressive, no limp |
-| station | limps often, sticky (`fold` &lt; 1), rarely raises |
+| nit | narrow opens, folds to pressure, the odd limp |
+| solid | mostly raise-or-fold; limps a fair bit (`limp:0.09`) then yields to pressure |
+| maniac | plays/bets too wide, limps when bored |
+| selective | tight-aggressive, rare limp, disciplined boundary |
+| station | limps constantly (`limp:0.48`), sticky (`fold` &lt; 1), rarely raises |
 
-Each style: `{ open, bet, fold, limp, tag, blurb }`. Hero has `style: null`.
-Multipliers skew open width / bet frequency / fold pressure; `limp` is the
-probability of calling the blind after declining to open (soft hand band).
-Stickiness/chase intensity is derived from the `fold` dial (no separate fields).
-`edgeNeed` is band-clamped so extreme styles stay frequency-based.
+Each style: `{ open, bet, fold, limp, openSize, size, sizeJitter, callTemp,
+tag, blurb }`. Hero has `style: null`. `open/bet/fold` skew ranges and
+frequencies; `limp` is the probability of calling the blind after declining
+to open; `openSize` is the first-in raise in big blinds; `size`/`sizeJitter`
+shape all bet amounts; `callTemp` is how blurry the postflop call/fold
+boundary is (station 0.055 blurry, nit 0.020 sharp). The BB defends a wider
+band (`defend * 1.25`) — the blind discount is real poker, and a table where
+nobody defends the blind reads dead (measured blind-panel tell).
 
-There is no profiles menu and styles do not change mid-session.
+There is no profiles menu and base styles do not change mid-session; the
+per-hand *effective* style can drift with mood (below).
+
+### Humanize layer (sizing, judgment blur, voice, mood)
+
+Added 2026-07-31 after a blind-panel measurement scored the original bots
+1–1.5/10 on "reads like a human" (evidence, verdicts, and the full design
+history live in `exp/ref/`). Four mechanisms, all dial-shaped:
+
+- **`humanSize(base)`** (inside `botDecide`): every bet/raise amount = base ×
+  persona factor × jitter, integer-rounded, capped at the true all-in target
+  (`myBet+myStack`). First-in opens are BB-denominated (`openSize`), 3-bets
+  are pot-sized (`pot+toCall` base), re-raises build on `myBet+toCall`.
+  `applyAction`'s min-raise floor is a legality backstop, never the sizer.
+- **Soft call/fold boundary**: the postflop step became a logistic in the
+  equity margin with per-persona `callTemp` — bad calls and tight folds now
+  happen at persona-tuned rates instead of never. NOT `clampFreq`'d (it is a
+  probability; the tails must stay reachable).
+- **Voice** (`VOICE` bank + `say()`, inside t3's scanned slice): ~280
+  slot-filled strings, 2–3 variants per slot per persona. Truthfulness is
+  structural — a slot is only reachable from the branch whose facts it
+  states; bluffs talk pressure, never value; a free check never speaks fold
+  language. Read mentions are occasional (35%, passive decisions only) and
+  tiered by evidence (`unknown/lean/solid`), never raw counters. Text bans
+  (no roll talk, no counter quoting, no frequency self-narration) are
+  enforced by an exhaustive static scan in `exp/t-exp.js`.
+- **Mood** (`moodStep`/`moodDials`): one decaying scalar per bot driven ONLY
+  by its own chip swings (public info; decay ×0.75/hand, ±25BB ≈ ±0.4,
+  clamped [-1,1]). Consumed in exactly one place — per-hand effective dials
+  at ctx build. Tilt loosens entries and folding and inflates sizing (caps
+  1.35/1.3/1.2); rush loosens entries ONLY (a heater widens what you play,
+  never how badly you call). **`open` is never scaled — what counts as a
+  premium range stays a stable, teachable concept.** Mood slips into voice
+  as occasional mutters when |mood| ≥ 0.3.
+
+Decisions also carry a `dbg` field (governing roll + threshold + equity
+numbers) — invisible in the UI, load-bearing for the gates: `exp/t-exp.js`
+asserts every dbg roll was drawn by that decision AND that its inequality
+matches the action taken.
+
+What replacing the bots with LLM API calls would have done instead was
+measured first and rejected — pre-registered experiment in `exp/PLAN.md`:
++2 points of humanness, still unanimously judged mechanical, and it
+hallucinated its reasoning (fabricated narration is disqualifying when
+reasons are the curriculum). Measured trajectory of this coded layer:
+1.0 → 3.0 (full transcripts), 2.9 → 3.1+ (action-only), all shared-seed
+pairs improved in every round; the residual gap on transcripts is the
+narration format itself (finite banks repeat; no table of humans narrates
+500 decisions), which the in-game player never experiences.
 
 ### Cross-hand reads
 

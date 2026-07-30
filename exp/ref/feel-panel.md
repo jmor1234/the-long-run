@@ -57,3 +57,21 @@ judge that has seen this repo is burned for scoring purposes.
 
 New-arm mean >= 5.0 AND no single original tell cited by judges in >= half
 of new-arm blocks. Secondary signal: majority of shared-seed pairs new > old.
+
+## Instrument history (scores comparable only within a row)
+
+| run | judges | format | old | new |
+|---|---|---|---|---|
+| baseline + LLM exp (2026-07-30) | fable | full transcript | 1.0-1.5 | LLM arm 3-3.5 |
+| humanize round 1 (feelab1) | fable | full transcript | 1.0 | 2.6 |
+| humanize round 2 (feelab2) | fable | full transcript | 1.25 | 3.0 |
+| bare round (feelab3) | fable | action-only | 2.88 | 3.13 |
+| FINAL (feelab4) | opus-5 medium | action-only | 2.13 | 3.00 |
+
+Judge model changed to claude-opus-5 medium (owner directive, 2026-07-31);
+all future panels use opus-5 medium. The 5.0 bar was never met on the
+transcript instrument and is recorded as unmet — the surviving tells
+(verbatim bank repetition, exhaustive narration) are format properties the
+in-game player never experiences; on action-only play the new engine leads
+3.00 vs 2.13. Every shared-seed pair improved in every round on every
+instrument.

@@ -1,0 +1,174 @@
+{
+  "date": "2026-07-31",
+  "judges": "claude-opus-5 medium (INSTRUMENT CHANGE from Fable — scores not comparable to earlier rounds)",
+  "format": "action-only",
+  "engines": {
+    "old": "8f0bada",
+    "new": "4c4f544"
+  },
+  "seed": "feelab4",
+  "verdicts": [
+    {
+      "block": "A",
+      "judge": 1,
+      "verdict": "mechanical",
+      "humanness": 3,
+      "confidence": "medium",
+      "rationale": "26 of 30 hands end preflop uncontested and the big blind never once defends against a raise; three-handed at 1/2, a 100% fold-to-open rate reads as a fixed hand-strength threshold with no price or positional sensitivity. Whole hands repeat verbatim (31/51/55, 41/45/53, 42/50/54) and nobody ever adjusts, tilts, or pushes back after being stolen from repeatedly. Faint positives: sizing has slight per-player character (Dunn opens 4-5, Oyelaran 6-7), hand 58's side-pot bookkeeping is correct, and Oyelaran's passive river check-back with trips in 59 feels genuinely recreational. One lively hand out of thirty is not enough to offset the uniform fold-machine baseline."
+    },
+    {
+      "block": "A",
+      "judge": 2,
+      "verdict": "mechanical",
+      "humanness": 3,
+      "confidence": "medium",
+      "rationale": "25 of 30 hands end preflop uncontested at an effectively 3-handed table, which no group of recreational players sustains; open sizings are near-constant per seat (Oyelaran always 6, Priya 5, Dunn 4-5) with only token jitter. There is no session arc: after the 700-chip three-way pot in hand 58, where Dunn calls 58 and 157 with worse than a pair, nothing about anyone's frequencies or aggression shifts in the following hands. Two postflop artifacts look like policy gaps rather than human leaks: Oyelaran bets flop and turn then checks back trip aces on the river against a two-street check-caller (hand 59), and stabs 157 with one pair into two shown-strength opponents (hand 58). Confidence is capped at medium because only four hands reach a flop, so the read leans mostly on the preflop frequency and sizing profile."
+    },
+    {
+      "block": "B",
+      "judge": 1,
+      "verdict": "mechanical",
+      "humanness": 3,
+      "confidence": "medium",
+      "rationale": "The decisive tell is postflop: ten hands reach a flop and not one player ever folds after it — every contested pot is either checked down or called down to showdown, including Vera calling 9/23/71 on three streets in hand 22 and Oyelaran calling 5/13/31 in hand 21. Zero folds, zero successful bluffs, zero give-ups in 30 hands is not how even loose recreational players behave; it reads as a \"call if hand strength > threshold\" policy with no fold node. Preflop is equally flat: the back half (hands 16-30) is almost entirely fold-around-to-one-raise, only three limps all block, no limp-reraise dynamics beyond a single scripted-looking instance, and no drift — nobody tilts after losing a big pot (Mikko ships 108 to Oyelaran and Priya's 217 to Vera produce no behavioral change), nobody tightens or loosens as the session runs. Player identities are thin archetype labels (Oyelaran donk-leads and always has it, Vera folds or stations, Priya/Mikko raise) rather than people, and sizings are mechanically pot-proportional with no round-number or emotional outliers. Small residual doubt only because 30 hands is a short sample and the sizing progressions themselves are plausible."
+    },
+    {
+      "block": "B",
+      "judge": 2,
+      "verdict": "mechanical",
+      "humanness": 3,
+      "confidence": "medium",
+      "rationale": "Across all eight showdown hands there is not one postflop fold — every flop, turn, and river bet is called, including Vera calling 9/23/71 into a single pair and Dunn stacking off on hand 1. Real loose recreationals call too much but still fold sometimes; a zero fold rate facing postflop bets looks like a missing branch. Reinforcing it: no check-raises anywhere, no bluff that ever gets through, and identical geometric sizing curves (9/23/71, 7/16/49, 5/13/31) shared by all five players, so nobody has a personal sizing signature. Preflop is better textured — varied opens, limps, limp-raises, a 4-bet, and Vera reading as a nit versus Oyelaran/Mikko as loose — but no tendency drifts or reacts to the session's big pots, so the differentiation feels like fixed parameters rather than people."
+    },
+    {
+      "block": "C",
+      "judge": 1,
+      "verdict": "mechanical",
+      "humanness": 3,
+      "confidence": "medium",
+      "rationale": "Four different players fire the identical small bet (7-8) on the identical trigger — a turn that pairs the board (hands 2, 9, 11, 26) — which reads as one rule, not four personalities. The only two big pots (6 and 14) are structurally the same escalation script with names swapped, each ending in an uncalled river bet and a bustout. From hand 16 on the session degenerates into a preflop loop: thirteen of fifteen hands are open-raise-to-5-7 then everyone folds, with zero adaptation to relentless stealing at a 4-handed table, no tilt, no tightening after losses, and almost no c-betting or multi-street aggression. Dunn's consistent limp-call identity and the mild variation in raise sizing are the only human-feeling texture; with just 9 flops in 30 hands the sample is thin enough to keep confidence at medium."
+    },
+    {
+      "block": "C",
+      "judge": 2,
+      "verdict": "mechanical",
+      "humanness": 2,
+      "confidence": "high",
+      "rationale": "Postflop behavior is rule-shaped rather than person-shaped: the preflop raiser checks the flop in nearly every single-raised pot (hands 2, 4, 5, 9, 11, 26), many pots are checked down street after street, and preflop sizing sits in a near-constant 4-8 band regardless of position, stack, or opponent. The two stack-off hands (6 and 14) are the same script run twice — raise/call, flop raise war, big turn bet called, a tiny uncalled river remainder (\"gets back 3\" / \"gets back 5\"), loser eliminated — with hand 14 ending in a 150bb stack-off for one pair and no plausible human story. Board and action templates also repeat suspiciously: hand 2 (Ah 2h 2d, turn 2s, check-check then turn bet 8 called) and hand 26 (8h 3h 3d, turn 3s, check-check then turn bet 8 called) are near carbon copies, and paired flops with the case card arriving on the turn show up in three of eight flops. After hand 14 the table collapses into 15 nearly all-preflop hands where everyone folds to small raises with no defense, no adjustment, and no tilt or drift — the sudden regime change reads as a mode switch, not people reacting to getting run over. Player identities (Dunn the limper, Oyelaran/Priya the stealers) are distinguishable but only as thin parameter differences."
+    },
+    {
+      "block": "D",
+      "judge": 1,
+      "verdict": "mechanical",
+      "humanness": 2,
+      "confidence": "high",
+      "rationale": "Every single preflop open in 30 hands is exactly 6 (3bb) from all five players regardless of position, stack, or history — one limp and one 3-bet total, and that 3-bet is a nonsensical 6-to-10 that gets flat-called for 4. Real recreationals produce a spread of 5s, 7s, 8s, limps, and occasional wild sizes, plus at least one player with a signature (the min-raiser, the pot-committed maniac). Postflop is almost entirely bet/call and check/check: exactly one raise appears after the flop across the whole block, no check-raise bluffs, no donk-then-fold spazz, no tilt after Dunn's 339 or Oyelaran's 367 pot, and blinds fold to a lone 3bb open at a near-uniform rate that no home game exhibits. Bet trees are clean geometric escalations (14/39/109; 21/33/118 ~pot each street) that read as fraction-of-pot arithmetic, and the five names are functionally interchangeable — the only differentiator is who happened to be dealt the winner. The nine near-consecutive fold-arounds after Mikko busts reinforce a stateless generator rather than a live table loosening up."
+    },
+    {
+      "block": "D",
+      "judge": 2,
+      "verdict": "mechanical",
+      "humanness": 2,
+      "confidence": "high",
+      "rationale": "Preflop is a single hardcoded template: every open is exactly 6 (3bb) from every player in every position across 30 hands, with one limp and exactly one 3-bet (to 10, a bizarre 1.67x) in the whole block — no sizing variance, no position awareness, no blind-defense variety, and no player distinguishable from another by open size or frequency. Postflop lines collapse into a handful of reused scripts, most damningly hands 5 and 30: identical check-check flop, turn bet 7 called, river bet 25 called, final pot 78, \"wins with two pair\" — the same hand twice with different names on it. Bet sizes elsewhere are clean pot-geometric ladders (14/39/109, 21/33/118) that no recreational player produces, yet the callers never fold to them, so the aggression carries no read or pressure logic. The session also has an unexplained phase break: after \"Mikko is out\" in hand 20, nine of the last ten hands are pure preflop fold-arounds, which reads as a state machine winding down rather than a home game continuing."
+    },
+    {
+      "block": "E",
+      "judge": 1,
+      "verdict": "mechanical",
+      "humanness": 1,
+      "confidence": "high",
+      "rationale": "Across 30 hands there is not a single postflop raise, check-raise, donk-into-aggressor with a raise, or fold to a bet after having called an earlier street — every contested pot resolves as one designated bettor firing and one designated caller calling all the way down. Sizing is templated to the point of being generated: every preflop open is exactly 6 (never 5, 7, or a limp-mix), and betting lines are pot-clones or clean doublings (8/28/78, 13/36/72, 7/14/28, 6/12, 14/39). Hand 14's raise ladder (6-10-18-30-50-82-114-158) then \"Mikko raises to 154\" — a raise to less than the prior raise — is an engine artifact, not a person. Nobody adapts, tilts, or drifts: Dunn calls off three pot-sized streets and then runs the identical bettor script himself two hands later, and the five names are interchangeable role-fillers rather than distinct people."
+    },
+    {
+      "block": "E",
+      "judge": 2,
+      "verdict": "mechanical",
+      "humanness": 2,
+      "confidence": "high",
+      "rationale": "Every single preflop open in 30 hands is exactly 6 (3bb) with zero variation, and postflop bets are near-perfect geometric doublings (8/28/78, 7/14/28, 6/12, 13/36/72) — that uniformity is the strongest tell. There is not one check-raise, donk-adjustment, delayed float, or river fold to a large bet in the whole block; callers (Vera h22, Vera h28, Priya h11) call three streets with one pair and never once deviate, which reads as a fixed call-threshold rather than a person getting stubborn or backing off. Multiway flops resolve to unanimous check-check-check with mechanical regularity, and hand 14 exposes the engine outright: an escalating raise war ending in \"Mikko raises to 154\" after Priya's 158, then all three streets dealt with no action. Personalities are not separable — the aggressors share one sizing curve and the callers share one calling rule, with no drift, tilt, or adjustment across the session."
+    },
+    {
+      "block": "F",
+      "judge": 1,
+      "verdict": "mechanical",
+      "humanness": 3,
+      "confidence": "medium",
+      "rationale": "Every single preflop raise in 30 hands is exactly to 6, from every player, in every position, regardless of limpers or stack depth (hand 58: Oyelaran opens 6, Dunn cold-calls 6, Vera completes) — real recreationals wobble to 5, 7, 8, 10, and pot it after a limp. Across the whole block there is not one 3-bet, not one postflop raise or check-raise, and not one fold to a postflop bet by any opponent: the only decision types exercised are open-3bb / flat / check / call-everything. Hand 58 has two separate players making the identical call-call-call line through 10/25/112, which reads as one calling routine instantiated twice rather than two different people talking themselves into a hero call. Personality separation is thin (Vera and Dunn open, Oyelaran is the only postflop aggressor, Priya barely exists) and nothing drifts, tilts, or adjusts after the big pots. Confidence is held at medium only because 26 of 30 hands end preflop, so the sample of postflop texture is genuinely small; hand 31's turn checkback and delayed river value bet is the one line that looks like a person."
+    },
+    {
+      "block": "F",
+      "judge": 2,
+      "verdict": "mechanical",
+      "humanness": 2,
+      "confidence": "high",
+      "rationale": "Every preflop raise by every opponent across 30 hands is exactly to 6 with no variation, there is not one 3-bet, check-raise, or postflop raise in the entire block, and 20 of 30 hands end preflop uncontested — far tighter and more uniform than any recreational home game. Hand 58 is decisive: Dunn and Vera both flat-call 10/25/112 in identical lockstep for three streets with no raise and no fold, which reads as one call-station routine running twice rather than two people. No tendency drifts after big losses (Dunn calls off 45 in hand 31 and plays identically after), and player differences amount to opening-frequency parameters, not personalities. Confidence is tempered slightly by only four flops being seen, but the preflop uniformity alone is conclusive."
+    },
+    {
+      "block": "G",
+      "judge": 1,
+      "verdict": "mechanical",
+      "humanness": 2,
+      "confidence": "high",
+      "rationale": "Every single preflop open in 30 hands is exactly 6, from every player, every position, whether 5- or 4-handed — no player ever sizes up, sizes down, limp-raises, or varies with stack/opponent, which is the clearest tell. The one 3-bet war (hand 33: 6→10→16→26) escalates by a fixed additive rule with min-raise-sized increments no human bets, and the \"3-bet to 10\" over an open of 6 in hand 35 is the same artifact. Postflop is a thin repertoire: tiny 3-into-5 stabs, several fully checked-down pots where the preflop raiser never c-bets even once (hands 42, 49), and calling stations that call every street without a single raise or bluff-fold decision that reads as personality. No tendency drift over the session, no tilt after the big hand-33 chop, and the four survivors are behaviorally interchangeable — I can't build distinct player profiles from this, which real recreational play always allows within 30 hands."
+    },
+    {
+      "block": "G",
+      "judge": 2,
+      "verdict": "mechanical",
+      "humanness": 3,
+      "confidence": "medium",
+      "rationale": "Preflop behavior is rigidly uniform: every single open in 30 hands is exactly \"raises to 6\" (the only exceptions being the one 3-bet/4-bet escalation in hand 33), limps happen twice and both are Dunn, and blind defense is essentially zero — 21 of 30 hands end preflop uncontested, with Vera/Priya/Dunn folding their big blinds 4-handed to a min-ish 3x over and over. Real recreationals vary open size, limp, and get sticky in the blinds, especially short-handed. There is some genuine texture postflop (Oyelaran's turn overbet 94 then river underbet 78 into the same pot, Dunn check-calling a made flush on the river, Vera's timid 3-chip stabs and turn fold), which reads leaky and human, and the five names do have faintly distinct profiles. But only 6 hands see a flop, the session \"drift\" is just the aggressive players busting out into 21 hands of dead folding, and no tendency visibly adapts to anything an opponent did. The macro pattern looks like a range filter with a fixed sizing constant, not people."
+    },
+    {
+      "block": "H",
+      "judge": 1,
+      "verdict": "mechanical",
+      "humanness": 4,
+      "confidence": "medium",
+      "rationale": "The postflop lines are templated: every contested pot is a one-way street of bet-bet-bet vs call-call-call, with two near-identical geometric barrel patterns (Oyelaran 10/29/73 in hand 31, Priya 7/27/72 in hand 47) and callers who essentially never fold after committing on the flop. There are no check-raises, no float-then-take-away, no delayed bluffs, and the aggressor holds the winner at basically every showdown, which reads as threshold logic rather than people. Some texture argues the other way: limps, tiny 2-3 chip probes from Vera/Mikko, the hand-59 4bet/5bet escalation, and roughly distinguishable profiles (Priya raise-happy, Mikko limpy/3bet-happy, Vera passive small-ball). But those profiles are static across all 30 hands with no tilt, no adjustment after getting stacked, and no reaction to the two big calldown losses, and the preflop fold-around rate is uniformly high in a way that never loosens. Confidence is medium because no hole cards are shown and several hands truncate on all-ins, limiting what can be inferred."
+    },
+    {
+      "block": "H",
+      "judge": 2,
+      "verdict": "mechanical",
+      "humanness": 3,
+      "confidence": "medium",
+      "rationale": "The postflop lines are near-deterministic: every multi-street pot is a clean geometric triple barrel (10/29/73, 7/27/72, tiny 3/5/9) met by a caller who never once folds after calling the flop, and the aggressor essentially always wins. Nobody check-raises, nobody gives up a barrel, nobody exploits the obvious patterns — Oyelaran and Priya barrel three streets unpunished and Vera's 1/3-pot dribble bets never get attacked, so there's no evidence of any player remembering the hand before. Preflop is also implausibly nitty for 5-handed rec play (roughly a third of hands are walks) with raise sizes clustered at 5-8 with no position logic. There is some surface persona variation (Mikko/Priya 3-bet-happy, Vera passive-small, hand 59's 4-bet/5-bet war reads genuinely human), which is why this isn't a 0-1, but it feels like parameter tuning across a shared script rather than five different people."
+    }
+  ],
+  "key": {
+    "A": {
+      "arm": "new",
+      "pair": "s1:31-60"
+    },
+    "B": {
+      "arm": "new",
+      "pair": "s0:1-30"
+    },
+    "C": {
+      "arm": "new",
+      "pair": "s1:1-30"
+    },
+    "D": {
+      "arm": "old",
+      "pair": "s1:1-30"
+    },
+    "E": {
+      "arm": "old",
+      "pair": "s0:1-30"
+    },
+    "F": {
+      "arm": "old",
+      "pair": "s1:31-60"
+    },
+    "G": {
+      "arm": "old",
+      "pair": "s0:31-60"
+    },
+    "H": {
+      "arm": "new",
+      "pair": "s0:31-60"
+    }
+  }
+}

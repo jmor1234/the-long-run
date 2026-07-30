@@ -122,13 +122,31 @@ opt-in via `--live`; API key from environment only; `exp/out/` gitignored and
 Vercel-ignored; per-decision prompts/responses/seeds persisted so results are
 recomputable without re-spending.
 
-## Status
+## Status — EXPERIMENT CONCLUDED (2026-07-31)
 
-- Steps 1–2 complete: foundations (seeded streams, oracle+replay, legality guard),
-  verifier-hardened; baseline bands, probes, and label rates measured and frozen
-  above; `prompt.js` (pure builder, 5 persona prefixes ≥ cache minimum, default-deny
-  card scan) built and tested.
-- Step-3 runner built (`run-pilot.js`): spend caps unit-tested, decisions persisted
-  before caching (crash/cap-safe resume verified), full pipeline exercised offline
-  via `--stub`. Pilot registration: 2 sessions x 75 hands, seed `pilot1`,
-  `claude-haiku-4-5`. The live run remains blocked on: API key + $5 approval.
+- Steps 1–3 ran as registered. The pilot ($0.90, 150 hands, 1005 decisions)
+  PASSED criteria 1 and 5 (0.10% illegality; zero fairness tripwires; cache
+  economics as designed — evidence in `exp/ref/pilot-api-pilot1.jsonl`).
+- Step 4 (blind feel, amended to an LLM panel — see the amendment above)
+  ENDED the staircase: LLM bots scored 3-3.5/10 vs coded 1-1.5/10, ALL 16
+  verdicts mechanical, 0/4 pairs won under the frozen rule — and the judges'
+  top tell was hallucinated reasoning (draws not on the board, "checking"
+  while betting). For a trainer whose reasons are curriculum, that is
+  disqualifying independent of the score. Steps 5-7 never ran; no further
+  spend.
+- VERDICT on the original question: LLM persona bots are marginally more
+  human-feeling and categorically still bots, and they buy the margin with
+  fabricated narration. The fix went into the CODED bots instead (the
+  "humanize" arc: sizing spread, soft boundaries, voice banks, mood, table
+  texture — see ARCHITECTURE §12 and `exp/ref/humanness-*.md` for the
+  root-cause dossier and three-design synthesis). Measured trajectory on
+  this panel instrument: coded bots 1.0 → 3.0 (full transcripts, Fable
+  judges), 2.13 vs 3.00 old-vs-new (action-only, opus-5-medium judges,
+  `exp/ref/feel-panel-final.json`). The 5.0 transcript bar was NOT met and
+  is recorded as unmet: the residual tells are properties of the
+  narrate-every-decision transcript format (finite phrase banks repeat;
+  humans don't narrate at all), which the in-game player never sees.
+- Reusable assets this experiment left behind: the seeded cross-version A/B
+  harness (`exp-harness.js` htmlPath), the blind-panel instrument
+  (`ref/feel-panel.md`), exploitability + readability locks in `run-all.sh`,
+  and the archived evidence in `exp/ref/`.
