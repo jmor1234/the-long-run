@@ -149,15 +149,16 @@ function runBaseline(seed, hands, opts={}){
 // of the logistic's internals) and normalized by opportunities so the check
 // tests persona SHAPE, not sample-size artifacts.
 {
+  // The boundary branch carries its equity math as machine-readable dbg
+  // fields (prose is persona voice since C4); the gate reads the data.
   const loose={}, tight={}, opps={};
   const spy=(ctx,meta,fall)=>{
     const d=fall(ctx);
-    let m;
-    if(d.reason && (m=d.reason.match(/~(\d+)% vs (\d+)% needed — calls here \d+% of the time; roll \d+\.\d+ said (call|fold)\./))){
-      const t=ctx.style.tag, eff=+m[1], need=+m[2];
+    if(d.dbg && d.dbg.effPct!==undefined){
+      const t=ctx.style.tag;
       opps[t]=(opps[t]||0)+1;
-      if(m[3]==='call' && eff<need) loose[t]=(loose[t]||0)+1;
-      if(m[3]==='fold' && eff>need) tight[t]=(tight[t]||0)+1;
+      if(d.action==='call' && d.dbg.effPct<d.dbg.needPct) loose[t]=(loose[t]||0)+1;
+      if(d.action==='fold' && d.dbg.effPct>d.dbg.needPct) tight[t]=(tight[t]||0)+1;
     }
     return d;
   };
@@ -182,28 +183,27 @@ function runBaseline(seed, hands, opts={}){
     `station ${(rate('station')*100).toFixed(1)}%, nit ${(rate('nit')*100).toFixed(1)}%`);
 }
 
-// --- 3d. reason-roll correspondence (C1 invariant, preflop-exact) -------
-// Preflop decisions consume no equity Monte Carlo, so the draw sequence is
-// tiny and exact: the roll a reason quotes must be the draw that governed
-// its branch, and a declined limp must have consumed TWO draws (a shared-
-// roll regression collapses it back to one).
+// --- 3d. dbg-roll correspondence (C1 invariant) -------------------------
+// Since C4 the governing rolls ride as dbg data instead of prose. Every dbg
+// roll must be a draw THIS decision actually consumed (exact float match),
+// and a limp-band decision's two rolls must be distinct values — a shared-
+// roll regression makes them identical.
 {
-  let checked=0, wrong=0, limpTwo=0, limpSeen=0;
+  let checked=0, wrong=0, limpSeen=0, limpDistinct=0;
   let cur=null;
+  const ROLLS=['openRoll','limpRoll','premRoll','dRoll','sRoll','betRoll','strongRoll','bluffRoll','cRoll'];
   const spy=(ctx,meta,fall)=>{
     const d=fall(ctx);
-    if(ctx.street==='preflop' && d.reason && cur){
-      const draws=cur.state.lastDraws;
-      const q=d.reason.match(/roll (\d+\.\d+)/g);
-      if(q){
+    if(d.dbg && cur){
+      const drawn=cur.state.lastDraws;
+      const quoted=ROLLS.map(k=>d.dbg[k]).filter(v=>v!==undefined);
+      if(quoted.length){
         checked++;
-        const quoted=q.map(x=>x.slice(5));
-        const drawn=draws.map(v=>v.toFixed(2));
-        if(!quoted.every(x=>drawn.includes(x))) wrong++;
+        if(!quoted.every(v=>drawn.includes(v))) wrong++;
       }
-      if(/passed on the limp too|said limp/.test(d.reason)){
+      if(d.dbg.limpRoll!==undefined){
         limpSeen++;
-        if(draws.length===2) limpTwo++;
+        if(d.dbg.limpRoll!==d.dbg.openRoll) limpDistinct++;
       }
     }
     return d;
@@ -219,14 +219,42 @@ function runBaseline(seed, hands, opts={}){
       last=h.G.session.hands;
     }
   }
-  ok(checked>=100 && wrong===0,
-    'every quoted preflop roll was actually drawn by that decision',
-    `${checked} reasons checked`);
-  ok(limpSeen>=5 && limpTwo===limpSeen,
-    'limp-band decisions consume two independent draws (decorrelation live)',
-    `${limpTwo}/${limpSeen}`);
+  ok(checked>=200 && wrong===0,
+    'every dbg roll was actually drawn by that decision (exact match)',
+    `${checked} decisions checked`);
+  ok(limpSeen>=5 && limpDistinct===limpSeen,
+    'limp-band decisions use two DISTINCT draws (decorrelation live)',
+    `${limpDistinct}/${limpSeen}`);
   ok(make.EXPECTED_RAND_SITES===4,
     'harness site-count constant matches the C1 contract');
+}
+
+// --- 3e. voice text bans (C4 gate) --------------------------------------
+// The frozen prose contract: no RNG talk, no counter quoting, no frequency
+// self-narration, nothing the fairness scan bans, in ANY emitted reason.
+{
+  const BANNED=[/roll/i, /\d+ of \d+/, /% of the time/i, /\bbranch\b/i, /\bhero\b/i, /Math\./];
+  let scanned=0; const hits=[];
+  const spy=(ctx,meta,fall)=>{
+    const d=fall(ctx);
+    if(d.reason){
+      scanned++;
+      for(const re of BANNED) if(re.test(d.reason)) hits.push(String(re)+' -> '+d.reason.slice(0,70));
+    }
+    return d;
+  };
+  for(let i=1;i<=5;i++){
+    const h=make(checkFoldHero,{seed:'voice-'+i, decide:spy});
+    h.G.newSession(); h.drain();
+    let last=h.G.session.hands;
+    while(h.G.session.hands<40 && !h.G.session.over){
+      h.G.newHand(); h.drain();
+      if(h.G.session.hands===last) break;
+      last=h.G.session.hands;
+    }
+  }
+  ok(scanned>=800 && hits.length===0,
+    'no banned tokens in any emitted reason', hits[0]||(scanned+' reasons scanned'));
 }
 
 // --- 4. ctx carries the betting state the legality view needs ----------
