@@ -737,6 +737,11 @@ function botDecide(ctx){
   // One draw per stochastic choice: a single shared roll correlates branches
   // that should be independent (one low number fires every aggressive option).
   const draw = () => Math.random();
+  // Reads get mentioned the way people mention them: sometimes, not as a
+  // stamp on every decision. Mood slips out mostly in quiet moments.
+  const readTag = () => (nudge.note && draw()<0.35) ? nudge.note : '';
+  const moodTag = () => (Math.abs(ctx.mood||0)>=0.3 && draw()<0.4)
+    ? say(style, (ctx.mood<0?'tilt':'rush'), {}, draw()) : '';
   // Human-shaped sizing: jitter the base and snap to whole chips. applyAction's
   // min-raise floor stays a legality backstop, never the sizer.
   const humanSize = (base) => {
@@ -772,7 +777,7 @@ function botDecide(ctx){
           reason:say(style,'limpPass',{nm},draw())};
       }
       return {action: toCall>0?'fold':'check', pct, dbg:{openRoll, f},
-        reason:say(style,'foldWeak',{nm},draw())};
+        reason:say(style,'foldWeak',{nm},draw())+moodTag()};
     }
 
     // facing a raise: continue with a tighter slice, plus a small bluff frequency.
@@ -784,23 +789,24 @@ function botDecide(ctx){
 
     if(pct <= defend*0.30){
       const premRoll = draw();
-      if(premRoll<threeBet) return {action:'raise', amount:Math.min(myBet+myStack, humanSize((pot+toCall)*sizeMult)), pct, dbg:{premRoll},
-        reason:say(style,'prem3bet',{nm},draw())+nudge.note};
+      if(premRoll<threeBet && myStack>toCall) return {action:'raise', amount:Math.min(myBet+myStack, humanSize((pot+toCall)*sizeMult)), pct, dbg:{premRoll},
+        reason:say(style,'prem3bet',{nm},draw())};
       return {action:'call', pct, dbg:{premRoll},
-        reason:say(style,'premFlat',{nm},draw())+nudge.note};
+        reason:say(style,'premFlat',{nm},draw())};
     }
     if(pct <= defend){ const dRoll = draw(); return dRoll<defendCall
-      ? {action:'call', pct, dbg:{dRoll}, reason:say(style,'defendCall',{nm},draw())+nudge.note}
-      : {action:'fold', pct, dbg:{dRoll}, reason:say(style,'defendFold',{nm},draw())+nudge.note}; }
+      ? {action:'call', pct, dbg:{dRoll}, reason:say(style,'defendCall',{nm},draw())+readTag()+moodTag()}
+      : {action:'fold', pct, dbg:{dRoll}, reason:say(style,'defendFold',{nm},draw())+readTag()+moodTag()}; }
     if(pct <= defend*2.2){ const sRoll = draw(); if(sRoll<spewCall) return {action:'call', pct, dbg:{sRoll},
-      reason:say(style,'spewCall',{nm},draw())+nudge.note}; }
-    if(pct <= thr*1.3 && draw() < bluff3) return {action:'raise', amount:Math.min(myBet+myStack, humanSize((pot+toCall)*sizeMult)), pct,
-      reason:say(style,'bluff3bet',{nm},draw())+nudge.note};
+      reason:say(style,'spewCall',{nm},draw())+readTag()}; }
+    if(pct <= thr*1.3 && myStack>toCall && draw() < bluff3) return {action:'raise', amount:Math.min(myBet+myStack, humanSize((pot+toCall)*sizeMult)), pct,
+      reason:say(style,'bluff3bet',{nm},draw())};
     return {action:'fold', pct,
-      reason:say(style,'outsideFold',{nm},draw())+nudge.note};
+      reason:say(style,'outsideFold',{nm},draw())+readTag()+moodTag()};
   }
 
   /* ---- POSTFLOP ---- */
+  const canRaise = myStack > toCall; // short of a full call => raising is impossible
   const s = strengthVsRandom(myCards, board, 150);
   const dr = drawInfo(myCards, board);
   const pct = Math.round(s*100);
@@ -820,31 +826,32 @@ function botDecide(ctx){
     const betRoll = draw();
     if(betRoll<betFreq){
       const amt = Math.min(myBet+myStack, humanSize((bucket==='strong'?fullPot:halfPot)*sizeMult));
-      const semi = bucket==='weak' && dr.any;
       return {action:'bet', amount:amt, dbg:{betRoll, betFreq},
-        reason: semi
-          ? say(style,'semiBluff',{draw:dr.flushDraw?'Four to a flush':'An open-ended draw'},draw())
-          : say(style,'bet',{hand:bucket==='strong'?'a big hand':bucket==='good'?'a solid hand':'a piece of this'},draw())};
+        reason: bucket==='weak'
+          ? (dr.any
+             ? say(style,'semiBluff',{draw:dr.flushDraw?'Four to a flush':'An open-ended draw'},draw())
+             : say(style,'airBet',{},draw()))
+          : say(style,'bet',{hand:bucket==='strong'?'a big hand':bucket==='good'?'a solid hand':'a piece of this'},draw())+moodTag()};
     }
     return {action:'check', dbg:{betRoll, betFreq},
-      reason:say(style,'check',{hand:bucket==='strong'?'a monster':bucket==='good'?'a decent hand':bucket==='marginal'?'something thin':'not much'},draw())};
+      reason:say(style,'check',{hand:bucket==='strong'?'a monster':bucket==='good'?'a decent hand':bucket==='marginal'?'something thin':'not much'},draw())+moodTag()};
   }
 
   // facing a bet
   const need = potOdds;
-  const effective = s + ((dr.flushDraw?0.13:0) + (dr.oesd?0.10:0)) * chaseMult;
+  const effective = Math.min(0.99, s + ((dr.flushDraw?0.13:0) + (dr.oesd?0.10:0)) * chaseMult);
   if(bucket==='strong'){
     const raiseFreq = clampFreq(0.55 * style.bet * nudge.raiseMult);
     const strongRoll = draw();
-    if(strongRoll<raiseFreq) return {action:'raise', amount:Math.min(myBet+myStack, humanSize(pot*0.9*sizeMult)+toCall), dbg:{strongRoll},
-      reason:say(style,'strongRaise',{hand:'a big hand'},draw())+nudge.note};
+    if(strongRoll<raiseFreq && canRaise) return {action:'raise', amount:Math.min(myBet+myStack, myBet+toCall+humanSize(pot*0.9*sizeMult)), dbg:{strongRoll},
+      reason:say(style,'strongRaise',{},draw())};
     return {action:'call', dbg:{strongRoll},
-      reason:say(style,'slowCall',{hand:'a big hand'},draw())+nudge.note};
+      reason:say(style,'slowCall',{},draw())};
   }
   const bluffRaise = clampFreq(0.07 * style.bet * nudge.raiseMult * (inPosition?1.15:0.85));
   const bluffRoll = draw();
-  if(bluffRoll < bluffRaise && dr.any) return {action:'raise', amount:Math.min(myBet+myStack, humanSize(pot*0.8*sizeMult)+toCall), dbg:{bluffRoll},
-    reason:say(style,'bluffRaise',{draw:dr.flushDraw?'Four to a flush':'An open-ended draw'},draw())+nudge.note};
+  if(bluffRoll < bluffRaise && dr.any && canRaise) return {action:'raise', amount:Math.min(myBet+myStack, myBet+toCall+humanSize(pot*0.8*sizeMult)), dbg:{bluffRoll},
+    reason:say(style,'bluffRaise',{draw:dr.flushDraw?'Four to a flush':'An open-ended draw'},draw())};
 
   // fold pressure band so extreme styles stay frequency-based, not mechanical rules
   const edgeNeed = Math.max(0.005, Math.min(0.08, 0.02 * style.fold / nudge.callMult / posCall));
@@ -857,124 +864,145 @@ function botDecide(ctx){
   const eq={eff:Math.round(effective*100), need:Math.round(need*100)};
   if(cRoll < pCall){
     return {action:'call', dbg:{cRoll, pCall, effPct:eq.eff, needPct:eq.need},
-      reason:say(style,'edgeCall',eq,draw())+nudge.note};
+      reason:say(style,'edgeCall',eq,draw())+readTag()+moodTag()};
   }
   return {action:'fold', dbg:{cRoll, pCall, effPct:eq.eff, needPct:eq.need},
-    reason:say(style,'edgeFold',eq,draw())+nudge.note};
+    reason:say(style,'edgeFold',eq,draw())+readTag()+moodTag()};
 }
 
 /* ---- BOT VOICE ----------------------------------------------------------
-   Persona phrase banks. Truthfulness is structural: each slot is reachable
-   only from the branch whose facts it renders, and a variant can only use
-   the fields that branch passed in. Strings must stay clear of the t7 text
-   bans (no roll talk, no counter quoting, no frequency self-narration). */
+   Persona phrase banks, v2. Truthfulness is structural: each slot is
+   reachable only from the branch whose facts it renders, and a variant can
+   only use the fields that branch passed in. Bluffs talk pressure, never
+   value. Strings must stay clear of the text bans (t-exp 3e). */
 const VOICE={
 nit:{
-  open:[d=>`${d.nm}. Fine, that's worth a raise.`, d=>`Been waiting a while for something like ${d.nm}. Raising.`],
-  limp:[d=>`${d.nm}... not proud of it, but I'll see a cheap flop.`],
-  foldWeak:[d=>`${d.nm} is not a hand. Out.`, d=>`${d.nm}? No. I can wait.`],
-  limpPass:[d=>`Thought about limping ${d.nm}. Thought better of it.`],
-  prem3bet:[d=>`${d.nm}. Now I have something — putting in a real raise.`],
-  premFlat:[d=>`${d.nm} is big, but no need to scare anyone off yet.`],
-  defendCall:[d=>`${d.nm} is just enough to see a flop here.`],
-  defendFold:[d=>`${d.nm} is playable, but not against a raise. Save the chips.`],
-  spewCall:[d=>`Against my better judgment — ${d.nm}, one look.`],
-  bluff3bet:[d=>`${d.nm}... he doesn't have it every time. Raise.`],
-  outsideFold:[d=>`${d.nm} against a raise? Not from me.`, d=>`Too rich for ${d.nm}. Fold.`],
-  bet:[d=>`${d.hand} here. I'll bet it while I'm ahead.`, d=>`I have ${d.hand}. Small bet, keep it tidy.`],
-  semiBluff:[d=>`${d.draw} — a bet might just take it now.`],
-  check:[d=>`${d.hand}. No need to build a pot. Check.`, d=>`Checking. ${d.hand} doesn't want a big pot.`],
-  strongRaise:[d=>`${d.hand}. This is what I sat here all night for. Raise.`],
-  slowCall:[d=>`${d.hand} — I'll just call and keep the pot in hand.`],
-  bluffRaise:[d=>`${d.draw}, and he can fold better. Raise.`],
-  edgeCall:[d=>`About ${d.eff} percent with the price at ${d.need}. It's there. Call.`, d=>`The math says it's close but a call. Fine.`],
-  edgeFold:[d=>`${d.eff} percent against a price of ${d.need}? I don't pay that.`, d=>`Close, but close isn't good enough. Fold.`],
+  open:[d=>`${d.nm}. Fine, that's worth a raise.`, d=>`Been sitting long enough. ${d.nm}, raising.`, d=>`${d.nm} will do. Raise.`],
+  limp:[d=>`${d.nm}... not proud of it, but I'll see a cheap flop.`, d=>`Just this once — ${d.nm} limps in.`],
+  foldWeak:[d=>`${d.nm} is not a hand. Out.`, d=>`${d.nm}? No. I can wait.`, d=>`Another ${d.nm}. The deck owes me. Fold.`],
+  limpPass:[d=>`Thought about limping ${d.nm}. Thought better of it.`, d=>`${d.nm} nearly tempted me in. No.`],
+  prem3bet:[d=>`${d.nm}. Now I have something — putting in a real raise.`, d=>`Re-raising. ${d.nm} doesn't come around often.`],
+  premFlat:[d=>`${d.nm} is big, but no need to scare anyone off yet.`, d=>`Just calling with ${d.nm}. Quietly.`],
+  defendCall:[d=>`${d.nm} is just enough to see a flop here.`, d=>`Fine. ${d.nm} can take one flop.`, d=>`${d.nm} — one look, then discipline.`],
+  defendFold:[d=>`${d.nm} is playable, but not against a raise. Save the chips.`, d=>`Not paying a raise with ${d.nm}.`, d=>`${d.nm} goes away. Cheaper that way.`],
+  spewCall:[d=>`Against my better judgment — ${d.nm}, one look.`, d=>`${d.nm}... curiosity. Just this hand.`],
+  bluff3bet:[d=>`${d.nm}... he doesn't have it every time. Raise.`, d=>`Even I get to steal one. Raise.`],
+  outsideFold:[d=>`${d.nm} against a raise? Not paying it.`, d=>`Too rich for ${d.nm}. Fold.`, d=>`They can fight it out. ${d.nm} folds.`],
+  bet:[d=>`${d.hand} here. I'll bet while I'm ahead of most.`, d=>`I have ${d.hand}. Small bet, keep it tidy.`, d=>`Betting ${d.hand} before the board gets scary.`],
+  airBet:[d=>`Nothing much — but nobody's shown anything either. Small stab.`, d=>`I don't have it. Sometimes you bet anyway.`],
+  semiBluff:[d=>`${d.draw} — a bet might just take it now.`, d=>`${d.draw}. Bet now, hit later.`],
+  check:[d=>`${d.hand}. No need to build a pot. Check.`, d=>`Checking. ${d.hand} doesn't want a big pot.`, d=>`Tap. Show me a cheap card.`],
+  strongRaise:[d=>`This is what I sat here all night for. Raise.`, d=>`Now we raise. Finally.`],
+  slowCall:[d=>`Big hand — I'll just call and keep the pot in hand.`, d=>`Calling. No sense chasing him off yet.`],
+  bluffRaise:[d=>`${d.draw}, and he can fold better. Raise.`, d=>`${d.draw} plus a story. Raise.`],
+  edgeCall:[d=>`About ${d.eff} percent with the price at ${d.need}. It's there. Call.`, d=>`The numbers say call. Barely. Fine.`, d=>`Close spot. The price is just about right.`],
+  edgeFold:[d=>`${d.eff} percent against a price of ${d.need}? I don't pay that.`, d=>`Close, but close isn't good enough. Fold.`, d=>`Not quite the price. Away it goes.`],
+  tilt:[d=>` Still stewing over that last pot.`, d=>` This night is costing me.`],
+  rush:[d=>` Cards are finally behaving.`, d=>` Small heater. Don't jinx it.`],
 },
 solid:{
-  open:[d=>`${d.nm} — standard open from here.`, d=>`${d.nm} plays fine. Raise.`],
-  limp:[d=>`${d.nm}. I'll just call this once and see a flop.`],
-  foldWeak:[d=>`${d.nm} is below my range here. Fold.`, d=>`Nothing hand. Next one.`],
-  limpPass:[d=>`${d.nm} almost talked me into a limp. Fold is better.`],
-  prem3bet:[d=>`${d.nm} — this is a re-raise, no question.`],
-  premFlat:[d=>`${d.nm}. I'll flat and keep his bluffs in.`],
-  defendCall:[d=>`${d.nm} defends fine against that size.`],
-  defendFold:[d=>`${d.nm} is in range, but I don't love the spot. Fold.`],
-  spewCall:[d=>`Bit loose with ${d.nm}, but I want to see where he's at.`],
-  bluff3bet:[d=>`${d.nm} — taking a stab at this one. Re-raise.`],
-  outsideFold:[d=>`${d.nm} doesn't continue against a raise. Fold.`, d=>`Out of range. Fold.`],
-  bet:[d=>`${d.hand} — betting for value.`, d=>`I'm ahead often enough with ${d.hand}. Bet.`],
-  semiBluff:[d=>`${d.draw} plus fold equity. Betting.`],
-  check:[d=>`${d.hand} — checking to control the pot.`, d=>`Not strong enough to bet. Check.`],
-  strongRaise:[d=>`${d.hand}. Raising for value.`],
-  slowCall:[d=>`${d.hand} is strong — calling to keep his worse hands in.`],
-  bluffRaise:[d=>`${d.draw} — raising puts him in a hard spot.`],
-  edgeCall:[d=>`Roughly ${d.eff} percent against ${d.need} needed. Call.`, d=>`Price is right, just barely. Call.`],
-  edgeFold:[d=>`About ${d.eff} percent and I need ${d.need}. Fold.`, d=>`Not getting the price. Fold.`],
+  open:[d=>`${d.nm} — standard open from here.`, d=>`${d.nm} plays fine. Raise.`, d=>`Opening ${d.nm}. Routine.`],
+  limp:[d=>`${d.nm}. I'll just call this once and see a flop.`, d=>`Flatting ${d.nm} for a change of pace.`],
+  foldWeak:[d=>`${d.nm} is below my range here. Fold.`, d=>`Nothing hand. Next one.`, d=>`${d.nm} — easy fold.`],
+  limpPass:[d=>`${d.nm} almost talked me into a limp. Fold is better.`, d=>`No — half-measures with ${d.nm} cost money. Fold.`],
+  prem3bet:[d=>`${d.nm} — this is a re-raise, no question.`, d=>`Putting in three bets with ${d.nm}.`],
+  premFlat:[d=>`${d.nm}. I'll flat and keep his bluffs in.`, d=>`Calling with ${d.nm} — no need to advertise.`],
+  defendCall:[d=>`${d.nm} defends fine against that size.`, d=>`I get a decent price with ${d.nm}. Call.`, d=>`${d.nm} — seeing a flop.`],
+  defendFold:[d=>`${d.nm} is in range, but I don't love the spot. Fold.`, d=>`Marginal defend with ${d.nm} — passing.`, d=>`${d.nm} folds here. Position's wrong.`],
+  spewCall:[d=>`Bit loose with ${d.nm}, but I want to see where he's at.`, d=>`${d.nm} is thin. Calling anyway, once.`],
+  bluff3bet:[d=>`${d.nm} — taking a stab at this one. Re-raise.`, d=>`He opens light. ${d.nm} re-raises.`],
+  outsideFold:[d=>`${d.nm} doesn't continue against a raise. Fold.`, d=>`Out of range. Fold.`, d=>`${d.nm} — not the hand for this. Fold.`],
+  bet:[d=>`${d.hand} — betting it.`, d=>`I'm ahead often enough with ${d.hand}. Bet.`, d=>`${d.hand}, standard bet.`],
+  airBet:[d=>`Missed, but so did the board for everyone. Taking a stab.`, d=>`No hand — betting at a pot nobody wants.`],
+  semiBluff:[d=>`${d.draw} plus fold equity. Betting.`, d=>`${d.draw} — bet is best either way.`],
+  check:[d=>`${d.hand} — checking to control the pot.`, d=>`Not strong enough to bet. Check.`, d=>`${d.hand}. Check and evaluate.`],
+  strongRaise:[d=>`Raising for value.`, d=>`This one's big — raise.`],
+  slowCall:[d=>`Strong — calling to keep his worse hands in.`, d=>`Just calling. The raise can wait a street.`],
+  bluffRaise:[d=>`${d.draw} — raising puts him in a hard spot.`, d=>`${d.draw}. Time to apply pressure.`],
+  edgeCall:[d=>`Roughly ${d.eff} percent against ${d.need} needed. Call.`, d=>`Price is right, just barely. Call.`, d=>`Getting the odds by a hair. Call.`],
+  edgeFold:[d=>`About ${d.eff} percent and I need ${d.need}. Fold.`, d=>`Not getting the price. Fold.`, d=>`The math says no. Fold.`],
+  tilt:[d=>` That last pot is still bugging me.`, d=>` Rough stretch. Stay straight.`],
+  rush:[d=>` Running well tonight.`, d=>` Good session so far.`],
 },
 maniac:{
-  open:[d=>`${d.nm}? Good enough. Let's go.`, d=>`Raising ${d.nm}. Somebody do something about it.`],
-  limp:[d=>`${d.nm} — sneaking in. For now.`],
-  foldWeak:[d=>`Even I can't play ${d.nm}.`, d=>`${d.nm}. Pass. Don't get used to it.`],
-  limpPass:[d=>`Nearly limped ${d.nm} out of boredom. Nah.`],
-  prem3bet:[d=>`${d.nm}! Pump it up.`],
-  premFlat:[d=>`${d.nm} — I'll hide it behind a call. Surprise later.`],
-  defendCall:[d=>`${d.nm}'s plenty. Call.`],
-  defendFold:[d=>`${d.nm}... even I pick spots. Fold.`],
-  spewCall:[d=>`${d.nm} is nothing special but I'm not folding to that.`],
-  bluff3bet:[d=>`${d.nm} — doesn't matter. He folds or he pays. Raise.`],
-  outsideFold:[d=>`Fine, ${d.nm} goes away. This once.`],
-  bet:[d=>`${d.hand} — bet. Keep the pressure on.`, d=>`Betting ${d.hand}. Come along if you dare.`],
-  semiBluff:[d=>`${d.draw}? That's a green light. Bet.`],
-  check:[d=>`Checking. Don't read into it.`, d=>`${d.hand}. I'll let this one breathe.`],
-  strongRaise:[d=>`${d.hand}! Raise. Pay me.`],
-  slowCall:[d=>`${d.hand} — just calling. Walk into it.`],
-  bluffRaise:[d=>`${d.draw} and a story to tell. Raise.`],
-  edgeCall:[d=>`Whatever the math says, I'm not folding. Call.`, d=>`${d.eff} against ${d.need}? Close enough. Call.`],
-  edgeFold:[d=>`Can't win them all. Fold.`, d=>`Even I need more than ${d.eff} percent here. Fold.`],
+  open:[d=>`${d.nm}? Good enough. Let's go.`, d=>`Raising ${d.nm}. Somebody do something about it.`, d=>`${d.nm} — pump it.`],
+  limp:[d=>`${d.nm} — sneaking in. For now.`, d=>`Limping ${d.nm}. Suspicious, right?`],
+  foldWeak:[d=>`Even I can't play ${d.nm}.`, d=>`${d.nm}. Pass. Don't get used to it.`, d=>`Fine, ${d.nm} folds. Boring.`],
+  limpPass:[d=>`Nearly limped ${d.nm} out of boredom. Nah.`, d=>`${d.nm}... even boredom has limits.`],
+  prem3bet:[d=>`${d.nm}! Pump it up.`, d=>`Now THIS deserves a raise. ${d.nm}.`],
+  premFlat:[d=>`${d.nm} — I'll hide it behind a call. Surprise later.`, d=>`Calling. You'll see why later.`],
+  defendCall:[d=>`${d.nm}'s plenty. Call.`, d=>`You think a raise scares me? ${d.nm} calls.`, d=>`${d.nm} — I'm in.`],
+  defendFold:[d=>`${d.nm}... even I pick spots. Fold.`, d=>`Not this one. ${d.nm} down.`, d=>`Fold. Saving bullets.`],
+  spewCall:[d=>`${d.nm} is nothing special but I'm not folding to that.`, d=>`Call. ${d.nm} can get there.`],
+  bluff3bet:[d=>`${d.nm} — doesn't matter. He folds or he pays. Raise.`, d=>`Re-raise. Let's see how real he is.`],
+  outsideFold:[d=>`Fine, ${d.nm} goes away. This once.`, d=>`${d.nm} folds. Ugh.`, d=>`Take it. Next hand's mine.`],
+  bet:[d=>`${d.hand} — bet. Keep the pressure on.`, d=>`Betting ${d.hand}. Come along if you dare.`, d=>`${d.hand}. More chips in.`],
+  airBet:[d=>`Total air. Betting anyway — that's the game.`, d=>`Nothing. Absolutely nothing. Bet.`],
+  semiBluff:[d=>`${d.draw}? That's a green light. Bet.`, d=>`${d.draw} — hammer it.`],
+  check:[d=>`Checking. Don't read into it.`, d=>`${d.hand}. I'll let this one breathe.`, d=>`A check. Rare collector's item.`],
+  strongRaise:[d=>`Raise. Pay me.`, d=>`Big one. Raise it up.`],
+  slowCall:[d=>`Just calling. Walk into it.`, d=>`Call. The trap is set.`],
+  bluffRaise:[d=>`${d.draw} and a story to tell. Raise.`, d=>`${d.draw}. Raise — make him sweat.`],
+  edgeCall:[d=>`Whatever the math says, I'm not folding. Call.`, d=>`${d.eff} against ${d.need}? Close enough. Call.`, d=>`Call. Numbers are for nits.`],
+  edgeFold:[d=>`Can't win them all. Fold.`, d=>`Even I need more than ${d.eff} percent here. Fold.`, d=>`Bah. Fold.`],
+  tilt:[d=>` That pot should've been mine.`, d=>` Somebody's paying for that last one.`],
+  rush:[d=>` I literally can't lose tonight.`, d=>` The heater continues.`],
 },
 selective:{
-  open:[d=>`${d.nm} — this one I play. Raise.`, d=>`${d.nm}. Worth coming out for.`],
-  limp:[d=>`${d.nm}, quiet call. Let's see what develops.`],
-  foldWeak:[d=>`${d.nm} isn't the spot. Patience.`, d=>`Not this hand. Fold and wait.`],
-  limpPass:[d=>`${d.nm} tempted me. It shouldn't have.`],
-  prem3bet:[d=>`${d.nm}. The wait is over — re-raise.`],
-  premFlat:[d=>`${d.nm}. Trap first, strike later.`],
-  defendCall:[d=>`${d.nm} can take a flop against him.`],
-  defendFold:[d=>`${d.nm} is close, but close hands cost money. Fold.`],
-  spewCall:[d=>`A look with ${d.nm}. Information has a price.`],
-  bluff3bet:[d=>`${d.nm} — he opens too much for me to always have it. Raise.`],
-  outsideFold:[d=>`${d.nm} against a raise is a losing habit. Fold.`],
-  bet:[d=>`${d.hand} — now I punch. Bet.`, d=>`${d.hand}. This is why I waited. Bet.`],
-  semiBluff:[d=>`${d.draw} — betting takes it now or makes it later.`],
-  check:[d=>`${d.hand}. Nothing to attack yet. Check.`, d=>`Checking — the moment isn't right.`],
-  strongRaise:[d=>`${d.hand}. Spring it. Raise.`],
-  slowCall:[d=>`${d.hand} — stay hidden, just call.`],
-  bluffRaise:[d=>`${d.draw}, and he's weak. Take it away.`],
-  edgeCall:[d=>`${d.eff} percent against ${d.need} — thin, but it holds. Call.`],
-  edgeFold:[d=>`${d.eff} against ${d.need} needed — the discipline pays here. Fold.`, d=>`Not quite there. Fold.`],
+  open:[d=>`${d.nm} — this one I play. Raise.`, d=>`${d.nm}. Worth coming out for.`, d=>`Raising ${d.nm}. It's time.`],
+  limp:[d=>`${d.nm}, quiet call. Let's see what develops.`, d=>`Slipping in with ${d.nm}.`],
+  foldWeak:[d=>`${d.nm} isn't the spot. Patience.`, d=>`Not this hand. Fold and wait.`, d=>`${d.nm} — the discipline hand. Fold.`],
+  limpPass:[d=>`${d.nm} tempted me. It shouldn't have.`, d=>`No — ${d.nm} isn't worth even a limp.`],
+  prem3bet:[d=>`${d.nm}. The wait is over — re-raise.`, d=>`This is the one. Re-raising ${d.nm}.`],
+  premFlat:[d=>`${d.nm}. Trap first, strike later.`, d=>`Calling with ${d.nm}. Patience pays double.`],
+  defendCall:[d=>`${d.nm} can take a flop against him.`, d=>`${d.nm} — I'll see one card street.`, d=>`Defending with ${d.nm}.`],
+  defendFold:[d=>`${d.nm} is close, but close hands cost money. Fold.`, d=>`${d.nm} folds. The spot will come.`, d=>`Not the moment. Fold.`],
+  spewCall:[d=>`A look with ${d.nm}. Information has a price.`, d=>`${d.nm} — paying for a read.`],
+  bluff3bet:[d=>`${d.nm} — he opens too much for me to always have it. Raise.`, d=>`He won't expect it. Re-raise.`],
+  outsideFold:[d=>`${d.nm} against a raise is a losing habit. Fold.`, d=>`${d.nm} — out. Waiting is free.`, d=>`Fold. My hand will come.`],
+  bet:[d=>`${d.hand} — now I punch. Bet.`, d=>`${d.hand}. This is why I waited. Bet.`, d=>`Betting ${d.hand}. On schedule.`],
+  airBet:[d=>`Nothing — but nobody else looks strong either. Stab.`, d=>`Empty hand, good moment. Bet.`],
+  semiBluff:[d=>`${d.draw} — betting takes it now or makes it later.`, d=>`${d.draw}. Two ways to win. Bet.`],
+  check:[d=>`${d.hand}. Nothing to attack yet. Check.`, d=>`Checking — the moment isn't right.`, d=>`Patience. Check.`],
+  strongRaise:[d=>`Spring it. Raise.`, d=>`The ambush pays. Raise.`],
+  slowCall:[d=>`Stay hidden, just call.`, d=>`Calling — the strike comes later.`],
+  bluffRaise:[d=>`${d.draw}, and he's weak. Take it away.`, d=>`${d.draw} — perfect cover for a raise.`],
+  edgeCall:[d=>`${d.eff} percent against ${d.need} — thin, but it holds. Call.`, d=>`The price works. Call.`, d=>`Just enough equity to pay. Call.`],
+  edgeFold:[d=>`${d.eff} against ${d.need} needed — the discipline pays here. Fold.`, d=>`Not quite there. Fold.`, d=>`Thin the wrong way. Fold.`],
+  tilt:[d=>` That one stung more than it should.`, d=>` Recompose. The plan still works.`],
+  rush:[d=>` The table is opening up nicely.`, d=>` Everything on time tonight.`],
 },
 station:{
-  open:[d=>`${d.nm}! I like it. Raise.`, d=>`${d.nm} feels good today. Raise.`],
-  limp:[d=>`${d.nm} — I'll tag along, cheap flop.`, d=>`Everyone's coming anyway. ${d.nm} calls.`],
-  foldWeak:[d=>`Even ${d.nm} is too ugly for me.`, d=>`${d.nm}... okay, okay, I'll fold this one.`],
-  limpPass:[d=>`Almost limped ${d.nm} again. Letting it go.`],
-  prem3bet:[d=>`${d.nm}?! Raising before I change my mind.`],
-  premFlat:[d=>`${d.nm} — I'll just call. I always just call.`],
-  defendCall:[d=>`${d.nm}'s worth a look. Everything's worth a look.`],
-  defendFold:[d=>`${d.nm}... fine, this one I let go.`],
-  spewCall:[d=>`${d.nm} could hit. You never know. Call.`],
-  bluff3bet:[d=>`Feeling something with ${d.nm}. Raise!`],
-  outsideFold:[d=>`${d.nm} is hopeless even for me.`],
-  bet:[d=>`${d.hand} — might as well bet it.`, d=>`${d.hand}! Betting.`],
-  semiBluff:[d=>`${d.draw} — so many cards can save me. Bet.`],
-  check:[d=>`${d.hand}. Free card sounds good.`, d=>`Checking. Let's see the next one first.`],
-  strongRaise:[d=>`${d.hand}! Finally! Raise!`],
-  slowCall:[d=>`${d.hand} — calling, calling, always calling.`],
-  bluffRaise:[d=>`${d.draw} and a feeling. Raise.`],
-  edgeCall:[d=>`The price is close enough for me. Call.`, d=>`${d.eff} percent? That can come in. Call.`],
-  edgeFold:[d=>`${d.eff} against ${d.need}... even I can't call that.`],
+  open:[d=>`${d.nm}! I like it. Raise.`, d=>`${d.nm} feels good today. Raise.`, d=>`Why not — ${d.nm} raises.`],
+  limp:[d=>`${d.nm} — I'll tag along, cheap flop.`, d=>`Everyone's coming anyway. ${d.nm} calls.`, d=>`In for two with ${d.nm}.`],
+  foldWeak:[d=>`Even ${d.nm} is too ugly for me.`, d=>`${d.nm}... okay, okay, I'll fold this one.`, d=>`${d.nm}? Ew. Fold.`],
+  limpPass:[d=>`Almost limped ${d.nm} again. Letting it go.`, d=>`${d.nm}... no. Well. No.`],
+  prem3bet:[d=>`${d.nm}?! Raising before I change my mind.`, d=>`Even I raise this one. ${d.nm}!`],
+  premFlat:[d=>`${d.nm} — I'll just call. I always just call.`, d=>`Calling with ${d.nm}. Old habits.`],
+  defendCall:[d=>`${d.nm}'s worth a look. Everything's worth a look.`, d=>`Sure, ${d.nm} calls.`, d=>`One raise doesn't scare ${d.nm}.`],
+  defendFold:[d=>`${d.nm}... fine, this one I let go.`, d=>`Folding ${d.nm}. See? I can fold.`, d=>`${d.nm} down. Reluctantly.`],
+  spewCall:[d=>`${d.nm} could hit. You never know. Call.`, d=>`Call — ${d.nm} has potential. Somewhere.`],
+  bluff3bet:[d=>`Feeling something with ${d.nm}. Raise!`, d=>`${d.nm} raise! Gut call.`],
+  outsideFold:[d=>`${d.nm} is hopeless even for me.`, d=>`Okay, ${d.nm} folds. This time.`, d=>`${d.nm} — pass. Sadly.`],
+  bet:[d=>`${d.hand} — might as well bet it.`, d=>`${d.hand}! Betting.`, d=>`Chips in with ${d.hand}.`],
+  airBet:[d=>`Got nothing... betting anyway. Feels right.`, d=>`No pair, no draw, no fear. Bet.`],
+  semiBluff:[d=>`${d.draw} — so many cards can save me. Bet.`, d=>`${d.draw}! One of those always comes. Bet.`],
+  check:[d=>`${d.hand}. Free card sounds good.`, d=>`Checking. Let's see the next one first.`, d=>`Tap tap. Next card please.`],
+  strongRaise:[d=>`Finally! Raise!`, d=>`A real hand! Raise!`],
+  slowCall:[d=>`Calling, calling, always calling.`, d=>`Big hand, same move: call.`],
+  bluffRaise:[d=>`${d.draw} and a feeling. Raise.`, d=>`${d.draw}! Raising on hope.`],
+  edgeCall:[d=>`The price is close enough for me. Call.`, d=>`${d.eff} percent? That can come in. Call.`, d=>`My cards, my call.`],
+  edgeFold:[d=>`${d.eff} against ${d.need}... even I can't call that.`, d=>`That's too expensive even for me. Fold.`, d=>`Wow, okay, fold.`],
+  tilt:[d=>` I was supposed to win that last one.`, d=>` My luck has to turn soon.`],
+  rush:[d=>` Everything's hitting tonight!`, d=>` What a run!`],
 },
 };
+function say(style, slot, d, v){
+  const bank=(VOICE[style.tag]||VOICE.solid)[slot];
+  const t=bank[Math.min(bank.length-1, Math.floor(v*bank.length))];
+  return t(d);
+}
+
 /* ---- MOOD ---------------------------------------------------------------
    One decaying scalar per bot, driven ONLY by its own chip swings (public
    info by definition). decay x0.75 per hand (~3-hand half-life); a 25BB
@@ -1342,7 +1370,8 @@ function step(){
       streetBets:S.streetBets||0, myBet:p.bet,
       facingReads: (toCall>0 && aggRoster) ? aggRoster.reads : null,
       aggressorHadInitiative: !!(agg && S.preflopRaiser && agg.seat===S.preflopRaiser.seat),
-      style: (r=>r&&r.style ? moodDials(r.style, r.mood) : {open:1, bet:1, fold:1, limp:0})(rosterOf(p))
+      style: (r=>r&&r.style ? moodDials(r.style, r.mood) : {open:1, bet:1, fold:1, limp:0})(rosterOf(p)),
+      mood: (r=>r&&r.style ? (r.mood||0) : 0)(rosterOf(p))
     });
     applyAction(p,d);
     S.toAct=nextToAct(S.toAct);

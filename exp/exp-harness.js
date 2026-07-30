@@ -63,7 +63,8 @@ function buildSrc(htmlPath, expectedSites){
     ' Math.random() sites, found '+n+' in '+htmlPath+' — re-audit stream assignment');
   src=src.split('Math.random()').join('__RAND()');
 
-  const moodExports=src.includes('function moodStep') ? ', moodStep, moodDials' : '';
+  const moodExports=(src.includes('function moodStep') ? ', moodStep, moodDials' : '')
+    +(src.includes('const VOICE=') ? ', VOICE, say' : '');
   src+='\nreturn {newHand, newSession, get roster(){return roster}, botDecide, pctOf, strengthVsRandom, openThreshold, posName, behindCount, get S(){return S}, get session(){return session}, applyAction, nextToAct, step, buildPots, evaluate, cmpHand, handStr, START, BB, SB, clampFreq, freshReads, shrinkReads, readLabel, BOT_STYLES, sampleTier'+moodExports+'};';
   srcCache.set(key, src);
   return src;

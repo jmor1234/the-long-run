@@ -298,6 +298,88 @@ function runBaseline(seed, hands, opts={}){
   ok(guarded>=100 && mism===0,
     'endHand feeds each bot exactly its own stack delta (bitwise match)',
     `${guarded} bot-hands checked`);
+  // Discriminative dial asserts (round-2 verify): rush must not touch fold;
+  // tilt must genuinely loosen entries; saturation must clamp at exactly 1.
+  const st2={open:1,bet:1,fold:1,limp:0.4,size:1,tag:'x'};
+  const r2=md(st2,1), t2=md(st2,-1);
+  ok(r2.fold===st2.fold, 'rush never loosens folding');
+  ok(t2.limp>st2.limp*1.3, 'full tilt visibly loosens entries', t2.limp.toFixed(3));
+  let sat=0; for(let i=0;i<4;i++) sat=ms(sat,50);
+  ok(sat===1, 'mood saturates at the clamp, exactly 1', sat);
+}
+
+// --- 3g. all-in cap + roll governance (round-2 verify hardening) --------
+{
+  // Crafted short-stack ctx with chips already in front: the emitted raise
+  // target must reach the true all-in (myBet+myStack), not the bare stack.
+  // Independent oracle: hand + numbers chosen so bucket==='strong' and the
+  // desired size (myBet+toCall+humanSize(pot*0.9)) far exceeds the stack.
+  const h=make(checkFoldHero,{seed:'cap-1'});
+  let sawAllIn=0, tries=0;
+  for(let i=0;i<40 && !sawAllIn;i++){
+    const d=h.G.botDecide({
+      myCards:[{r:14,s:'s'},{r:14,s:'h'}],
+      board:[{r:14,s:'d'},{r:9,s:'c'},{r:2,s:'s'}],
+      street:'flop', toCall:10, pot:200, myStack:30, myBet:15,
+      position:'BTN', raisedBefore:true, openThr:30, tableSize:3,
+      inPosition:true, streetBets:1, facingReads:null,
+      aggressorHadInitiative:false,
+      style:{open:1,bet:3,fold:1,limp:0,size:1,sizeJitter:0.1,callTemp:0.03,tag:'solid'},
+    });
+    tries++;
+    if(d.action==='raise'){ sawAllIn=1;
+      ok(d.amount===45, 'short-stack raise targets the true all-in (myBet+myStack)', 'amount '+d.amount);
+    }
+  }
+  ok(sawAllIn===1, 'crafted strong short-stack spot produced a raise to test', tries+' tries');
+  // Roll governance: the dbg roll and its threshold must match the action.
+  let govChecked=0, govWrong=0;
+  const spy=(ctx,meta,fall)=>{
+    const d=fall(ctx);
+    if(d.dbg){
+      if(d.dbg.betRoll!==undefined && d.dbg.betFreq!==undefined){
+        govChecked++;
+        if((d.dbg.betRoll<d.dbg.betFreq)!==(d.action==='bet')) govWrong++;
+      }
+      if(d.dbg.cRoll!==undefined && d.dbg.pCall!==undefined){
+        govChecked++;
+        if((d.dbg.cRoll<d.dbg.pCall)!==(d.action==='call')) govWrong++;
+      }
+      if(d.dbg.openRoll!==undefined && d.dbg.f!==undefined && ctx.street==='preflop' && !ctx.raisedBefore){
+        govChecked++;
+        if((d.dbg.openRoll<d.dbg.f)!==(d.action==='raise')) govWrong++;
+      }
+    }
+    return d;
+  };
+  const h2=make(checkFoldHero,{seed:'gov-1', decide:spy});
+  h2.G.newSession(); h2.drain();
+  let last=h2.G.session.hands;
+  while(h2.G.session.hands<40 && !h2.G.session.over){
+    h2.G.newHand(); h2.drain();
+    if(h2.G.session.hands===last) break;
+    last=h2.G.session.hands;
+  }
+  ok(govChecked>=100 && govWrong===0,
+    'every dbg roll GOVERNS its action (inequality matches the branch taken)',
+    govChecked+' checked, '+govWrong+' wrong');
+  // Static exhaustive bank scan: every variant of every slot, banned tokens.
+  const BANNED=[/roll/i, /\d+ of \d+/, /% of the time/i, /\bbranch\b/i, /\bhero\b/i, /Math\./];
+  const dummy={nm:'K9s', hand:'a solid hand', draw:'Four to a flush', eff:40, need:30};
+  let variants=0; const bad=[];
+  for(const [tag,slots] of Object.entries(h.G.VOICE)){
+    for(const [slot,bank] of Object.entries(slots)){
+      for(const t of bank){
+        variants++;
+        const txt=t(dummy);
+        for(const re of BANNED) if(re.test(txt)) bad.push(tag+'.'+slot+': '+txt.slice(0,50));
+        if(/undefined/.test(txt)) bad.push(tag+'.'+slot+' has an unfilled slot: '+txt.slice(0,50));
+      }
+    }
+  }
+  ok(variants>=200 && bad.length===0,
+    'entire VOICE bank is statically clean (every variant of every slot)',
+    bad[0]||(variants+' variants scanned'));
 }
 
 // --- 4. ctx carries the betting state the legality view needs ----------

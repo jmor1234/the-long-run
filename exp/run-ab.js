@@ -28,11 +28,12 @@ const args={};
 const OLD=args.old||'8f0bada';   // last pre-humanize engine commit
 const SEED=args.seed||'feelab1';
 if(!/^[A-Za-z0-9_-]+$/.test(SEED)) fatal('--seed must be filename-safe');
+if(!/^[A-Za-z0-9_./-]+$/.test(OLD)) fatal('--old must be a plain commitish');
 
 const outDir=path.join(__dirname,'out');
 fs.mkdirSync(outDir,{recursive:true});
 const oldPath=path.join(outDir,'ab-old-engine.html');
-const oldHtml=cp.execSync(`git show ${OLD}:poker-trainer.html`,
+const oldHtml=cp.execFileSync('git', ['show', OLD+':poker-trainer.html'],
   {cwd:path.join(__dirname,'..'), maxBuffer:16*1024*1024, encoding:'utf8'});
 fs.writeFileSync(oldPath, oldHtml);
 
