@@ -56,7 +56,7 @@ function buildSrc(htmlPath, expectedSites){
     ' Math.random() sites, found '+n+' in '+htmlPath+' — re-audit stream assignment');
   src=src.split('Math.random()').join('__RAND()');
 
-  src+='\nreturn {newHand, newSession, get roster(){return roster}, botDecide, pctOf, strengthVsRandom, openThreshold, posName, behindCount, get S(){return S}, get session(){return session}, applyAction, nextToAct, step, buildPots, evaluate, cmpHand, handStr, START, BB, SB, clampFreq, freshReads, shrinkReads, readLabel, BOT_STYLES, sampleTier};';
+  src+='\nreturn {newHand, newSession, get roster(){return roster}, botDecide, pctOf, strengthVsRandom, openThreshold, posName, behindCount, get S(){return S}, get session(){return session}, applyAction, nextToAct, step, buildPots, evaluate, cmpHand, handStr, START, BB, SB, clampFreq, freshReads, shrinkReads, readLabel, BOT_STYLES, sampleTier, moodStep, moodDials};';
   srcCache.set(key, src);
   return src;
 }

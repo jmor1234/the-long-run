@@ -257,6 +257,49 @@ function runBaseline(seed, hands, opts={}){
     'no banned tokens in any emitted reason', hits[0]||(scanned+' reasons scanned'));
 }
 
+// --- 3f. mood (C5 gate) -------------------------------------------------
+{
+  const h0=make(checkFoldHero,{seed:'mood-0'});
+  const ms=h0.G.moodStep, md=h0.G.moodDials;
+  // Arithmetic vs a HAND-COMPUTED table from the spec constants (decay 0.75,
+  // tanh scale 25BB, weight 0.5, clamp [-1,1]) — not derived from the code.
+  const table=[[-30,-0.41683],[0,-0.31262],[0,-0.23447],[50,0.30616]];
+  let m=0, tableOk=true;
+  for(const [d,exp] of table){ m=ms(m,d); if(Math.abs(m-exp)>1e-4) tableOk=false; }
+  ok(tableOk, 'moodStep matches the hand-computed spec table', m.toFixed(5));
+  let q=-1; for(let i=0;i<12;i++) q=ms(q,0);
+  ok(Math.abs(q)<0.05, 'full tilt decays quiet within 12 hands (0.75^12=0.032)', q.toFixed(4));
+  const st={open:1,bet:1,fold:1,limp:0.4,size:1,tag:'x'};
+  const tilt=md(st,-1), rush=md(st,1);
+  ok(tilt.bet<=1.3+1e-9 && st.fold/tilt.fold<=1.35+1e-9 && tilt.limp<=0.6+1e-9
+     && tilt.size<=1.2+1e-9 && tilt.open===1 && rush.open===1 && rush.bet===1,
+    'mood dial caps hold and open is never scaled');
+  // Call-site guard: every bot's mood must equal moodStep fed with EXACTLY
+  // its own per-hand stack delta — recomputed here from observed stacks.
+  const h=make(checkFoldHero,{seed:'mood-1'});
+  h.G.newSession(); h.drain();
+  const expMood={};
+  for(const r of h.G.roster) if(r.style) expMood[r.seat]=r.mood; // hand 1 already stepped
+  let mism=0, guarded=0, last=h.G.session.hands;
+  while(h.G.session.hands<40 && !h.G.session.over){
+    const prev={};
+    for(const r of h.G.roster) prev[r.seat]=r.stack;
+    h.G.newHand(); h.drain();
+    if(h.G.session.hands===last) break;
+    last=h.G.session.hands;
+    for(const r of h.G.roster){
+      if(!r.style || prev[r.seat]===undefined) continue;
+      if(prev[r.seat]<=0) continue; // busted before this hand: mood frozen
+      expMood[r.seat]=ms(expMood[r.seat], (r.stack-prev[r.seat])/h.G.BB);
+      guarded++;
+      if(r.mood!==expMood[r.seat]) mism++;
+    }
+  }
+  ok(guarded>=100 && mism===0,
+    'endHand feeds each bot exactly its own stack delta (bitwise match)',
+    `${guarded} bot-hands checked`);
+}
+
 // --- 4. ctx carries the betting state the legality view needs ----------
 {
   let seen=null;
