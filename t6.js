@@ -67,3 +67,4 @@ for(let i=0;i<300 && seen<40;i++){
 chk('heads-up: button posts the small blind', sbBad===0 && sbOK>0, `${sbOK} hands checked`);
 chk('heads-up: button acts first preflop', seen>0 && sbBad===0, `${seen} hands checked`);
 console.log(fails?`\n  ${fails} bug${fails>1?'s':''}`:'\n  clean');
+process.exitCode=fails?1:0;

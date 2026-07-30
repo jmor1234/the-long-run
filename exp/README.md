@@ -41,9 +41,18 @@ Plan with FROZEN pre-registered pass criteria and baseline reference numbers:
 | `PLAN.md` | frozen pre-registered criteria + baseline reference numbers |
 | `t-exp.js` | gate suite: determinism, cross-arm deal identity, oracle replay, legality (unit + engine-integration), prompt purity/scan |
 
-Outputs land in `exp/out/` (gitignored; also excluded from Vercel deploys via
-`.vercelignore` along with all of `exp/`). `exp/t-exp.js` runs as part of
-`run-all.sh`, so if `poker-trainer.html` drifts — a `Math.random` site added, a
-rewrite anchor renamed — the harness fails loudly in the normal suite (it expects
-exactly 5 `Math.random()` sites). Re-audit the stream assignment before bumping
-the count.
+Outputs land in `exp/out/` (gitignored scratch; also excluded from Vercel
+deploys via `.vercelignore` along with all of `exp/`). Frozen reference
+evidence lives in tracked `exp/ref/` — baseline metrics/probes/labels, the
+blind feel packet + key + panel verdicts, the pilot's paid decision records,
+and the frozen panel instrument (`feel-panel.md`). Runners write only to
+`exp/out/`; never regenerate into `exp/ref/`.
+
+`exp/t-exp.js` runs as part of `run-all.sh`, so if `poker-trainer.html`
+drifts — a `Math.random` site added, a rewrite anchor renamed — the harness
+fails loudly in the normal suite. The expected site count lives in ONE place:
+the `EXPECTED_RAND_SITES` export in `exp-harness.js`. Re-audit the stream
+assignment before changing it. `run-probes.js` and `run-labels.js` carry
+hardcoded exploitability/readability locks (thresholds documented in-file
+next to the measured values they were set against) and fail nonzero at the
+frozen configs; both run in `run-all.sh`.

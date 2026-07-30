@@ -1,0 +1,137 @@
+{
+  "date": "2026-07-30",
+  "judges": 16,
+  "blocksPerJudge": 1,
+  "packet": "exp/ref/feel-packet.txt",
+  "key": "exp/ref/feel-key.json",
+  "verdicts": [
+    {
+      "block": "A",
+      "judge": 1,
+      "verdict": "mechanical",
+      "humanness": 3,
+      "confidence": "high",
+      "rationale": "The action lines are numbingly uniform — every open is exactly 7, nearly every multiway pot checks down all three streets, and post-flop aggression is almost absent regardless of hand strength (Oyelaran checks QQ three streets, Vera checks top pair down twice). The stated reasoning repeatedly contradicts the actual cards or actions: Oyelaran's \"small pocket pair\" morphs into \"middle pair\" then \"pair of fours\" in hand 31, Dunn narrates \"I'm checking this\" while betting in hand 36, calls AK-high \"a good kicker\" hands appear on the wrong boards (\"paired board\" on an unpaired river in hand 43), and Dunn's hand 33 tens become \"nothing\" on a 6-6-K-6 board. The five voices also blur into one register — the same \"that's junk, I'll wait for a real hand\" and \"I'll take a free card\" templates recur across all seats, so they don't feel like distinct people. There are humanizing touches (table reads about the limpy aggressor, one \"wait, this IS the turn\"), but the card-tracking errors read like generator hallucinations, not human confusion."
+    },
+    {
+      "block": "A",
+      "judge": 2,
+      "verdict": "mechanical",
+      "humanness": 3,
+      "confidence": "high",
+      "rationale": "The reasoning is riddled with generated-text tells: hands mutate between streets (Oyelaran's pocket pair is \"small,\" then \"middle pair,\" then \"pair of fours\" in hand 31; hand 43 he claims \"top pair, good kicker\" with unimproved AK and calls an unpaired board \"paired\"), board misreads abound (a \"heart draw\" with one heart in hand 32, a \"diamond draw\" on a one-diamond board in hand 33), and hand 36's turn line is a smoking gun — the stated reasoning says \"I'm checking this\" while the logged action is a bet. Voice is templated across all five players (\"...is junk, I'll wait for a real hand\" from everyone), raise sizes are always exactly 7, and nearly every pot checks down all three streets — far more passive and uniform than any real home game. There is genuine persona scaffolding (Dunn the loose limper, table reads like \"this maniac just woke up\"), which lifts it off the floor, but the players read as personality-parameterized scripts with hallucinated narration, not people."
+    },
+    {
+      "block": "B",
+      "judge": 1,
+      "verdict": "mechanical",
+      "humanness": 3,
+      "confidence": "high",
+      "rationale": "One archetype (Mikko the maniac) plus four interchangeable nits who all speak in the same templated voice — \"X-Y offsuit is junk, I'll wait for a real hand\" recurs dozens of times across every player. Opponent reads quote tracked counters verbatim (\"shown up with cards 22 straight times\", \"one hand in six and folded to pressure five times\"), which reads like a stats engine, not a person. There are no moods, no table talk, no drift or tilt over 30 hands, and oddities like Priya's min-click 4-bet war with AK or Vera raising TT then instantly folding feel like rule outputs with post-hoc rationalizations. The bracketed reasoning is grammatically varied but structurally identical, the signature of one generator wearing five hats."
+    },
+    {
+      "block": "B",
+      "judge": 2,
+      "verdict": "mechanical",
+      "humanness": 4,
+      "confidence": "high",
+      "rationale": "The personas are distinguishable (maniac Mikko, station Dunn, three nits), but the tells are structural: Mikko's river reasoning claims he whiffed a straight draw in hand 1 while the log awards him a made straight, all five players emit near-identical \"X offsuit is junk, I'll wait for something real\" template folds, and table reads interpolate literal counters (\"shown up with cards 22 straight times\"). Post-Dunn, 27 hands of flawless raise-or-fold discipline with zero limps or loose calls is nothing like recreational humans."
+    },
+    {
+      "block": "C",
+      "judge": 1,
+      "verdict": "mechanical",
+      "humanness": 4,
+      "confidence": "medium",
+      "rationale": "There are distinct archetypes (Mikko the maniac, Dunn the calling station, three nits) and some nice table-awareness (\"this guy barely ever plays\"), but the seams show. The tight players' fold reasoning is a near-identical template repeated dozens of times (\"X offsuit is junk... I'll wait for a real hand\"), the table is inhumanly passive (whole hands checked down street after street, nobody ever stabs at orphan pots), and the reasoning contains generation-style errors rather than human inconsistency: Dunn notes \"trips\" in his hand-7 river check then calls citing \"a pair of sixes\" moments later, cites diamonds on an all-heart board in hand 21, and Oyelaran claims he \"hit my set on the turn\" in hand 19 when the set came on the river. Real recreationals are sloppy, but not self-contradictory within the same street while everyone else recites the same fold script."
+    },
+    {
+      "block": "C",
+      "judge": 2,
+      "verdict": "mechanical",
+      "humanness": 3,
+      "confidence": "high",
+      "rationale": "The five seats have distinct assigned archetypes (Mikko the maniac, Dunn the calling station, three near-identical nits) but each executes its persona with rule-like rigidity: the tight players recite the same \"X-Y offsuit is junk, I'll wait for a real hand\" template dozens of times, and Dunn calls every street with the same \"I've got a pair and I'm curious\" logic. The reasoning repeatedly contradicts the actual game state — Dunn says \"I've got trips\" then \"pair of sixes\" on the same river in hand 7, cites \"two diamonds\" on an all-heart board in hand 21, and Mikko claims he \"hit the nine on the turn\" when the nine came on the river in hand 5 — errors of a generator losing track of state, not human misreads. The action texture is also unnaturally passive (hand after hand checked down on all streets, two pair checked three times), lacking the tilt, boredom stabs, and bet-sizing quirks of real recreational players. Table-awareness comments (\"he's been raising everything\") are a nice touch but feel injected rather than lived."
+    },
+    {
+      "block": "D",
+      "judge": 1,
+      "verdict": "mechanical",
+      "humanness": 3,
+      "confidence": "high",
+      "rationale": "Four of the five players share one interchangeable nit voice built from the same stock phrases (\"is junk\", \"pot odds don't justify\", \"maniac running over the table\", \"wait for a real hand\") on nearly every fold, and across 30 hands there is almost no calling, limping, or blind defense — pure raise-or-fold behavior with mechanical min-reraise ladders (31/43/55) that recreational players don't produce. The reasoning also desyncs from the game state in tells that scripts leave: Mikko opens hand 44 citing six-three offsuit, then c-bets claiming a two-heart flush draw on an Ah-Kc-Qd board; Oyelaran announces \"all-in with jacks\" on a raise that isn't all-in; Mikko 3-bets hand 59 vowing to defend his blind, then folds calling his own hand 95o \"already three-bet\" by the opponent. Mikko's maniac persona is at least distinct and occasionally mood-flavored, which keeps this off the floor, but the table reads as one template engine with a VPIP dial, not five people."
+    },
+    {
+      "block": "D",
+      "judge": 2,
+      "verdict": "mechanical",
+      "humanness": 3,
+      "confidence": "high",
+      "rationale": "The five seats have distinct assigned archetypes (Mikko the maniac, four near-identical nits), but their stated reasoning is boilerplate — the same \"X offsuit is junk / pot odds don't justify / wait for a real hand / maniac running over the table\" phrases recycled across all four tight players, plus tracker-style stat citations (\"9 out of 39 hands\", \"38 of 41\"). There are giveaway hallucinations: hand 44 Mikko claims a flush draw with \"two hearts\" holding 63o on an Ah-Kc-Qd board, Oyelaran calls pocket fours \"bottom pair\" on AKQ, hand 42 Oyelaran announces \"all-in\" two raises before actually being all-in, and Priya worries about her \"tournament life\" in a 1/2 cash game. The 3-bet wars escalate in robotic min-raise ladders (19-31-43-55) rather than human sizing, and the nits fold 99, JJ-worthy spots with identical scripted logic every orbit."
+    },
+    {
+      "block": "E",
+      "judge": 1,
+      "verdict": "mechanical",
+      "humanness": 1,
+      "confidence": "high",
+      "rationale": "Every stated reasoning line is an identical algorithmic template: hand-percentile lookup, position open-frequency, then an explicit RNG roll (\"opens it 95% of the time — roll 0.68 said open\", \"43% strength vs 25% needed. Calls\"). No moods, table talk, tilt, history-based reads, or bad human logic — even the \"reads\" are canned tags like \"Faces a loose aggressor\" applied uniformly across all five seats. The players differ only in tuned parameters (open ranges, defend widths), not in voice or thought process; anomalies like Vera's min-raise-into-two-callers river line in hand 32 come from threshold mechanics, not human impulse."
+    },
+    {
+      "block": "E",
+      "judge": 2,
+      "verdict": "mechanical",
+      "humanness": 1,
+      "confidence": "high",
+      "rationale": "All five opponents reason in one identical template: hand-rank percentile, a fixed open/defend/bet frequency, and an explicit RNG roll (\"roll 0.77 said fold\"), with calls decided by stated equity-vs-pot-odds thresholds. No moods, memory, table talk, or idiosyncratic logic ever appears; players differ only in numeric parameters (open % by position) and canned aggressor labels. This is a frequency-mixing bot engine narrating its own dice rolls, not recreational humans."
+    },
+    {
+      "block": "F",
+      "judge": 1,
+      "verdict": "mechanical",
+      "humanness": 1,
+      "confidence": "high",
+      "rationale": "Every decision by all five players is verbalized as the identical template — hand percentile vs. positional range frequency plus an explicit RNG roll (e.g. \"roll 0.16 said open\", \"the slow branch. Roll 0.96\") — with no moods, table talk, tilt, or idiosyncratic logic anywhere in 30 hands. Players differ only by tuned parameters (defend ranges of 33% vs 21%), and even opponent reads are canned tags like \"Faces a loose aggressor\". The betting lines are a passable imitation of loose-passive recreational play, which earns the single point, but the reasoning is transparently a scripted frequency engine."
+    },
+    {
+      "block": "F",
+      "judge": 2,
+      "verdict": "mechanical",
+      "humanness": 1,
+      "confidence": "high",
+      "rationale": "Every stated reason is a frequency-table lookup plus an explicit RNG roll (\"top-X% hand, opens Y% of the time — roll 0.nn said fold\"), which is the literal definition of a scripted policy, not human thought. All five players share the identical reasoning template and vocabulary (defend ranges, strength percentiles, \"the slow branch\", \"Faces a loose aggressor\"), so they differ only in parameter values, not personality. There are no moods, no tilt, no table talk, no bad logic or memory of prior hands beyond a canned aggressor tag. The action lines themselves are plausible-looking, which is the only reason the score is not 0."
+    },
+    {
+      "block": "G",
+      "judge": 1,
+      "verdict": "mechanical",
+      "humanness": 2,
+      "confidence": "high",
+      "rationale": "Every stated reason is the same templated formula — hand percentile vs. a position-indexed open/defend range, an explicit action frequency, and a literal RNG roll (\"roll 0.43 said open\") — with zero mood, memory of prior hands, tilt, or table talk. All five players share one identical decision engine differing only in range parameters (Priya's 18% vs Mikko's 33% defend), so they read as one algorithm with five knob settings, not five people. The action lines themselves are plausible enough for a couple of humanness points (limps, a loose K5o defend, a river raise-war), but the bracketed reasoning is unambiguously a range-plus-dice script."
+    },
+    {
+      "block": "G",
+      "judge": 2,
+      "verdict": "mechanical",
+      "humanness": 1,
+      "confidence": "high",
+      "rationale": "Every stated reason is a range-vs-threshold computation with an explicit RNG roll (\"opens it 95% of the time — roll 0.43 said open\"), identical phrasing templates across all five players, and zero moods, tilt, history references, or bad logic. Players differ only in numeric parameters (open/defend percentages), not personality; nobody reacts humanly even after Priya busts on a cooler in hand 19. Lines themselves are plausible poker, but the reasoning is a rule engine narrating its dice, not people thinking."
+    },
+    {
+      "block": "H",
+      "judge": 1,
+      "verdict": "mechanical",
+      "humanness": 1,
+      "confidence": "high",
+      "rationale": "Every stated reason is a literal policy trace: hand-percentile buckets, position-indexed open frequencies, and explicit RNG rolls (\"opens 95% of the time — roll 0.27 said open\"), identical in template across all five seats. There are no moods, no history references beyond canned aggressor tags (\"Faces a loose aggressor\"), no tilt after big pots (Priya busts in hand 47 with zero reaction), and no bad-but-human logic — just frequency lookups. Players differ only in parameter values (open ranges, defend thresholds), not in voice or behavior style, which is the signature of one script with different configs."
+    },
+    {
+      "block": "H",
+      "judge": 2,
+      "verdict": "mechanical",
+      "humanness": 1,
+      "confidence": "high",
+      "rationale": "Every stated reason is a literal algorithm trace: hand percentile vs. a position-indexed open-range table, a threshold probability, and an explicit RNG roll (\"opens it 95% of the time — roll 0.27 said open\"). There are no moods, no history-driven tilt, no bad logic or table talk — just identical templated formulas across all five seats, differing only in tuned range parameters. Even quirks like limps and premium flat-calls are announced as named branches with roll values. Nothing here resembles how a recreational human thinks or talks about a hand."
+    }
+  ]
+}

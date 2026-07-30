@@ -1,0 +1,37 @@
+{
+  "scoring": "pair won by LLM iff its llm block is marked HUMAN and its coded block MECHANICAL; strict majority of 4 pairs required",
+  "blocks": {
+    "A": {
+      "arm": "llm",
+      "pair": "s1:31-60"
+    },
+    "B": {
+      "arm": "llm",
+      "pair": "s0:1-30"
+    },
+    "C": {
+      "arm": "llm",
+      "pair": "s1:1-30"
+    },
+    "D": {
+      "arm": "llm",
+      "pair": "s0:31-60"
+    },
+    "E": {
+      "arm": "coded",
+      "pair": "s1:31-60"
+    },
+    "F": {
+      "arm": "coded",
+      "pair": "s0:1-30"
+    },
+    "G": {
+      "arm": "coded",
+      "pair": "s1:1-30"
+    },
+    "H": {
+      "arm": "coded",
+      "pair": "s0:31-60"
+    }
+  }
+}

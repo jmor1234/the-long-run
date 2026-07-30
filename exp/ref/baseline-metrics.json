@@ -1,0 +1,362 @@
+{
+  "config": {
+    "sessions": 40,
+    "hands": 150,
+    "seed": "exp1"
+  },
+  "handsPlayed": 6000,
+  "conservationErrors": 0,
+  "strayDraws": 0,
+  "personas": {
+    "nit": {
+      "pooled": {
+        "vpip": 0.19428850378325604,
+        "pfr": 0.1628020502806932,
+        "f2bet": 0.7377450980392157,
+        "threeBet": 0.025879917184265012,
+        "f2cbet": 0,
+        "af": 0.9732142857142857
+      },
+      "vpip": {
+        "full": {
+          "mean": 0.202,
+          "sd": 0.081,
+          "n": 40
+        },
+        "pooledFirstHalf": 0.182,
+        "pooledSecondHalf": 0.211,
+        "splitHalfDelta": 0.029
+      },
+      "pfr": {
+        "full": {
+          "mean": 0.159,
+          "sd": 0.072,
+          "n": 40
+        },
+        "pooledFirstHalf": 0.146,
+        "pooledSecondHalf": 0.186,
+        "splitHalfDelta": 0.04
+      },
+      "f2bet": {
+        "full": {
+          "mean": 0.709,
+          "sd": 0.125,
+          "n": 40
+        },
+        "pooledFirstHalf": 0.743,
+        "pooledSecondHalf": 0.73,
+        "splitHalfDelta": 0.013
+      },
+      "threeBet": {
+        "full": {
+          "mean": 0.047,
+          "sd": 0.157,
+          "n": 40
+        },
+        "pooledFirstHalf": 0.029,
+        "pooledSecondHalf": 0.021,
+        "splitHalfDelta": 0.007
+      },
+      "f2cbet": {
+        "full": {
+          "mean": 0,
+          "sd": 0,
+          "n": 33
+        },
+        "pooledFirstHalf": 0,
+        "pooledSecondHalf": 0,
+        "splitHalfDelta": 0
+      },
+      "af": {
+        "full": {
+          "mean": 1.014,
+          "sd": 0.672,
+          "n": 39
+        },
+        "pooledFirstHalf": 0.952,
+        "pooledSecondHalf": 1.008,
+        "splitHalfDelta": 0.056
+      }
+    },
+    "solid": {
+      "pooled": {
+        "vpip": 0.3137437810945274,
+        "pfr": 0.25590796019900497,
+        "f2bet": 0.6145691764066322,
+        "threeBet": 0.04287515762925599,
+        "f2cbet": 0,
+        "af": 1.252199413489736
+      },
+      "vpip": {
+        "full": {
+          "mean": 0.32,
+          "sd": 0.091,
+          "n": 40
+        },
+        "pooledFirstHalf": 0.297,
+        "pooledSecondHalf": 0.34,
+        "splitHalfDelta": 0.043
+      },
+      "pfr": {
+        "full": {
+          "mean": 0.252,
+          "sd": 0.07,
+          "n": 40
+        },
+        "pooledFirstHalf": 0.24,
+        "pooledSecondHalf": 0.281,
+        "splitHalfDelta": 0.041
+      },
+      "f2bet": {
+        "full": {
+          "mean": 0.592,
+          "sd": 0.101,
+          "n": 40
+        },
+        "pooledFirstHalf": 0.618,
+        "pooledSecondHalf": 0.608,
+        "splitHalfDelta": 0.01
+      },
+      "threeBet": {
+        "full": {
+          "mean": 0.038,
+          "sd": 0.038,
+          "n": 39
+        },
+        "pooledFirstHalf": 0.036,
+        "pooledSecondHalf": 0.055,
+        "splitHalfDelta": 0.019
+      },
+      "f2cbet": {
+        "full": {
+          "mean": 0,
+          "sd": 0,
+          "n": 25
+        },
+        "pooledFirstHalf": 0,
+        "pooledSecondHalf": 0,
+        "splitHalfDelta": 0
+      },
+      "af": {
+        "full": {
+          "mean": 1.226,
+          "sd": 0.748,
+          "n": 40
+        },
+        "pooledFirstHalf": 1.091,
+        "pooledSecondHalf": 1.653,
+        "splitHalfDelta": 0.563
+      }
+    },
+    "maniac": {
+      "pooled": {
+        "vpip": 0.43790849673202614,
+        "pfr": 0.34477124183006536,
+        "f2bet": 0.49396343566747153,
+        "threeBet": 0.07670454545454546,
+        "f2cbet": 0.038461538461538464,
+        "af": 1.8026315789473684
+      },
+      "vpip": {
+        "full": {
+          "mean": 0.439,
+          "sd": 0.141,
+          "n": 40
+        },
+        "pooledFirstHalf": 0.394,
+        "pooledSecondHalf": 0.521,
+        "splitHalfDelta": 0.128
+      },
+      "pfr": {
+        "full": {
+          "mean": 0.336,
+          "sd": 0.163,
+          "n": 40
+        },
+        "pooledFirstHalf": 0.298,
+        "pooledSecondHalf": 0.433,
+        "splitHalfDelta": 0.135
+      },
+      "f2bet": {
+        "full": {
+          "mean": 0.47,
+          "sd": 0.143,
+          "n": 40
+        },
+        "pooledFirstHalf": 0.527,
+        "pooledSecondHalf": 0.431,
+        "splitHalfDelta": 0.096
+      },
+      "threeBet": {
+        "full": {
+          "mean": 0.101,
+          "sd": 0.178,
+          "n": 39
+        },
+        "pooledFirstHalf": 0.075,
+        "pooledSecondHalf": 0.082,
+        "splitHalfDelta": 0.007
+      },
+      "f2cbet": {
+        "full": {
+          "mean": 0.038,
+          "sd": 0.125,
+          "n": 22
+        },
+        "pooledFirstHalf": 0.029,
+        "pooledSecondHalf": 0.059,
+        "splitHalfDelta": 0.03
+      },
+      "af": {
+        "full": {
+          "mean": 2.118,
+          "sd": 2.009,
+          "n": 37
+        },
+        "pooledFirstHalf": 1.736,
+        "pooledSecondHalf": 1.966,
+        "splitHalfDelta": 0.23
+      }
+    },
+    "selective": {
+      "pooled": {
+        "vpip": 0.2661134163208852,
+        "pfr": 0.20636237897648685,
+        "f2bet": 0.6563116370808678,
+        "threeBet": 0.0398796087283672,
+        "f2cbet": 0.030303030303030304,
+        "af": 1.2657534246575342
+      },
+      "vpip": {
+        "full": {
+          "mean": 0.278,
+          "sd": 0.137,
+          "n": 40
+        },
+        "pooledFirstHalf": 0.238,
+        "pooledSecondHalf": 0.311,
+        "splitHalfDelta": 0.073
+      },
+      "pfr": {
+        "full": {
+          "mean": 0.195,
+          "sd": 0.083,
+          "n": 40
+        },
+        "pooledFirstHalf": 0.175,
+        "pooledSecondHalf": 0.256,
+        "splitHalfDelta": 0.081
+      },
+      "f2bet": {
+        "full": {
+          "mean": 0.64,
+          "sd": 0.126,
+          "n": 40
+        },
+        "pooledFirstHalf": 0.683,
+        "pooledSecondHalf": 0.614,
+        "splitHalfDelta": 0.069
+      },
+      "threeBet": {
+        "full": {
+          "mean": 0.038,
+          "sd": 0.031,
+          "n": 40
+        },
+        "pooledFirstHalf": 0.034,
+        "pooledSecondHalf": 0.051,
+        "splitHalfDelta": 0.017
+      },
+      "f2cbet": {
+        "full": {
+          "mean": 0.018,
+          "sd": 0.07,
+          "n": 30
+        },
+        "pooledFirstHalf": 0.051,
+        "pooledSecondHalf": 0,
+        "splitHalfDelta": 0.051
+      },
+      "af": {
+        "full": {
+          "mean": 1.376,
+          "sd": 1.124,
+          "n": 39
+        },
+        "pooledFirstHalf": 1.369,
+        "pooledSecondHalf": 1.115,
+        "splitHalfDelta": 0.254
+      }
+    },
+    "station": {
+      "pooled": {
+        "vpip": 0.44449152542372883,
+        "pfr": 0.23940677966101695,
+        "f2bet": 0.4878129117259552,
+        "threeBet": 0.03423967774420947,
+        "f2cbet": 0.02247191011235955,
+        "af": 0.735632183908046
+      },
+      "vpip": {
+        "full": {
+          "mean": 0.456,
+          "sd": 0.157,
+          "n": 40
+        },
+        "pooledFirstHalf": 0.418,
+        "pooledSecondHalf": 0.506,
+        "splitHalfDelta": 0.088
+      },
+      "pfr": {
+        "full": {
+          "mean": 0.226,
+          "sd": 0.103,
+          "n": 40
+        },
+        "pooledFirstHalf": 0.21,
+        "pooledSecondHalf": 0.308,
+        "splitHalfDelta": 0.098
+      },
+      "f2bet": {
+        "full": {
+          "mean": 0.457,
+          "sd": 0.148,
+          "n": 40
+        },
+        "pooledFirstHalf": 0.504,
+        "pooledSecondHalf": 0.447,
+        "splitHalfDelta": 0.057
+      },
+      "threeBet": {
+        "full": {
+          "mean": 0.053,
+          "sd": 0.101,
+          "n": 40
+        },
+        "pooledFirstHalf": 0.028,
+        "pooledSecondHalf": 0.052,
+        "splitHalfDelta": 0.024
+      },
+      "f2cbet": {
+        "full": {
+          "mean": 0.033,
+          "sd": 0.127,
+          "n": 30
+        },
+        "pooledFirstHalf": 0.029,
+        "pooledSecondHalf": 0,
+        "splitHalfDelta": 0.029
+      },
+      "af": {
+        "full": {
+          "mean": 0.686,
+          "sd": 0.417,
+          "n": 40
+        },
+        "pooledFirstHalf": 0.728,
+        "pooledSecondHalf": 0.759,
+        "splitHalfDelta": 0.031
+      }
+    }
+  }
+}

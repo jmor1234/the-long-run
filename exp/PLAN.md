@@ -100,6 +100,13 @@ offline play; free instant regression testing; sustained outbound API traffic.
   recomputed from measured cost and re-approved.
 - **Step 4 — transcript feel pilot** (near-free): early read on criterion 6 from
   pilot transcripts vs baseline transcripts. Can stop the experiment before volume.
+  AMENDED 2026-07-30: the owner declined to judge (too early in their poker
+  journey) and directed a blind LLM panel instead — two independent judges per
+  block, each seeing one block in isolation with no knowledge of the experiment
+  or that any block is model-generated (`run-feel.js` packet, 4 paired 30-hand
+  blocks, shared cards per pair). Scored per the frozen rule on binary verdicts,
+  plus paired humanness scores as a sensitivity read. The formal criterion-6
+  judge, if steps 1-5 pass, remains an open design question (owner or panel).
 - **Step 5 — volume run** (Variant A): only for criteria still open.
 - **Step 6 — Variant B** (distribution-elicited): ONLY if A fails criterion 2.
   Sonnet 5 arm: ONLY if results are ambiguous.

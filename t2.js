@@ -61,3 +61,4 @@ for(const [name,got,exp] of rows){
 }
 console.log(`\n  (table always holds exactly 1200 chips — nobody rebuys)`);
 console.log(fail?`  ${fail} FAILED`:'  rules and money are sound');
+process.exitCode=fail?1:0;

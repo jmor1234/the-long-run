@@ -12,8 +12,11 @@ const fs=require('fs');
 const path=require('path');
 const {stream}=require('./prng');
 
-const html=fs.readFileSync(path.join(__dirname,'..','poker-trainer.html'),'utf8');
-let baseSrc=html.match(/<script>\n"use strict";([\s\S]*?)<\/script>/)[1];
+const DEFAULT_HTML=path.join(__dirname,'..','poker-trainer.html');
+// Single source for the expected Math.random() site count (t-exp reads this
+// export; README points here). Overridable per make() call ONLY for
+// cross-version A/B runs (an older engine build may have a different count).
+const EXPECTED_RAND_SITES=5;
 
 // Every rewrite must actually land; silent no-ops corrupt results (see ARCHITECTURE §9).
 function mustReplace(src, from, to, label){
@@ -22,40 +25,49 @@ function mustReplace(src, from, to, label){
   return out;
 }
 
-let src=baseSrc;
-src=mustReplace(src, 'if(p.isHero){ renderActions(); return; }',
-  'if(p.isHero){ HERO_ACT(); return; }', 'hero hook');
-src=mustReplace(src, 'function botDecide(ctx){',
-  'function botDecide(ctx){ return __DECIDE(ctx, _botDecide); }\nfunction _botDecide(ctx){',
-  'botDecide wrap');
-src=mustReplace(src, /updateSession\(\);\s*new(Hand|Session)\(\);\s*$/, '', 'bootstrap strip');
-src=mustReplace(src, 'function newSession(){', 'function newSession(){ __STREAM("session");',
-  'newSession stream hook');
-src=mustReplace(src, 'function newHand(){', 'function newHand(){ __STREAM("deal");',
-  'newHand stream hook');
-// Extend ctx with the public betting state the legality normalizer needs
-// (currentBet/minRaise/myBet are public info; exp-only, shipped ctx unchanged).
-src=mustReplace(src, 'streetBets:S.streetBets||0,',
-  'streetBets:S.streetBets||0, currentBet:S.currentBet, minRaise:S.minRaise, myBet:p.bet,',
-  'ctx betting-state extension');
+const srcCache=new Map();
+function buildSrc(htmlPath, expectedSites){
+  const key=htmlPath+'|'+expectedSites;
+  if(srcCache.has(key)) return srcCache.get(key);
+  const html=fs.readFileSync(htmlPath,'utf8');
+  let src=html.match(/<script>\n"use strict";([\s\S]*?)<\/script>/)[1];
+  src=mustReplace(src, 'if(p.isHero){ renderActions(); return; }',
+    'if(p.isHero){ HERO_ACT(); return; }', 'hero hook');
+  src=mustReplace(src, 'function botDecide(ctx){',
+    'function botDecide(ctx){ return __DECIDE(ctx, _botDecide); }\nfunction _botDecide(ctx){',
+    'botDecide wrap');
+  src=mustReplace(src, /updateSession\(\);\s*new(Hand|Session)\(\);\s*$/, '', 'bootstrap strip');
+  src=mustReplace(src, 'function newSession(){', 'function newSession(){ __STREAM("session");',
+    'newSession stream hook');
+  src=mustReplace(src, 'function newHand(){', 'function newHand(){ __STREAM("deal");',
+    'newHand stream hook');
+  // Extend ctx with the public betting state the legality normalizer needs
+  // (currentBet/minRaise/myBet are public info; exp-only, shipped ctx unchanged).
+  src=mustReplace(src, 'streetBets:S.streetBets||0,',
+    'streetBets:S.streetBets||0, currentBet:S.currentBet, minRaise:S.minRaise, myBet:p.bet,',
+    'ctx betting-state extension');
 
-// Route all engine randomness through the injected generator.
-{
+  // Route all engine randomness through the injected generator.
   const n=src.split('Math.random()').length-1;
-  if(n!==5) throw new Error('exp-harness: expected 5 Math.random() sites, found '+n+
-    ' — poker-trainer.html changed; re-audit stream assignment');
+  if(n!==expectedSites) throw new Error('exp-harness: expected '+expectedSites+
+    ' Math.random() sites, found '+n+' in '+htmlPath+' — re-audit stream assignment');
   src=src.split('Math.random()').join('__RAND()');
-}
 
-src+='\nreturn {newHand, newSession, get roster(){return roster}, botDecide, pctOf, strengthVsRandom, openThreshold, posName, behindCount, get S(){return S}, get session(){return session}, applyAction, nextToAct, step, buildPots, evaluate, cmpHand, handStr, START, BB, SB, clampFreq, freshReads, shrinkReads, readLabel, BOT_STYLES, sampleTier};';
+  src+='\nreturn {newHand, newSession, get roster(){return roster}, botDecide, pctOf, strengthVsRandom, openThreshold, posName, behindCount, get S(){return S}, get session(){return session}, applyAction, nextToAct, step, buildPots, evaluate, cmpHand, handStr, START, BB, SB, clampFreq, freshReads, shrinkReads, readLabel, BOT_STYLES, sampleTier};';
+  srcCache.set(key, src);
+  return src;
+}
 
 function fakeEl(){return{style:{},className:'',innerHTML:'',textContent:'',value:'',disabled:false,onclick:null,
  scrollTop:0,scrollHeight:0,classList:{add(){},remove(){},toggle(){}},appendChild(){},removeChild(){},
  querySelectorAll:()=>[],querySelector:()=>null,focus(){},select(){},setAttribute(){},remove(){}};}
 
-// opts: { seed: string, decide: null | (ctx, meta, fallthrough) => decision }
+// opts: { seed, decide: null | (ctx, meta, fallthrough) => decision,
+//         htmlPath?, expectedRandSites? (cross-version A/B only) }
 // decide=null runs the coded policy (baseline arm) under the decision stream.
-module.exports=function make(heroPolicy, opts={}){
+function make(heroPolicy, opts={}){
+  const src=buildSrc(opts.htmlPath||DEFAULT_HTML,
+    opts.expectedRandSites==null?EXPECTED_RAND_SITES:opts.expectedRandSites);
   const seed=opts.seed==null?'default':String(opts.seed);
   const els={};
   const document={getElementById:id=>els[id]||(els[id]=fakeEl()),createElement:()=>fakeEl(),
@@ -99,4 +111,6 @@ module.exports=function make(heroPolicy, opts={}){
     }
   };
   return {G,drain,state,queue};
-};
+}
+make.EXPECTED_RAND_SITES=EXPECTED_RAND_SITES;
+module.exports=make;

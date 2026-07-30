@@ -1,0 +1,125 @@
+{
+  "config": {
+    "sessions": 30,
+    "seed": "label1",
+    "handAt": 31
+  },
+  "mapping": {
+    "nit": {
+      "correct": [
+        "tight",
+        "folds often"
+      ],
+      "contra": [
+        "loose",
+        "sticky",
+        "3-bets light",
+        "aggressive"
+      ]
+    },
+    "solid": {
+      "correct": [
+        "folds often"
+      ],
+      "contra": [
+        "tight",
+        "loose"
+      ]
+    },
+    "maniac": {
+      "correct": [
+        "loose",
+        "3-bets light",
+        "aggressive",
+        "sticky"
+      ],
+      "contra": [
+        "tight",
+        "folds often"
+      ]
+    },
+    "selective": {
+      "correct": [
+        "tight",
+        "folds often",
+        "aggressive"
+      ],
+      "contra": [
+        "loose",
+        "sticky",
+        "passive"
+      ]
+    },
+    "station": {
+      "correct": [
+        "loose",
+        "sticky",
+        "passive pre",
+        "calls c-bets",
+        "3-bets rare"
+      ],
+      "contra": [
+        "tight",
+        "folds often"
+      ]
+    }
+  },
+  "labels": {
+    "nit": {
+      "(none)": 7,
+      "tight · folds often": 19,
+      "folds often": 3,
+      "loose": 1
+    },
+    "solid": {
+      "tight · folds often": 2,
+      "(none)": 14,
+      "folds often": 13,
+      "loose": 1
+    },
+    "maniac": {
+      "loose": 9,
+      "folds often": 6,
+      "(none)": 14,
+      "3-bets light": 1
+    },
+    "selective": {
+      "folds often": 13,
+      "folds often · 3-bets rare": 1,
+      "(none)": 9,
+      "tight · folds often": 6,
+      "tight · folds often · 3-bets rare": 1
+    },
+    "station": {
+      "(none)": 13,
+      "folds often": 7,
+      "loose": 5,
+      "loose · passive pre": 2,
+      "loose · passive pre · 3-bets rare": 1,
+      "3-bets rare": 1,
+      "loose · 3-bets rare": 1
+    }
+  },
+  "rates": {
+    "nit": {
+      "correctPct": 73,
+      "contradictionPct": 3
+    },
+    "solid": {
+      "correctPct": 43,
+      "contradictionPct": 10
+    },
+    "maniac": {
+      "correctPct": 33,
+      "contradictionPct": 20
+    },
+    "selective": {
+      "correctPct": 70,
+      "contradictionPct": 0
+    },
+    "station": {
+      "correctPct": 33,
+      "contradictionPct": 23
+    }
+  }
+}

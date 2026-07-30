@@ -1,0 +1,86 @@
+{
+  "config": {
+    "sessions": 2,
+    "hands": 75,
+    "seed": "pilot1",
+    "mode": "api",
+    "model": "claude-haiku-4-5"
+  },
+  "caps": {
+    "maxCalls": 2500,
+    "maxUsd": 5,
+    "capHit": null
+  },
+  "volume": {
+    "sessions": 2,
+    "totalHands": 150,
+    "decisions": 1005,
+    "replayAttempts": 1007,
+    "strayDraws": 0,
+    "conservationBugs": 0,
+    "perSession": [
+      {
+        "session": 0,
+        "hands": 75,
+        "attempts": 361,
+        "over": null
+      },
+      {
+        "session": 1,
+        "hands": 75,
+        "attempts": 646,
+        "over": null
+      }
+    ]
+  },
+  "legality": {
+    "rawIllegal": 1,
+    "rawIllegalRate": 0.0009950248756218905,
+    "cosmeticOnly": 0,
+    "parseErrors": 0,
+    "clampHist": {
+      "raise-impossible": 1
+    },
+    "byPersona": {
+      "nit": {
+        "decisions": 198,
+        "rawIllegal": 0
+      },
+      "solid": {
+        "decisions": 216,
+        "rawIllegal": 1
+      },
+      "maniac": {
+        "decisions": 121,
+        "rawIllegal": 0
+      },
+      "selective": {
+        "decisions": 205,
+        "rawIllegal": 0
+      },
+      "station": {
+        "decisions": 265,
+        "rawIllegal": 0
+      }
+    }
+  },
+  "tokens": {
+    "perDecision": {
+      "input": 159.07462686567163,
+      "cacheWrite": 29.02089552238806,
+      "cacheRead": 4830.3592039801,
+      "output": 43.62885572139304
+    },
+    "postWarmMisses": 1
+  },
+  "costUsd": {
+    "total": 0.9010136000000006,
+    "calls": 1005,
+    "perHand": 0.006006757333333337
+  },
+  "latencyMs": {
+    "p50": 1582,
+    "p95": 3377,
+    "n": 1005
+  }
+}

@@ -1,0 +1,653 @@
+{
+  "config": {
+    "sessions": 30,
+    "hands": 200,
+    "seed": "probe1"
+  },
+  "probes": {
+    "always-raise": {
+      "bb100": -992,
+      "net": -4800,
+      "hands": 242,
+      "busts": 29,
+      "sessions": 30,
+      "BB": 2,
+      "START": 200,
+      "perSession": [
+        {
+          "net": -200,
+          "hands": 1,
+          "over": "busted"
+        },
+        {
+          "net": -200,
+          "hands": 5,
+          "over": "busted"
+        },
+        {
+          "net": -200,
+          "hands": 1,
+          "over": "busted"
+        },
+        {
+          "net": -200,
+          "hands": 40,
+          "over": "busted"
+        },
+        {
+          "net": -200,
+          "hands": 1,
+          "over": "busted"
+        },
+        {
+          "net": -200,
+          "hands": 11,
+          "over": "busted"
+        },
+        {
+          "net": -200,
+          "hands": 1,
+          "over": "busted"
+        },
+        {
+          "net": -200,
+          "hands": 2,
+          "over": "busted"
+        },
+        {
+          "net": -200,
+          "hands": 8,
+          "over": "busted"
+        },
+        {
+          "net": -200,
+          "hands": 28,
+          "over": "busted"
+        },
+        {
+          "net": -200,
+          "hands": 6,
+          "over": "busted"
+        },
+        {
+          "net": -200,
+          "hands": 4,
+          "over": "busted"
+        },
+        {
+          "net": -200,
+          "hands": 3,
+          "over": "busted"
+        },
+        {
+          "net": -200,
+          "hands": 4,
+          "over": "busted"
+        },
+        {
+          "net": -200,
+          "hands": 13,
+          "over": "busted"
+        },
+        {
+          "net": 1000,
+          "hands": 28,
+          "over": "won"
+        },
+        {
+          "net": -200,
+          "hands": 5,
+          "over": "busted"
+        },
+        {
+          "net": -200,
+          "hands": 5,
+          "over": "busted"
+        },
+        {
+          "net": -200,
+          "hands": 10,
+          "over": "busted"
+        },
+        {
+          "net": -200,
+          "hands": 25,
+          "over": "busted"
+        },
+        {
+          "net": -200,
+          "hands": 7,
+          "over": "busted"
+        },
+        {
+          "net": -200,
+          "hands": 1,
+          "over": "busted"
+        },
+        {
+          "net": -200,
+          "hands": 5,
+          "over": "busted"
+        },
+        {
+          "net": -200,
+          "hands": 8,
+          "over": "busted"
+        },
+        {
+          "net": -200,
+          "hands": 6,
+          "over": "busted"
+        },
+        {
+          "net": -200,
+          "hands": 5,
+          "over": "busted"
+        },
+        {
+          "net": -200,
+          "hands": 1,
+          "over": "busted"
+        },
+        {
+          "net": -200,
+          "hands": 1,
+          "over": "busted"
+        },
+        {
+          "net": -200,
+          "hands": 1,
+          "over": "busted"
+        },
+        {
+          "net": -200,
+          "hands": 6,
+          "over": "busted"
+        }
+      ]
+    },
+    "call-station": {
+      "bb100": -898,
+      "net": -6000,
+      "hands": 334,
+      "busts": 30,
+      "sessions": 30,
+      "BB": 2,
+      "START": 200,
+      "perSession": [
+        {
+          "net": -200,
+          "hands": 16,
+          "over": "busted"
+        },
+        {
+          "net": -200,
+          "hands": 1,
+          "over": "busted"
+        },
+        {
+          "net": -200,
+          "hands": 3,
+          "over": "busted"
+        },
+        {
+          "net": -200,
+          "hands": 13,
+          "over": "busted"
+        },
+        {
+          "net": -200,
+          "hands": 13,
+          "over": "busted"
+        },
+        {
+          "net": -200,
+          "hands": 4,
+          "over": "busted"
+        },
+        {
+          "net": -200,
+          "hands": 34,
+          "over": "busted"
+        },
+        {
+          "net": -200,
+          "hands": 7,
+          "over": "busted"
+        },
+        {
+          "net": -200,
+          "hands": 4,
+          "over": "busted"
+        },
+        {
+          "net": -200,
+          "hands": 1,
+          "over": "busted"
+        },
+        {
+          "net": -200,
+          "hands": 9,
+          "over": "busted"
+        },
+        {
+          "net": -200,
+          "hands": 9,
+          "over": "busted"
+        },
+        {
+          "net": -200,
+          "hands": 1,
+          "over": "busted"
+        },
+        {
+          "net": -200,
+          "hands": 10,
+          "over": "busted"
+        },
+        {
+          "net": -200,
+          "hands": 2,
+          "over": "busted"
+        },
+        {
+          "net": -200,
+          "hands": 1,
+          "over": "busted"
+        },
+        {
+          "net": -200,
+          "hands": 6,
+          "over": "busted"
+        },
+        {
+          "net": -200,
+          "hands": 6,
+          "over": "busted"
+        },
+        {
+          "net": -200,
+          "hands": 11,
+          "over": "busted"
+        },
+        {
+          "net": -200,
+          "hands": 5,
+          "over": "busted"
+        },
+        {
+          "net": -200,
+          "hands": 2,
+          "over": "busted"
+        },
+        {
+          "net": -200,
+          "hands": 8,
+          "over": "busted"
+        },
+        {
+          "net": -200,
+          "hands": 22,
+          "over": "busted"
+        },
+        {
+          "net": -200,
+          "hands": 28,
+          "over": "busted"
+        },
+        {
+          "net": -200,
+          "hands": 63,
+          "over": "busted"
+        },
+        {
+          "net": -200,
+          "hands": 3,
+          "over": "busted"
+        },
+        {
+          "net": -200,
+          "hands": 9,
+          "over": "busted"
+        },
+        {
+          "net": -200,
+          "hands": 24,
+          "over": "busted"
+        },
+        {
+          "net": -200,
+          "hands": 2,
+          "over": "busted"
+        },
+        {
+          "net": -200,
+          "hands": 17,
+          "over": "busted"
+        }
+      ]
+    },
+    "3bet-preflop": {
+      "bb100": -612,
+      "net": -3600,
+      "hands": 294,
+      "busts": 28,
+      "sessions": 30,
+      "BB": 2,
+      "START": 200,
+      "perSession": [
+        {
+          "net": -200,
+          "hands": 4,
+          "over": "busted"
+        },
+        {
+          "net": -200,
+          "hands": 12,
+          "over": "busted"
+        },
+        {
+          "net": -200,
+          "hands": 3,
+          "over": "busted"
+        },
+        {
+          "net": -200,
+          "hands": 1,
+          "over": "busted"
+        },
+        {
+          "net": -200,
+          "hands": 3,
+          "over": "busted"
+        },
+        {
+          "net": -200,
+          "hands": 4,
+          "over": "busted"
+        },
+        {
+          "net": -200,
+          "hands": 6,
+          "over": "busted"
+        },
+        {
+          "net": -200,
+          "hands": 7,
+          "over": "busted"
+        },
+        {
+          "net": -200,
+          "hands": 3,
+          "over": "busted"
+        },
+        {
+          "net": -200,
+          "hands": 3,
+          "over": "busted"
+        },
+        {
+          "net": -200,
+          "hands": 7,
+          "over": "busted"
+        },
+        {
+          "net": -200,
+          "hands": 9,
+          "over": "busted"
+        },
+        {
+          "net": -200,
+          "hands": 17,
+          "over": "busted"
+        },
+        {
+          "net": -200,
+          "hands": 10,
+          "over": "busted"
+        },
+        {
+          "net": -200,
+          "hands": 3,
+          "over": "busted"
+        },
+        {
+          "net": -200,
+          "hands": 4,
+          "over": "busted"
+        },
+        {
+          "net": -200,
+          "hands": 10,
+          "over": "busted"
+        },
+        {
+          "net": -200,
+          "hands": 21,
+          "over": "busted"
+        },
+        {
+          "net": -200,
+          "hands": 2,
+          "over": "busted"
+        },
+        {
+          "net": 1000,
+          "hands": 14,
+          "over": "won"
+        },
+        {
+          "net": -200,
+          "hands": 1,
+          "over": "busted"
+        },
+        {
+          "net": -200,
+          "hands": 5,
+          "over": "busted"
+        },
+        {
+          "net": -200,
+          "hands": 31,
+          "over": "busted"
+        },
+        {
+          "net": -200,
+          "hands": 10,
+          "over": "busted"
+        },
+        {
+          "net": -200,
+          "hands": 1,
+          "over": "busted"
+        },
+        {
+          "net": 1000,
+          "hands": 83,
+          "over": "won"
+        },
+        {
+          "net": -200,
+          "hands": 1,
+          "over": "busted"
+        },
+        {
+          "net": -200,
+          "hands": 9,
+          "over": "busted"
+        },
+        {
+          "net": -200,
+          "hands": 7,
+          "over": "busted"
+        },
+        {
+          "net": -200,
+          "hands": 3,
+          "over": "busted"
+        }
+      ]
+    },
+    "check-fold": {
+      "bb100": -33,
+      "net": -3949,
+      "hands": 5978,
+      "busts": 1,
+      "sessions": 30,
+      "BB": 2,
+      "START": 200,
+      "perSession": [
+        {
+          "net": -123,
+          "hands": 200,
+          "over": null
+        },
+        {
+          "net": -175,
+          "hands": 200,
+          "over": null
+        },
+        {
+          "net": -200,
+          "hands": 178,
+          "over": "busted"
+        },
+        {
+          "net": -111,
+          "hands": 200,
+          "over": null
+        },
+        {
+          "net": -94,
+          "hands": 200,
+          "over": null
+        },
+        {
+          "net": -143,
+          "hands": 200,
+          "over": null
+        },
+        {
+          "net": -137,
+          "hands": 200,
+          "over": null
+        },
+        {
+          "net": -98,
+          "hands": 200,
+          "over": null
+        },
+        {
+          "net": -129,
+          "hands": 200,
+          "over": null
+        },
+        {
+          "net": -154,
+          "hands": 200,
+          "over": null
+        },
+        {
+          "net": -118,
+          "hands": 200,
+          "over": null
+        },
+        {
+          "net": -98,
+          "hands": 200,
+          "over": null
+        },
+        {
+          "net": -130,
+          "hands": 200,
+          "over": null
+        },
+        {
+          "net": -113,
+          "hands": 200,
+          "over": null
+        },
+        {
+          "net": -103,
+          "hands": 200,
+          "over": null
+        },
+        {
+          "net": -154,
+          "hands": 200,
+          "over": null
+        },
+        {
+          "net": -100,
+          "hands": 200,
+          "over": null
+        },
+        {
+          "net": -110,
+          "hands": 200,
+          "over": null
+        },
+        {
+          "net": -124,
+          "hands": 200,
+          "over": null
+        },
+        {
+          "net": -141,
+          "hands": 200,
+          "over": null
+        },
+        {
+          "net": -172,
+          "hands": 200,
+          "over": null
+        },
+        {
+          "net": -181,
+          "hands": 200,
+          "over": null
+        },
+        {
+          "net": -114,
+          "hands": 200,
+          "over": null
+        },
+        {
+          "net": -169,
+          "hands": 200,
+          "over": null
+        },
+        {
+          "net": -152,
+          "hands": 200,
+          "over": null
+        },
+        {
+          "net": -135,
+          "hands": 200,
+          "over": null
+        },
+        {
+          "net": -111,
+          "hands": 200,
+          "over": null
+        },
+        {
+          "net": -137,
+          "hands": 200,
+          "over": null
+        },
+        {
+          "net": -97,
+          "hands": 200,
+          "over": null
+        },
+        {
+          "net": -126,
+          "hands": 200,
+          "over": null
+        }
+      ]
+    }
+  }
+}

@@ -185,3 +185,4 @@ const chk=(name,ok,detail)=>{ if(!ok)fails++; console.log(`  ${ok?'ok  ':'BUG '}
   chk('shrinkReads exposes new rates', s && 'threeBet' in s && 'foldToCbet' in s);
 }
 console.log(fails?`\n  ${fails} bug${fails>1?'s':''} found`:'\n  clean');
+process.exitCode=fails?1:0;

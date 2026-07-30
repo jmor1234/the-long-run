@@ -61,3 +61,4 @@ const bot=G2.S.players[1];
 bot.cards=new Proxy(bot.cards,{get(t,k){ if(st2.inBot) ownReads++; return t[k]; }});
 drain2();
 console.log(`  ${ownReads>0?'ok  ':'FAIL'} control: a bot read its own cards ${ownReads} times, so the trap is live`);
+process.exitCode=(hits.length||peeks||ctxLeaks||!(ownReads>0))?1:0;

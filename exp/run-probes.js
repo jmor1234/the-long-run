@@ -104,3 +104,19 @@ const outDir=path.join(__dirname,'out');
 fs.mkdirSync(outDir,{recursive:true});
 fs.writeFileSync(path.join(outDir,'probes-baseline.json'), JSON.stringify(report,null,2));
 console.log('\nwrote exp/out/probes-baseline.json');
+
+// Exploitability lock: degenerate strategies must keep losing hard even as
+// the bots gain looseness/texture. Thresholds have wide headroom against the
+// values measured @ 8f0bada (-992 / -898 / -612 / -33). Enforced only at the
+// frozen config; exploratory runs report without failing.
+if(SESSIONS===30 && HANDS===200 && SEED==='probe1'){
+  const LOCK={'always-raise':-300,'call-station':-300,'3bet-preflop':-300,'check-fold':-15};
+  let locked=0;
+  for(const [name,maxRate] of Object.entries(LOCK)){
+    const p=report.probes[name];
+    if(!p){ console.log(`FAIL ${name}: probe missing`); locked++; continue; }
+    if(!(p.bb100<=maxRate)){ console.log(`FAIL ${name}: ${p.bb100} bb/100 (must be <= ${maxRate})`); locked++; }
+  }
+  process.exitCode=locked?1:0;
+  if(!locked) console.log('exploitability lock: all probes within bounds');
+}

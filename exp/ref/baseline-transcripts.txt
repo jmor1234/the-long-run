@@ -1,0 +1,670 @@
+# baseline arm — seed "exp1", 40 sessions x 150 hands
+
+=== hand 1 ===
+Hand 1 — 6-handed, preflop
+Blinds You 1 · Vera 2
+Oyelaran limps 2
+Mikko folds
+Priya folds
+Dunn limps 2
+You folds
+Vera checks
+flop — 8s 6c 9c
+Vera bets to 6
+Oyelaran calls 6
+Dunn calls 6
+turn — 8s 6c 9c 5c
+Vera checks
+Oyelaran checks
+Dunn checks
+river — 8s 6c 9c 5c Th
+Vera bets to 23
+Oyelaran folds
+Dunn calls 23
+Dunn wins 36 with a straight
+Vera wins 35 with a straight
+  [Oyelaran preflop limp 2] A5o — didn't open, but UTG limps ~5% in this band. Roll said limp.
+  [Mikko preflop fold] 93o is a top-85% hand; HJ opens ~28%. Opens it 0% of the time — roll 0.25 said fold.
+  [Priya preflop fold] 96o is a top-72% hand; CO opens ~24%. Opens it 0% of the time — roll 0.12 said fold.
+  [Dunn preflop limp 2] 72s — didn't open, but BTN limps ~40% in this band. Roll said limp.
+  [Vera preflop check] T7o is a top-68% hand; BB opens ~31%. Opens it 0% of the time — roll 0.75 said fold.
+  [Vera flop bet 6] strong (92% vs a random hand) — bets 49%. Roll 0.22 said bet.
+  [Oyelaran flop call 6] 39% strength = ~39% vs 32% needed. Calls.
+  [Dunn flop call 6] 34% strength + draw equity = ~48% vs 24% needed. Calls.
+  [Vera turn check] strong (89%) — checks 51% here. Roll 0.89.
+  [Oyelaran turn check] weak (38%) — checks 89% here. Roll 0.81.
+  [Dunn turn check] good (78%) — checks 54% here. Roll 0.75.
+  [Vera river bet 23] strong (88% vs a random hand) — bets 49%. Roll 0.34 said bet.
+  [Oyelaran river fold] ~32% vs 32% needed. Folds.
+  [Dunn river call 23] Strong (87%) — the slow branch. Roll 0.73.
+
+=== hand 2 ===
+Hand 2 — 6-handed, preflop
+Blinds Vera 1 · Oyelaran 2
+Mikko folds
+Priya folds
+Dunn folds
+You folds
+Vera folds
+Oyelaran wins 3 (uncontested)
+  [Mikko preflop fold] J2o is a top-73% hand; UTG opens ~22%. Opens it 0% of the time — roll 0.43 said fold.
+  [Priya preflop fold] 33 is a top-57% hand; HJ opens ~18%. Opens it 0% of the time — roll 0.88 said fold.
+  [Dunn preflop fold] T4o is a top-77% hand; CO opens ~34%. Opens it 0% of the time — roll 0.67 said fold.
+  [Vera preflop fold] Q4s is a top-34% hand; SB opens ~27%. Opens it 0% of the time — roll 0.61 said fold.
+
+=== hand 3 ===
+Hand 3 — 6-handed, preflop
+Blinds Oyelaran 1 · Mikko 2
+Priya folds
+Dunn folds
+You folds
+Vera folds
+Oyelaran raises to 6
+Mikko folds
+Oyelaran wins 8 (uncontested)
+  [Priya preflop fold] A4o is a top-28% hand; UTG opens ~14%. Opens it 0% of the time — roll 0.91 said fold.
+  [Dunn preflop fold] 87o is a top-65% hand; HJ opens ~25%. Opens it 0% of the time — roll 0.16 said fold.
+  [Vera preflop fold] 92o is a top-90% hand; BTN opens ~31%. Opens it 0% of the time — roll 0.17 said fold.
+  [Oyelaran preflop raise 6] A5o is a top-35% hand. SB opens ~38%, so this one opens 66% of the time — roll 0.18 said open.
+  [Mikko preflop fold] 53o (top 92%) is outside the 33% defend range. Folds.
+
+=== hand 4 ===
+Hand 4 — 6-handed, preflop
+Blinds Mikko 1 · Priya 2
+Dunn raises to 6
+You folds
+Vera folds
+Oyelaran raises to 10
+Mikko calls 9
+Priya folds
+Dunn calls 4
+flop — Kc Td 5s
+Mikko checks
+Dunn checks
+Oyelaran checks
+turn — Kc Td 5s 5c
+Mikko checks
+Dunn checks
+Oyelaran checks
+river — Kc Td 5s 5c Jc
+Mikko checks
+Dunn checks
+Oyelaran bets to 29
+Mikko folds
+Dunn calls 29
+Oyelaran wins 90 with a straight
+  [Dunn preflop raise 6] A4s is a top-10% hand. UTG opens ~19%, so this one opens 95% of the time — roll 0.22 said open.
+  [Vera preflop fold] 33 (top 57%) is outside the 11% defend range. Folds.
+  [Oyelaran preflop raise 10] AQo — premium. 3-bets 62% / calls the rest, roll 0.19.
+  [Mikko preflop call 9] 97s is outside the defend range — played 20% so calls aren't all strong. Roll 0.20. Faces a loose aggressor.
+  [Priya preflop fold] Q4o (top 54%) is outside the 21% defend range. Folds. Faces a loose aggressor.
+  [Dunn preflop call 4] A4s (top 10%) inside the 11% defend range — continues 95%, roll 0.42. Faces a loose aggressor.
+  [Mikko flop check] weak (39%) — checks 84% here. Roll 0.19.
+  [Dunn flop check] marginal (51%) — checks 85% here. Roll 0.92.
+  [Oyelaran flop check] marginal (61%) — checks 75% here. Roll 0.48.
+  [Mikko turn check] weak (23%) — checks 84% here. Roll 0.55.
+  [Dunn turn check] marginal (46%) — checks 85% here. Roll 0.60.
+  [Oyelaran turn check] marginal (61%) — checks 75% here. Roll 0.96.
+  [Mikko river check] weak (13%) — checks 84% here. Roll 0.76.
+  [Dunn river check] weak (44%) — checks 91% here. Roll 0.43.
+  [Oyelaran river bet 29] strong (92% vs a random hand) — bets 90% IP. Roll 0.75 said bet.
+  [Mikko river fold] ~16% vs 32% needed. Folds. Faces a loose aggressor.
+  [Dunn river call 29] 42% strength = ~42% vs 32% needed. Calls. Faces a loose aggressor.
+
+=== hand 5 ===
+Hand 5 — 6-handed, preflop
+Blinds Priya 1 · Dunn 2
+You folds
+Vera folds
+Oyelaran raises to 6
+Mikko folds
+Priya folds
+Dunn folds
+Oyelaran wins 9 (uncontested)
+  [Vera preflop fold] T2s is a top-56% hand; HJ opens ~15%. Opens it 0% of the time — roll 0.72 said fold.
+  [Oyelaran preflop raise 6] AKo is a top-5% hand. CO opens ~28%, so this one opens 95% of the time — roll 0.54 said open.
+  [Mikko preflop fold] 87s (top 41%) is outside the 33% defend range. Folds. Faces a loose aggressor.
+  [Priya preflop fold] 94o (top 82%) is outside the 18% defend range. Folds. Faces a loose aggressor.
+  [Dunn preflop fold] K6o (top 40%) is outside the 30% defend range. Folds. Faces a loose aggressor.
+
+=== hand 6 ===
+Hand 6 — 6-handed, preflop
+Blinds Dunn 1 · You 2
+Vera folds
+Oyelaran folds
+Mikko folds
+Priya raises to 6
+Dunn folds
+You folds
+Priya wins 9 (uncontested)
+  [Vera preflop fold] Q3o is a top-63% hand; UTG opens ~11%. Opens it 0% of the time — roll 0.39 said fold.
+  [Oyelaran preflop fold] 76o is a top-74% hand; HJ opens ~21%. Opens it 0% of the time — roll 0.47 said fold.
+  [Mikko preflop fold] T9o is a top-46% hand; CO opens ~38%. Opens it 0% of the time — roll 0.87 said fold.
+  [Priya preflop raise 6] J9o is a top-33% hand. BTN opens ~38%, so this one opens 73% of the time — roll 0.07 said open.
+  [Dunn preflop fold] 87o (top 65%) is outside the 25% defend range. Folds.
+
+=== hand 7 ===
+Hand 7 — 6-handed, preflop
+Blinds You 1 · Vera 2
+Oyelaran folds
+Mikko raises to 6
+Priya folds
+Dunn raises to 10
+You folds
+Vera folds
+Mikko raises to 19
+Dunn calls 9
+flop — 5h 9s 6h
+Mikko bets to 21
+Dunn calls 21
+turn — 5h 9s 6h Jc
+Mikko checks
+Dunn bets to 42
+Mikko calls 42
+river — 5h 9s 6h Jc 8c
+Mikko bets to 84
+Dunn raises to 81
+Mikko gets back 3 (uncalled bet, nobody could match it)
+Dunn wins 329 with a straight
+  [Oyelaran preflop fold] T8o is a top-42% hand; UTG opens ~16%. Opens it 0% of the time — roll 0.37 said fold.
+  [Mikko preflop raise 6] QQ is a top-1% hand. HJ opens ~28%, so this one opens 95% of the time — roll 0.23 said open.
+  [Priya preflop fold] 94s (top 61%) is outside the 13% defend range. Folds.
+  [Dunn preflop raise 10] 77 — premium. 3-bets 47% / calls the rest, roll 0.32.
+  [Vera preflop fold] 74o (top 86%) is outside the 17% defend range. Folds.
+  [Mikko preflop raise 19] QQ — premium. 3-bets 86% / calls the rest, roll 0.04.
+  [Dunn preflop call 9] 77 — premium, flat-call branch. Roll 0.50.
+  [Mikko flop bet 21] good (71% vs a random hand) — bets 68%. Roll 0.03 said bet.
+  [Dunn flop call 21] 73% strength = ~73% vs 25% needed. Calls.
+  [Mikko turn check] good (79%) — checks 32% here. Roll 0.68.
+  [Dunn turn bet 42] good (63% vs a random hand) — bets 46% IP. Roll 0.21 said bet.
+  [Mikko turn call 42] Strong (85%) — the slow branch. Roll 0.94.
+  [Mikko river bet 84] good (69% vs a random hand) — bets 68%. Roll 0.67 said bet.
+  [Dunn river raise 81] Strong (95%) — raises 42%. Roll 0.23.
+
+=== hand 8 ===
+Hand 8 — 6-handed, preflop
+Blinds Vera 1 · Oyelaran 2
+Mikko folds
+Priya raises to 6
+Dunn calls 6
+You folds
+Vera folds
+Oyelaran folds
+flop — Jc Ac 2s
+Priya bets to 14
+Dunn raises to 40
+Priya raises to 88
+Dunn calls 48
+turn — Jc Ac 2s 9h
+Priya bets to 106
+Dunn raises to 235
+river — Jc Ac 2s 9h 6c
+Dunn gets back 129 (uncalled bet, nobody could match it)
+Dunn wins 403 with two pair
+Priya is out
+  [Mikko preflop fold] 97s is a top-32% hand; UTG opens ~22%. Opens it 0% of the time — roll 0.64 said fold.
+  [Priya preflop raise 6] A7s is a top-10% hand. HJ opens ~18%, so this one opens 95% of the time — roll 0.34 said open.
+  [Dunn preflop call 6] A9o (top 18%) inside the 18% defend range — continues 95%, roll 0.25.
+  [Vera preflop fold] K7s (top 21%) is outside the 15% defend range. Folds.
+  [Oyelaran preflop fold] A4o (top 28%) is outside the 25% defend range. Folds.
+  [Priya flop bet 14] strong (87% vs a random hand) — bets 88%. Roll 0.73 said bet.
+  [Dunn flop raise 40] Strong (84%) — raises 42%. Roll 0.33.
+  [Priya flop raise 88] Strong (83%) — raises 67%. Roll 0.30.
+  [Dunn flop call 48] Strong (83%) — the slow branch. Roll 0.78.
+  [Priya turn bet 106] strong (88% vs a random hand) — bets 88%. Roll 0.20 said bet.
+  [Dunn turn raise 235] Strong (95%) — raises 42%. Roll 0.00.
+
+=== hand 9 ===
+Hand 9 — 5-handed, preflop
+Blinds Oyelaran 1 · Mikko 2
+Dunn folds
+You folds
+Vera folds
+Oyelaran raises to 6
+Mikko folds
+Oyelaran wins 8 (uncontested)
+  [Dunn preflop fold] 83s is a top-75% hand; UTG opens ~25%. Opens it 0% of the time — roll 0.96 said fold.
+  [Vera preflop fold] Q5o is a top-60% hand; BTN opens ~31%. Opens it 0% of the time — roll 0.23 said fold.
+  [Oyelaran preflop raise 6] 98s is a top-24% hand. SB opens ~38%, so this one opens 95% of the time — roll 0.70 said open.
+  [Mikko preflop fold] 85s (top 56%) is outside the 33% defend range. Folds. Faces a loose aggressor.
+
+=== hand 10 ===
+Hand 10 — 5-handed, preflop
+Blinds Mikko 1 · Dunn 2
+You folds
+Vera folds
+Oyelaran raises to 6
+Mikko folds
+Dunn calls 4
+flop — 7d 2d 2s
+Dunn checks
+Oyelaran bets to 7
+Dunn calls 7
+turn — 7d 2d 2s 3d
+Dunn bets to 14
+Oyelaran calls 14
+river — 7d 2d 2s 3d Ks
+Dunn checks
+Oyelaran checks
+Dunn wins 55 with two pair
+  [Vera preflop fold] 96o is a top-72% hand; CO opens ~20%. Opens it 0% of the time — roll 0.93 said fold.
+  [Oyelaran preflop raise 6] A9o is a top-18% hand. BTN opens ~45%, so this one opens 95% of the time — roll 0.49 said open.
+  [Mikko preflop fold] J4o (top 70%) is outside the 28% defend range. Folds. Faces a loose aggressor.
+  [Dunn preflop call 4] K6o is outside the defend range — played 21% so calls aren't all strong. Roll 0.02. Faces a loose aggressor.
+  [Dunn flop check] marginal (54%) — checks 85% here. Roll 0.31.
+  [Oyelaran flop bet 7] good (65% vs a random hand) — bets 62% IP. Roll 0.07 said bet.
+  [Dunn flop call 7] 54% strength = ~54% vs 26% needed. Calls. Faces a loose aggressor.
+  [Dunn turn bet 14] marginal (50% vs a random hand) — bets 15%. Roll 0.14 said bet.
+  [Oyelaran turn call 14] 63% strength + draw equity = ~78% vs 25% needed. Calls. Faces a loose/sticky aggressor.
+  [Dunn river check] good (73%) — checks 64% here. Roll 0.97.
+  [Oyelaran river check] weak (40%) — checks 85% here. Roll 0.31.
+
+=== hand 11 ===
+Hand 11 — 5-handed, preflop
+Blinds Dunn 1 · You 2
+Vera folds
+Oyelaran folds
+Mikko folds
+Dunn raises to 6
+You folds
+Dunn wins 8 (uncontested)
+  [Vera preflop fold] 93o is a top-85% hand; UTG opens ~15%. Opens it 0% of the time — roll 0.58 said fold.
+  [Oyelaran preflop fold] 84o is a top-89% hand; CO opens ~28%. Opens it 0% of the time — roll 0.82 said fold.
+  [Mikko preflop fold] 43o is a top-91% hand; BTN opens ~61%. Opens it 0% of the time — roll 0.48 said fold.
+  [Dunn preflop raise 6] J8o is a top-44% hand. SB opens ~46%, so this one opens 59% of the time — roll 0.02 said open.
+
+=== hand 12 ===
+Hand 12 — 5-handed, preflop
+Blinds You 1 · Vera 2
+Oyelaran raises to 6
+Mikko calls 6
+Dunn calls 6
+You folds
+Vera folds
+flop — 4s 4c 5c
+Oyelaran checks
+Mikko checks
+Dunn checks
+turn — 4s 4c 5c 5d
+Oyelaran checks
+Mikko bets to 11
+Dunn calls 11
+Oyelaran calls 11
+river — 4s 4c 5c 5d 6h
+Oyelaran bets to 27
+Mikko calls 5
+Dunn calls 27
+Mikko wins 69 with two pair
+Dunn wins 44 with two pair
+  [Oyelaran preflop raise 6] QTo is a top-19% hand. UTG opens ~21%, so this one opens 64% of the time — roll 0.06 said open.
+  [Mikko preflop call 6] A9o (top 18%) inside the 21% defend range — continues 95%, roll 0.69. Faces a loose aggressor.
+  [Dunn preflop call 6] KTo (top 23%) inside the 30% defend range — continues 95%, roll 0.60. Faces a loose aggressor.
+  [Vera preflop fold] K3o (top 48%) is outside the 17% defend range. Folds. Faces a loose aggressor.
+  [Oyelaran flop check] weak (41%) — checks 89% here. Roll 0.47.
+  [Mikko flop check] marginal (53%) — checks 73% here. Roll 0.30.
+  [Dunn flop check] marginal (55%) — checks 82% here. Roll 0.43.
+  [Oyelaran turn check] weak (40%) — checks 89% here. Roll 0.52.
+  [Mikko turn bet 11] good (64% vs a random hand) — bets 68%. Roll 0.18 said bet.
+  [Dunn turn call 11] 55% strength = ~55% vs 26% needed. Calls.
+  [Oyelaran turn call 11] 41% strength = ~41% vs 20% needed. Calls.
+  [Oyelaran river bet 27] weak (36% vs a random hand) — bets 11%. Roll 0.05 said bet.
+  [Mikko river call 5] 52% strength = ~52% vs 25% needed. Calls. Faces a loose aggressor.
+  [Dunn river call 27] 37% strength = ~37% vs 24% needed. Calls. Faces a loose aggressor.
+
+=== hand 13 ===
+Hand 13 — 5-handed, preflop
+Blinds Vera 1 · Oyelaran 2
+Mikko folds
+Dunn folds
+You folds
+Vera folds
+Oyelaran wins 3 (uncontested)
+  [Mikko preflop fold] 65o is a top-78% hand; UTG opens ~28%. Opens it 0% of the time — roll 0.06 said fold.
+  [Dunn preflop fold] 65o is a top-78% hand; CO opens ~34%. Opens it 0% of the time — roll 0.01 said fold.
+  [Vera preflop fold] J4o is a top-70% hand; SB opens ~27%. Opens it 0% of the time — roll 0.86 said fold.
+
+=== hand 14 ===
+Hand 14 — 5-handed, preflop
+Blinds Oyelaran 1 · Mikko 2
+Dunn folds
+You folds
+Vera folds
+Oyelaran folds
+Mikko wins 3 (uncontested)
+  [Dunn preflop fold] 43s is a top-62% hand; UTG opens ~25%. Opens it 0% of the time — roll 0.51 said fold.
+  [Vera preflop fold] 87o is a top-65% hand; BTN opens ~31%. Opens it 0% of the time — roll 0.73 said fold.
+  [Oyelaran preflop fold] J7o is a top-57% hand; SB opens ~38%. Opens it 0% of the time — roll 0.37 said fold.
+
+=== hand 15 ===
+Hand 15 — 5-handed, preflop
+Blinds Mikko 1 · Dunn 2
+You folds
+Vera folds
+Oyelaran folds
+Mikko folds
+Dunn wins 3 (uncontested)
+  [Vera preflop fold] J2o is a top-73% hand; CO opens ~20%. Opens it 0% of the time — roll 0.81 said fold.
+  [Oyelaran preflop fold] Q5o is a top-60% hand; BTN opens ~45%. Opens it 0% of the time — roll 0.13 said fold.
+  [Mikko preflop fold] T7o is a top-68% hand; SB opens ~52%. Opens it 0% of the time — roll 0.11 said fold.
+
+=== hand 16 ===
+Hand 16 — 5-handed, preflop
+Blinds Dunn 1 · You 2
+Vera folds
+Oyelaran raises to 6
+Mikko folds
+Dunn calls 5
+You folds
+flop — 2h 8s As
+Dunn checks
+Oyelaran bets to 7
+Dunn calls 7
+turn — 2h 8s As 6c
+Dunn bets to 14
+Oyelaran calls 14
+river — 2h 8s As 6c 7s
+Dunn checks
+Oyelaran checks
+Oyelaran wins 56 with high card
+  [Vera preflop fold] KTo is a top-23% hand; UTG opens ~15%. Opens it 0% of the time — roll 0.34 said fold.
+  [Oyelaran preflop raise 6] KJs is a top-4% hand. CO opens ~28%, so this one opens 95% of the time — roll 0.28 said open.
+  [Mikko preflop fold] 95o (top 80%) is outside the 33% defend range. Folds. Faces a loose aggressor.
+  [Dunn preflop call 5] K9o (top 25%) inside the 25% defend range — continues 95%, roll 0.70. Faces a loose aggressor.
+  [Dunn flop check] marginal (51%) — checks 85% here. Roll 0.34.
+  [Oyelaran flop bet 7] marginal (49% vs a random hand) — bets 25% IP. Roll 0.11 said bet.
+  [Dunn flop call 7] 57% strength = ~57% vs 25% needed. Calls. Faces a loose aggressor.
+  [Dunn turn bet 14] weak (40% vs a random hand) — bets 9%. Roll 0.05 said bet.
+  [Oyelaran turn call 14] 46% strength = ~46% vs 25% needed. Calls. Faces a loose/sticky aggressor.
+  [Dunn river check] weak (30%) — checks 91% here. Roll 0.68.
+  [Oyelaran river check] weak (30%) — checks 85% here. Roll 0.17.
+
+=== hand 17 ===
+Hand 17 — 5-handed, preflop
+Blinds You 1 · Vera 2
+Oyelaran raises to 6
+Mikko folds
+Dunn folds
+You folds
+Vera folds
+Oyelaran wins 9 (uncontested)
+  [Oyelaran preflop raise 6] T9s is a top-15% hand. UTG opens ~21%, so this one opens 91% of the time — roll 0.08 said open.
+  [Mikko preflop fold] K4o (top 45%) is outside the 21% defend range. Folds. Faces a loose aggressor.
+  [Dunn preflop fold] K2o (top 52%) is outside the 30% defend range. Folds. Faces a loose aggressor.
+  [Vera preflop fold] 82o (top 94%) is outside the 17% defend range. Folds. Faces a loose aggressor.
+
+=== hand 18 ===
+Hand 18 — 5-handed, preflop
+Blinds Vera 1 · Oyelaran 2
+Mikko folds
+Dunn folds
+You folds
+Vera raises to 6
+Oyelaran calls 4
+flop — 3c 9c Ah
+Vera checks
+Oyelaran checks
+turn — 3c 9c Ah As
+Vera checks
+Oyelaran bets to 11
+Vera calls 11
+river — 3c 9c Ah As Ad
+Vera checks
+Oyelaran bets to 31
+Vera calls 31
+Oyelaran wins 96 with a full house
+  [Mikko preflop fold] Q6s is a top-30% hand; UTG opens ~28%. Opens it 11% of the time — roll 0.66 said fold.
+  [Dunn preflop fold] K2s is a top-36% hand; CO opens ~34%. Opens it 12% of the time — roll 0.80 said fold.
+  [Vera preflop raise 6] KJo is a top-11% hand. SB opens ~27%, so this one opens 95% of the time — roll 0.27 said open.
+  [Oyelaran preflop call 4] J9s (top 15%) inside the 25% defend range — continues 71%, roll 0.35. Faces a tight/folds often aggressor.
+  [Vera flop check] marginal (50%) — checks 86% here. Roll 0.30.
+  [Oyelaran flop check] good (70%) — checks 38% here. Roll 0.94.
+  [Vera turn check] marginal (54%) — checks 86% here. Roll 0.23.
+  [Oyelaran turn bet 11] strong (86% vs a random hand) — bets 90% IP. Roll 0.55 said bet.
+  [Vera turn call 11] 60% strength = ~60% vs 32% needed. Calls. Faces a loose aggressor.
+  [Vera river check] good (70%) — checks 66% here. Roll 0.74.
+  [Oyelaran river bet 31] strong (89% vs a random hand) — bets 90% IP. Roll 0.34 said bet.
+  [Vera river call 31] 61% strength = ~61% vs 32% needed. Calls. Faces a loose aggressor.
+
+=== hand 19 ===
+Hand 19 — 5-handed, preflop
+Blinds Oyelaran 1 · Mikko 2
+Dunn raises to 6
+You folds
+Vera folds
+Oyelaran folds
+Mikko calls 4
+flop — 9h 2h Kd
+Mikko checks
+Dunn checks
+turn — 9h 2h Kd 6d
+Mikko checks
+Dunn checks
+river — 9h 2h Kd 6d 7h
+Mikko checks
+Dunn bets to 12
+Mikko folds
+Dunn wins 25 (uncontested)
+  [Dunn preflop raise 6] KTo is a top-23% hand. UTG opens ~25%, so this one opens 64% of the time — roll 0.25 said open.
+  [Vera preflop fold] AJo is inside the defend range but folds here. Roll 0.96. Faces a loose/sticky aggressor.
+  [Oyelaran preflop fold] 82o (top 94%) is outside the 21% defend range. Folds. Faces a loose/sticky aggressor.
+  [Mikko preflop call 4] J4s is outside the defend range — played 21% so calls aren't all strong. Roll 0.19. Faces a loose/sticky aggressor.
+  [Mikko flop check] weak (29%) — checks 84% here. Roll 0.52.
+  [Dunn flop check] strong (88%) — checks 33% here. Roll 0.72.
+  [Mikko turn check] weak (31%) — checks 84% here. Roll 0.34.
+  [Dunn turn check] strong (85%) — checks 33% here. Roll 0.80.
+  [Mikko river check] weak (10%) — checks 84% here. Roll 0.52.
+  [Dunn river bet 12] strong (82% vs a random hand) — bets 67% IP. Roll 0.57 said bet.
+  [Mikko river fold] ~8% vs 32% needed. Folds. Faces a loose/sticky aggressor.
+
+=== hand 20 ===
+Hand 20 — 5-handed, preflop
+Blinds Mikko 1 · Dunn 2
+You folds
+Vera folds
+Oyelaran raises to 6
+Mikko folds
+Dunn folds
+Oyelaran wins 9 (uncontested)
+  [Vera preflop fold] T7o is a top-68% hand; CO opens ~20%. Opens it 0% of the time — roll 0.23 said fold.
+  [Oyelaran preflop raise 6] A8o is a top-20% hand. BTN opens ~45%, so this one opens 95% of the time — roll 0.35 said open.
+  [Mikko preflop fold] T7o (top 68%) is outside the 28% defend range. Folds. Faces a loose aggressor.
+  [Dunn preflop fold] K5o (top 43%) is outside the 30% defend range. Folds. Faces a loose aggressor.
+
+=== hand 21 ===
+Hand 21 — 5-handed, preflop
+Blinds Dunn 1 · You 2
+Vera folds
+Oyelaran folds
+Mikko raises to 6
+Dunn folds
+You folds
+Mikko wins 9 (uncontested)
+  [Vera preflop fold] J9o is a top-33% hand; UTG opens ~15%. Opens it 0% of the time — roll 0.05 said fold.
+  [Oyelaran preflop fold] 76s is a top-48% hand; CO opens ~28%. Opens it 0% of the time — roll 0.27 said fold.
+  [Mikko preflop raise 6] KQo is a top-14% hand. BTN opens ~61%, so this one opens 95% of the time — roll 0.06 said open.
+  [Dunn preflop fold] T5o (top 71%) is outside the 25% defend range. Folds. Faces a folds often aggressor.
+
+=== hand 22 ===
+Hand 22 — 5-handed, preflop
+Blinds You 1 · Vera 2
+Oyelaran raises to 6
+Mikko folds
+Dunn calls 6
+You folds
+Vera calls 4
+flop — 6c 7s 2h
+Vera checks
+Oyelaran checks
+Dunn checks
+turn — 6c 7s 2h 4d
+Vera checks
+Oyelaran checks
+Dunn checks
+river — 6c 7s 2h 4d Jd
+Vera checks
+Oyelaran bets to 10
+Dunn raises to 36
+Vera calls 36
+Oyelaran calls 26
+Dunn wins 127 with a pair
+  [Oyelaran preflop raise 6] K7s is a top-21% hand. UTG opens ~21%, so this one opens 57% of the time — roll 0.31 said open.
+  [Mikko preflop fold] Q2o (top 64%) is outside the 21% defend range. Folds. Faces a loose aggressor.
+  [Dunn preflop call 6] KJo (top 11%) inside the 30% defend range — continues 95%, roll 0.33. Faces a loose aggressor.
+  [Vera preflop call 4] 88 (top 6%) inside the 17% defend range — continues 57%, roll 0.07. Faces a loose aggressor.
+  [Vera flop check] good (75%) — checks 66% here. Roll 0.74.
+  [Oyelaran flop check] good (75%) — checks 52% here. Roll 0.64.
+  [Dunn flop check] weak (41%) — checks 89% here. Roll 0.56.
+  [Vera turn check] good (81%) — checks 66% here. Roll 0.59.
+  [Oyelaran turn check] good (75%) — checks 52% here. Roll 0.94.
+  [Dunn turn check] weak (33%) — checks 89% here. Roll 0.69.
+  [Vera river check] good (73%) — checks 66% here. Roll 0.79.
+  [Oyelaran river bet 10] good (77% vs a random hand) — bets 48%. Roll 0.19 said bet.
+  [Dunn river raise 36] Strong (83%) — raises 41%. Roll 0.18. Faces a loose aggressor.
+  [Vera river call 36] 75% strength = ~75% vs 36% needed. Calls. Faces a loose aggressor.
+  [Oyelaran river call 26] 72% strength = ~72% vs 20% needed. Calls. Faces a loose aggressor.
+
+=== hand 23 ===
+Hand 23 — 5-handed, preflop
+Blinds Vera 1 · Oyelaran 2
+Mikko folds
+Dunn limps 2
+You folds
+Vera folds
+Oyelaran raises to 6
+Dunn folds
+Oyelaran wins 9 (uncontested)
+  [Mikko preflop fold] 94s is a top-61% hand; UTG opens ~28%. Opens it 0% of the time — roll 0.30 said fold.
+  [Dunn preflop limp 2] K3o — didn't open, but CO limps ~40% in this band. Roll said limp.
+  [Vera preflop fold] 82o is a top-94% hand; SB opens ~27%. Opens it 0% of the time — roll 0.50 said fold.
+  [Oyelaran preflop raise 6] 98s is a top-24% hand. BB opens ~45%, so this one opens 95% of the time — roll 0.86 said open.
+  [Dunn preflop fold] K3o (top 48%) is outside the 18% defend range. Folds. Faces a loose aggressor.
+
+=== hand 24 ===
+Hand 24 — 5-handed, preflop
+Blinds Oyelaran 1 · Mikko 2
+Dunn folds
+You folds
+Vera raises to 6
+Oyelaran calls 5
+Mikko folds
+flop — Jd 8d 9d
+Oyelaran checks
+Vera checks
+turn — Jd 8d 9d 4d
+Oyelaran checks
+Vera checks
+river — Jd 8d 9d 4d 2h
+Oyelaran checks
+Vera checks
+Vera wins 14 with a straight
+  [Dunn preflop fold] 53o is a top-92% hand; UTG opens ~25%. Opens it 0% of the time — roll 0.20 said fold.
+  [Vera preflop raise 6] QTo is a top-19% hand. BTN opens ~31%, so this one opens 95% of the time — roll 0.28 said open.
+  [Oyelaran preflop call 5] Q8s (top 15%) inside the 21% defend range — continues 71%, roll 0.59. Faces a tight/folds often aggressor.
+  [Mikko preflop fold] 73s (top 68%) is outside the 33% defend range. Folds. Faces a tight/folds often aggressor.
+  [Oyelaran flop check] marginal (57%) — checks 81% here. Roll 0.98.
+  [Vera flop check] good (81%) — checks 57% here. Roll 1.00.
+  [Oyelaran turn check] weak (41%) — checks 63% here. Roll 0.76.
+  [Vera turn check] marginal (52%) — checks 83% here. Roll 0.71.
+  [Oyelaran river check] weak (37%) — checks 89% here. Roll 0.42.
+  [Vera river check] good (63%) — checks 57% here. Roll 0.66.
+
+=== hand 25 ===
+Hand 25 — 5-handed, preflop
+Blinds Mikko 1 · Dunn 2
+You folds
+Vera folds
+Oyelaran raises to 6
+Mikko folds
+Dunn folds
+Oyelaran wins 9 (uncontested)
+  [Vera preflop fold] 82o is a top-94% hand; CO opens ~20%. Opens it 0% of the time — roll 0.10 said fold.
+  [Oyelaran preflop raise 6] A4s is a top-10% hand. BTN opens ~45%, so this one opens 95% of the time — roll 0.21 said open.
+  [Mikko preflop fold] 52o (top 100%) is outside the 28% defend range. Folds. Faces a loose aggressor.
+  [Dunn preflop fold] Q3o (top 63%) is outside the 30% defend range. Folds. Faces a loose aggressor.
+
+=== hand 26 ===
+Hand 26 — 5-handed, preflop
+Blinds Dunn 1 · You 2
+Vera folds
+Oyelaran raises to 6
+Mikko calls 6
+Dunn folds
+You folds
+flop — As Qh 2c
+Oyelaran checks
+Mikko bets to 8
+Oyelaran calls 8
+turn — As Qh 2c 9s
+Oyelaran checks
+Mikko checks
+river — As Qh 2c 9s Kd
+Oyelaran checks
+Mikko bets to 16
+Oyelaran raises to 58
+Mikko calls 32
+Oyelaran gets back 10 (uncalled bet, nobody could match it)
+Oyelaran wins 127 with two pair
+Mikko is out
+  [Vera preflop fold] T2o is a top-86% hand; UTG opens ~15%. Opens it 0% of the time — roll 0.60 said fold.
+  [Oyelaran preflop raise 6] AQo is a top-7% hand. CO opens ~28%, so this one opens 95% of the time — roll 0.20 said open.
+  [Mikko preflop call 6] KTo (top 23%) inside the 33% defend range — continues 95%, roll 0.29. Faces a loose aggressor.
+  [Dunn preflop fold] 72o (top 98%) is outside the 25% defend range. Folds. Faces a loose aggressor.
+  [Oyelaran flop check] strong (95%) — checks 30% here. Roll 0.71.
+  [Mikko flop bet 8] good (70% vs a random hand) — bets 86% IP. Roll 0.40 said bet.
+  [Oyelaran flop call 8] Strong (92%) — the slow branch. Roll 0.83. Faces a folds often aggressor.
+  [Oyelaran turn check] strong (96%) — checks 30% here. Roll 0.81.
+  [Mikko turn check] marginal (49%) — checks 66% here. Roll 0.77.
+  [Oyelaran river check] strong (97%) — checks 30% here. Roll 0.78.
+  [Mikko river bet 16] good (76% vs a random hand) — bets 86% IP. Roll 0.62 said bet.
+  [Oyelaran river raise 58] Strong (97%) — raises 58%. Roll 0.18. Faces a folds often aggressor.
+  [Mikko river call 32] 76% strength = ~76% vs 29% needed. Calls. Faces a loose aggressor.
+
+=== hand 27 ===
+Hand 27 — 4-handed, preflop
+Blinds You 1 · Vera 2
+Oyelaran folds
+Dunn limps 2
+You folds
+Vera raises to 6
+Dunn folds
+Vera wins 9 (uncontested)
+  [Oyelaran preflop fold] A2o is a top-34% hand; CO opens ~28%. Opens it 0% of the time — roll 0.55 said fold.
+  [Dunn preflop limp 2] 84o — didn't open, but BTN limps ~40% in this band. Roll said limp.
+  [Vera preflop raise 6] Q7s is a top-24% hand. BB opens ~31%, so this one opens 86% of the time — roll 0.71 said open.
+  [Dunn preflop fold] 84o (top 89%) is outside the 30% defend range. Folds. Faces a tight/folds often aggressor.
+
+=== hand 28 ===
+Hand 28 — 4-handed, preflop
+Blinds Vera 1 · Oyelaran 2
+Dunn raises to 6
+You folds
+Vera folds
+Oyelaran folds
+Dunn wins 9 (uncontested)
+  [Dunn preflop raise 6] AQo is a top-7% hand. CO opens ~34%, so this one opens 95% of the time — roll 0.93 said open.
+  [Vera preflop fold] A3o (top 32%) is outside the 15% defend range. Folds. Faces a loose aggressor.
+  [Oyelaran preflop fold] Q3s (top 40%) is outside the 25% defend range. Folds. Faces a loose aggressor.
+
+=== hand 29 ===
+Hand 29 — 4-handed, preflop
+Blinds Oyelaran 1 · Dunn 2
+You folds
+Vera folds
+Oyelaran raises to 6
+Dunn folds
+Oyelaran wins 8 (uncontested)
+  [Vera preflop fold] 63o is a top-95% hand; BTN opens ~31%. Opens it 0% of the time — roll 0.01 said fold.
+  [Oyelaran preflop raise 6] 97s is a top-32% hand. SB opens ~38%, so this one opens 76% of the time — roll 0.72 said open.
+  [Dunn preflop fold] 32o (top 97%) is outside the 30% defend range. Folds. Faces a loose aggressor.
+
+=== hand 30 ===
+Hand 30 — 4-handed, preflop
+Blinds Dunn 1 · You 2
+Vera folds
+Oyelaran folds
+Dunn raises to 6
+You folds
+Dunn wins 8 (uncontested)
+  [Vera preflop fold] 64o is a top-88% hand; CO opens ~20%. Opens it 0% of the time — roll 0.61 said fold.
+  [Oyelaran preflop fold] 94s is a top-61% hand; BTN opens ~45%. Opens it 0% of the time — roll 0.63 said fold.
+  [Dunn preflop raise 6] ATo is a top-14% hand. SB opens ~46%, so this one opens 95% of the time — roll 0.45 said open.

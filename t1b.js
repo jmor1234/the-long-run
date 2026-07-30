@@ -42,3 +42,4 @@ for(const [name,a,b,bd,exp] of cases){
   console.log(`  ${ok?'ok  ':'FAIL'} ${name.padEnd(36)} ${got.toFixed(1)}%  expected ~${exp}%`);
 }
 console.log(fail?`\n  ${fail} FAILED`:'\n  all draw maths correct');
+process.exitCode=fail?1:0;
