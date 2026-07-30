@@ -85,6 +85,55 @@ function runBaseline(seed, hands, opts={}){
     `${compared} hands compared`);
 }
 
+// --- 3b. sizing spread (C2 gate; numbers frozen from the reachable-set table)
+{
+  const opens={}, postflop=new Set();
+  let underMin=0, overStack=0, betsSeen=0;
+  const spy=(ctx,meta,fall)=>{
+    const d=fall(ctx);
+    if((d.action==='bet'||d.action==='raise') && d.amount!==undefined){
+      betsSeen++;
+      const r=normalize({action:d.action, amount:d.amount},
+        {toCall:ctx.toCall, currentBet:ctx.currentBet, minRaise:ctx.minRaise,
+         myBet:ctx.myBet, stack:ctx.myStack});
+      for(const c of r.clamps){
+        if(c.code==='amount-under-min') underMin++;
+        if(c.code==='amount-over-stack') overStack++;
+      }
+      if(ctx.street==='preflop' && !ctx.raisedBefore && d.action==='raise')
+        (opens[ctx.style.tag]=opens[ctx.style.tag]||[]).push(d.amount);
+      if(ctx.street!=='preflop') postflop.add(d.amount);
+    }
+    return d;
+  };
+  for(let i=1;i<=6;i++){
+    const h=make(checkFoldHero,{seed:'size-'+i, decide:spy});
+    h.G.newSession(); h.drain();
+    let last=h.G.session.hands;
+    while(h.G.session.hands<60 && !h.G.session.over){
+      h.G.newHand(); h.drain();
+      if(h.G.session.hands===last) break;
+      last=h.G.session.hands;
+    }
+  }
+  const tags=['nit','solid','maniac','selective','station'];
+  const mean=a=>a.reduce((x,y)=>x+y,0)/a.length;
+  const pooled=new Set(); let perOk=true;
+  for(const t of tags){ const a=opens[t]||[]; a.forEach(v=>pooled.add(v));
+    if(new Set(a).size<2 || a.length<10) perOk=false; }
+  ok(perOk, 'every persona opens with >=2 distinct sizes (>=10 opens each)',
+    JSON.stringify(Object.fromEntries(tags.map(t=>[t,[...new Set(opens[t]||[])].sort((x,y)=>x-y)]))));
+  ok(pooled.size>=5, 'pooled open sizes >=5 distinct', [...pooled].sort((x,y)=>x-y).join(','));
+  const m=Object.fromEntries(tags.map(t=>[t,mean(opens[t]||[0])]));
+  ok(m.station<m.nit && m.nit<Math.min(m.solid,m.selective) && Math.max(m.solid,m.selective)<m.maniac,
+    'open size means ordered station < nit < solid~selective < maniac',
+    JSON.stringify(m,(k,v)=>typeof v==='number'?+v.toFixed(2):v));
+  ok(postflop.size>=6, 'postflop bet/raise amounts show spread', postflop.size+' distinct');
+  ok(underMin===0 && overStack===0,
+    'zero emitted amounts altered by the engine floor (normalize oracle)',
+    betsSeen+' bets checked');
+}
+
 // --- 4. ctx carries the betting state the legality view needs ----------
 {
   let seen=null;
