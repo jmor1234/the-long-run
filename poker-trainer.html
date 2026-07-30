@@ -777,7 +777,7 @@ function botDecide(ctx){
     if(pct <= defend){ const dRoll = draw(); return dRoll<defendCall
       ? {action:'call', pct, reason:`${nm} (top ${pct.toFixed(0)}%) inside the ${defend.toFixed(0)}% defend range \u2014 continues ${Math.round(defendCall*100)}%, roll ${dRoll.toFixed(2)}.${nudge.note}`}
       : {action:'fold', pct, reason:`${nm} is inside the defend range but folds here. Roll ${dRoll.toFixed(2)}.${nudge.note}`}; }
-    if(pct <= defend*1.9){ const sRoll = draw(); if(sRoll<spewCall) return {action:'call', pct,
+    if(pct <= defend*2.2){ const sRoll = draw(); if(sRoll<spewCall) return {action:'call', pct,
       reason:`${nm} is outside the defend range \u2014 played ${Math.round(spewCall*100)}% so calls aren't all strong. Roll ${sRoll.toFixed(2)}.${nudge.note}`}; }
     if(pct <= thr*1.3 && draw() < bluff3) return {action:'raise', amount:Math.min(myStack, humanSize((pot+toCall)*sizeMult)), pct,
       reason:`${nm} 3-bet bluff \u2014 ${Math.round(bluff3*100)}% frequency.${nudge.note}`};
@@ -829,7 +829,12 @@ function botDecide(ctx){
 
   // fold pressure band so extreme styles stay frequency-based, not mechanical rules
   const edgeNeed = Math.max(0.005, Math.min(0.08, 0.02 * style.fold / nudge.callMult / posCall));
-  if(effective > need + edgeNeed){
+  // Soft boundary: P(call) is a logistic in the equity margin, so thin calls
+  // and tight folds both happen at persona-tuned rates instead of never.
+  // Not clampFreq'd: this is a probability and its tails must stay reachable.
+  const temp = style.callTemp==null ? 0.035 : style.callTemp;
+  const pCall = 1/(1+Math.exp(-(effective - need - edgeNeed)/temp));
+  if(draw() < pCall){
     return {action:'call',
       reason:`${pct}% strength${dr.any?' + draw equity':''} = ~${Math.round(effective*100)}% vs ${Math.round(need*100)}% needed. Calls.${nudge.note}`};
   }
@@ -845,15 +850,15 @@ const NAMES=['Vera','Oyelaran','Mikko','Priya','Dunn'];
    open/bet > 1 = looser/more aggressive; fold > 1 = folds more under pressure. */
 const BOT_STYLES=[
   // Recreational leaks (beginner–intermediate), not GTO. fold<1 = sticky under pressure.
-  {open:0.70, bet:0.70, fold:1.35, limp:0.00, openSize:2.6, size:0.85, sizeJitter:0.10, tag:'nit',
-   blurb:'Nitty recreational. Narrow opens, never limps, folds when pressured.'},
-  {open:1.00, bet:1.00, fold:1.00, limp:0.05, openSize:3.0, size:1.00, sizeJitter:0.14, tag:'solid',
+  {open:0.70, bet:0.70, fold:1.35, limp:0.03, openSize:2.6, size:0.85, sizeJitter:0.10, callTemp:0.020, tag:'nit',
+   blurb:'Nitty recreational. Narrow opens, the odd limp, folds when pressured.'},
+  {open:1.00, bet:1.00, fold:1.00, limp:0.05, openSize:3.0, size:1.00, sizeJitter:0.14, callTemp:0.032, tag:'solid',
    blurb:'Straightforward regular. Mostly raise-or-fold; occasional limp.'},
-  {open:1.35, bet:1.40, fold:0.70, limp:0.08, openSize:3.4, size:1.25, sizeJitter:0.22, tag:'maniac',
+  {open:1.35, bet:1.40, fold:0.70, limp:0.08, openSize:3.4, size:1.25, sizeJitter:0.22, callTemp:0.045, tag:'maniac',
    blurb:'Spewy and aggressive. Plays too many hands and keeps betting at you.'},
-  {open:0.85, bet:1.25, fold:0.90, limp:0.00, openSize:3.0, size:1.05, sizeJitter:0.16, tag:'selective',
-   blurb:'Selective preflop, punches when involved. Not a caller.'},
-  {open:1.20, bet:0.75, fold:0.72, limp:0.40, openSize:2.4, size:0.90, sizeJitter:0.12, tag:'station',
+  {open:0.85, bet:1.25, fold:0.98, limp:0.02, openSize:3.0, size:1.05, sizeJitter:0.16, callTemp:0.020, tag:'selective',
+   blurb:'Selective preflop, punches when involved. Rarely just calls.'},
+  {open:1.20, bet:0.75, fold:0.72, limp:0.40, openSize:2.4, size:0.90, sizeJitter:0.12, callTemp:0.055, tag:'station',
    blurb:'Calling station. Limps in, pays off too light, rarely raises for value.'}
 ];
 const SB=1, BB=2, START=200;

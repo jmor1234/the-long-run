@@ -134,6 +134,40 @@ function runBaseline(seed, hands, opts={}){
     betsSeen+' bets checked');
 }
 
+// --- 3c. soft call/fold boundary (C3 gate) -----------------------------
+// Boundary "errors" are read from the emitted equity narrative (independent
+// of the logistic's internals). Frozen from the measured 5-seed batch:
+// station 3 loose calls + 5 tight folds, nit 0 + 0.
+{
+  const loose={}, tight={};
+  const spy=(ctx,meta,fall)=>{
+    const d=fall(ctx);
+    let m;
+    if(d.reason && (m=d.reason.match(/~(\d+)% vs (\d+)% needed\. (Calls|Folds)\./))){
+      const t=ctx.style.tag, eff=+m[1], need=+m[2];
+      if(m[3]==='Calls' && eff<need) loose[t]=(loose[t]||0)+1;
+      if(m[3]==='Folds' && eff>need) tight[t]=(tight[t]||0)+1;
+    }
+    return d;
+  };
+  for(let i=1;i<=5;i++){
+    const h=make(checkFoldHero,{seed:'soft-'+i, decide:spy});
+    h.G.newSession(); h.drain();
+    let last=h.G.session.hands;
+    while(h.G.session.hands<60 && !h.G.session.over){
+      h.G.newHand(); h.drain();
+      if(h.G.session.hands===last) break;
+      last=h.G.session.hands;
+    }
+  }
+  const tot=t=>(loose[t]||0)+(tight[t]||0);
+  ok((loose.station||0)>=1, 'station makes genuinely loose calls (equity below price)',
+    (loose.station||0)+' loose calls');
+  ok(tot('station')>=3 && tot('nit')<=2 && tot('station')>tot('nit'),
+    'boundary blur is persona-shaped: station blurry, nit sharp',
+    `station ${tot('station')}, nit ${tot('nit')}`);
+}
+
 // --- 4. ctx carries the betting state the legality view needs ----------
 {
   let seen=null;
