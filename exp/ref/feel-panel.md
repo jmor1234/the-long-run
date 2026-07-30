@@ -71,6 +71,10 @@ scores 1.0-1.25 and 2.13 respectively. Always compare within a format.
 
 ## Baseline (2026-07-30, verdicts in feel-panel-baseline.json)
 
+The transcript blocks these judges read are not archived — they rebuild
+byte-identically with `node exp/run-feel.js --engine 8f0bada` (verified).
+`feel-key.json` is kept so the verdicts stay interpretable without doing that.
+
 - Coded bots (@ 8f0bada engine, identical to dc0938f here): humanness 1-1.5/10, 8/8 verdicts mechanical.
 - LLM pilot bots: 3-3.5/10, 8/8 mechanical (plus hallucinated reasoning).
 - The four converged tells (uniform sizing / flawless discipline / one
@@ -100,5 +104,6 @@ scores understate the fixed voice. The 5.0 bar was never met on the
 transcript instrument and is recorded as unmet — the surviving tells
 (verbatim bank repetition, exhaustive narration) are format properties the
 in-game player never experiences; on action-only play the new engine leads
-3.00 vs 2.13. Every shared-seed pair improved in every round where the key was
-archived (feelab1 and feelab4); ab2 and bare recorded arm means only.
+3.00 vs 2.13. Across the four rounds 15 of 16 shared-seed pairs improved; the one regression
+was in the action-only Fable round (feelab3). Pair-level detail is re-derivable
+only for feelab1 and feelab4 — ab2 and bare archived arm means only.

@@ -2,7 +2,14 @@
 // early read. No API calls — the LLM arm replays entirely from the pilot's
 // persisted decisions (a cache miss aborts loudly rather than spending).
 //
-//   node exp/run-feel.js
+//   node exp/run-feel.js --engine 8f0bada        # rebuilds the archived packet
+//
+// ⚠ REQUIRES THE ERA-MATCHED ENGINE. The pilot's cached decisions were recorded
+// against the pre-humanize build, so the oracle's divergence check refuses to
+// replay them on today's bots — correctly. `--engine <commitish>` git-shows that
+// build into exp/out/ and loads it via the harness's htmlPath, which is how the
+// packet behind the 1-1.5/10 baseline is reproduced byte-for-byte. Without the
+// flag this script cannot run at all; that is the guard working, not a bug.
 //
 // Both arms play the SAME seeds, so every pair shares identical cards and
 // differs only in decisions. Blocks are shuffled deterministically and
@@ -14,9 +21,24 @@
 
 const fs=require('fs');
 const path=require('path');
+const cp=require('child_process');
 const make=require('./exp-harness');
 const {makeOracle}=require('./oracle');
 const {stream}=require('./prng');
+
+// --engine <commitish>: load that build of the app instead of the working file.
+let ENGINE=null, ENGINE_SITES=5; // pre-humanize builds have 5 Math.random sites
+{
+  const argv=process.argv.slice(2);
+  for(let i=0;i<argv.length;i++){
+    if(argv[i]==='--engine'){ ENGINE=argv[++i]; continue; }
+    if(argv[i]==='--sites'){ ENGINE_SITES=+argv[++i]; continue; }
+    console.error('run-feel: unknown arg '+argv[i]); process.exit(1);
+  }
+  if(ENGINE && !/^[A-Za-z0-9][A-Za-z0-9_./-]*$/.test(ENGINE)){
+    console.error('run-feel: --engine must be a plain commitish'); process.exit(1);
+  }
+}
 
 // Prefer the tracked archive (survives clones and cleaned scratch dirs); the
 // gitignored out/ copy only exists right after a fresh pilot run.
@@ -33,6 +55,14 @@ const cache=new Map();
 for(const line of fs.readFileSync(PILOT_JSONL,'utf8').split('\n').filter(Boolean)){
   const rec=JSON.parse(line);
   if(rec.type!=='header') cache.set(rec.key, {ctxJson:rec.ctxJson, d:rec.d});
+}
+
+let ENGINE_PATH=null;
+if(ENGINE){
+  ENGINE_PATH=path.join(__dirname,'out','engine-'+ENGINE.replace(/[^A-Za-z0-9]/g,'_')+'.html');
+  fs.mkdirSync(path.dirname(ENGINE_PATH),{recursive:true});
+  fs.writeFileSync(ENGINE_PATH, cp.execFileSync('git',['show',ENGINE+':poker-trainer.html'],
+    {cwd:path.join(__dirname,'..'), maxBuffer:16*1024*1024, encoding:'utf8'}));
 }
 
 const checkFoldHero=(G)=>{
@@ -56,7 +86,9 @@ function playSession(seed, arm){
   const decide=arm==='llm'
     ? makeOracle({cache, pending:[], scope:String(seed)})
     : null;
-  const h=make(checkFoldHero, {seed, decide});
+  const h=make(checkFoldHero, ENGINE
+    ? {seed, decide, htmlPath:ENGINE_PATH, expectedRandSites:ENGINE_SITES}
+    : {seed, decide});
   const hands=[];
   try{
     h.G.newSession(); h.drain();

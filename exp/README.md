@@ -79,8 +79,9 @@ deploys via `.vercelignore` along with all of `exp/`). Frozen evidence lives in
 tracked `exp/ref/`, in two kinds — don't conflate them:
 
 - **Pre-humanize measurements** (engine 8f0bada and earlier): `baseline-metrics`,
-  `probes-baseline`, `labels-baseline`, `baseline-transcripts`, the original
-  `feel-packet`/`feel-key`, and the LLM pilot's paid decision records.
+  `probes-baseline`, `labels-baseline`, `baseline-transcripts`, `feel-key` (the
+  packet it unlocks is regenerated, not stored — see below), and the LLM pilot's
+  paid decision records.
 - **Old-vs-new panel results** whose `new` arm is a humanize-arc commit:
   `feel-panel-ab1` (689911c), `ab2` (f0a157d), `bare` (a495960), `final` (4c4f544).
   Only `ab1` and `final` archived enough to re-derive their pair-by-pair results.
@@ -88,22 +89,27 @@ tracked `exp/ref/`, in two kinds — don't conflate them:
 Either way it is history: fresh `exp/out/` results are EXPECTED to diverge as the
 bots change — never "fix" that divergence, and never regenerate into `exp/ref/`.
 
-⚠ **Two of these cannot be recreated at any price, so don't "clean them up".**
-`pilot-api-pilot1.jsonl` is the paid LLM pilot (1005 decisions, ~$0.90) and the only
-record in which you can *see* a bot claim a draw that isn't on the board — the
-hallucination finding that killed the LLM approach. `feel-packet.txt` is the
-transcript set behind the original 1–1.5/10 baseline; it **looks** regenerable via
-`run-feel.js` and is not — the pilot's cached decisions were recorded against the
-pre-humanize ctx, so the oracle's divergence check correctly refuses to replay them
-on today's engine (verified 2026-07-30), and `run-feel.js` has no `htmlPath` option
-to load the old build. Together they are ~83% of `exp/`'s bytes and they are the
-evidentiary base for the two largest decisions in the project.
+⚠ **`pilot-api-pilot1.jsonl` cannot be recreated at any price** — it is the paid LLM
+pilot (1005 decisions, ~$0.90) and the only record in which you can *see* a bot claim
+a draw that isn't on the board, the hallucination finding that ended the LLM approach.
+It is ~80% of `exp/`'s bytes and it is the evidentiary base for the project's largest
+decision. Everything derived from it, however, IS reproducible and therefore is not
+archived: the original blind packet rebuilds byte-identically with
+
+```bash
+node exp/run-feel.js --engine 8f0bada     # writes feel-packet.txt + key to exp/out/
+```
+
+The `--engine` flag is mandatory there and worth understanding: the pilot's cached
+decisions were recorded against the pre-humanize ctx, so replaying them on today's
+bots trips the oracle's divergence check — correctly. (An earlier note in this file
+claimed the packet was unrecoverable; that was wrong, and the flag above is the fix.)
 
 ⚠ **Nothing enforces that but you.** No test, no ignore rule — and every runner
 writes to `exp/out/` under the *same filename* as its `ref/` counterpart
 (`probes-baseline.json`, `labels-baseline.json`, `baseline-metrics.json`,
-`baseline-transcripts.txt`), so one careless copy destroys evidence that cost real
-money and cannot be reproduced — the engine it measured is gone from the working
+`baseline-transcripts.txt`), so one careless copy overwrites archived evidence —
+and the engine those numbers describe is gone from the working
 tree. `ref/` is git-tracked, so `git checkout -- exp/ref/` recovers an uncommitted
 clobber. The same directory holds every panel's answer key, which is why judges get
 individual block files and never repo access.

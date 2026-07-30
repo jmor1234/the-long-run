@@ -1,0 +1,6 @@
+# The Node harnesses slice the app by literal string anchors (ARCHITECTURE §9).
+# CRLF breaks every one of them, and core.autocrlf=true on Windows reintroduces
+# it on any checkout. Pin LF for everything the tooling parses.
+* text=auto eol=lf
+*.png binary
+*.jpg binary

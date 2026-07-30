@@ -19,7 +19,7 @@
   --bone:#efe9dd;
   --bone-dim:#cdc5b8;
   --ink:#17131f;
-  --mint:#7fd6c1;      /* reserved: measurement layer only */
+  --mint:#7fd6c1;      /* machine signal: equity/odds/verdicts + primary action chrome (ARCHITECTURE §13) */
   --mint-dim:#3f6e64;
   --rose:#c4626b;
   --chip:#d9a441;
@@ -37,7 +37,6 @@ body{
   -webkit-font-smoothing:antialiased;
   overflow-x:hidden;
 }
-.mono{font-family:'IBM Plex Mono',monospace}
 .wrap{max-width:1180px;margin:0 auto;padding:18px 16px 40px}
 
 /* ---------- header ---------- */
@@ -284,16 +283,7 @@ button .amt{font-family:'IBM Plex Mono',monospace;font-weight:400;color:var(--ch
 .le.win{color:var(--chip)}
 .reason{color:var(--faint);font-size:10px;padding-left:9px;border-left:1px solid #2a2439;margin:1px 0 4px}
 
-.chart{font-family:'IBM Plex Mono',monospace;font-size:10px;line-height:1.7}
-.chart div{display:flex;gap:8px}
-.chart .t{color:var(--mint);width:16px;flex:none}
-.chart .h{color:var(--bone-dim)}
 .fair{font-size:11px;color:var(--muted);line-height:1.6}
-.fair code{
-  display:block;font-family:'IBM Plex Mono',monospace;font-size:9.5px;color:var(--mint);
-  background:#0e0b16;border:1px solid #241f33;border-radius:6px;padding:8px;margin-top:8px;
-  white-space:pre-wrap;line-height:1.5;
-}
 
 /* ---------- showdown overlay ---------- */
 .review{
@@ -1062,7 +1052,7 @@ const BOT_STYLES=[
 const SB=1, BB=2, START=200;
 
 let S=null;
-let roster=null;        // persists between hands; players are removed when broke
+let roster=null;        // persists between hands; broke players stop being seated, never spliced (seat indexes roster)
 let buttonSeat=0;
 let session={hands:0, net:0, vpip:0, hero:START, records:[], over:null};
 const opts={eq:true, chart:true, reason:false};
@@ -1187,14 +1177,14 @@ function newHand(){
       cards:[deck.pop(),deck.pop()],
       folded:false, allIn:false, bet:0, invested:0,
       acted:false, lastAct:'', inferredTier:100, aggr:0,
-      pos, behind, openThr:openThreshold(pos,behind,n)
+      pos, openThr:openThreshold(pos,behind,n)
     };
   });
 
   S={
     deck, players, n, btnPos, board:[], pot:0, street:'preflop',
     currentBet:0, minRaise:BB, log:[], handNum:session.hands+1,
-    raisedBefore:false, done:false, heroVpip:false, decisions:[], heroRebuy:0,
+    raisedBefore:false, done:false, heroVpip:false, decisions:[],
     streetBets:0, streetAggressor:null, preflopRaiser:null
   };
 
@@ -1479,7 +1469,7 @@ function endHand(){
   session.hands++;
   if(S.heroVpip) session.vpip++;
   const hero=S.players[0];
-  session.net += (hero.stack - session.hero - S.heroRebuy)/BB;   // rebuys are not winnings
+  session.net += (hero.stack - session.hero)/BB;
   session.hero = hero.stack;
 
   const rec=buildExport(results);
@@ -1627,7 +1617,6 @@ function updateStrip(){
     v.className='verdict '+(eq>0.55?'good':'bad');
     note.textContent = `Nothing to call. Against ${opps.length} inferred range${opps.length>1?'s':''} you're about ${(eq*100).toFixed(0)}% to win this pot.`;
   }
-  S.lastEq={eq,need,toCall};
 }
 
 function clearActions(){ document.getElementById('actions').innerHTML=''; }

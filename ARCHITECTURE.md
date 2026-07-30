@@ -546,11 +546,14 @@ feel packet + key, the paid LLM pilot records) and **old-vs-new panel results**
 whose `new` arm is a humanize-arc commit (`feel-panel-ab1/ab2/bare/final.json`).
 Either way it is history: new outputs are expected to diverge, never "fix" that.
 ⚠ Nothing enforces this — no test, no ignore rule, and every runner writes to
-`exp/out/` under the *same filename* as its `ref/` counterpart, so a careless
-copy overwrites the only record of a measurement that cannot be reproduced (the
-engine it measured is gone). `exp/ref/` is git-tracked, so `git checkout --
-exp/ref/` recovers an uncommitted clobber. It also holds every panel's answer
-key, which is why a judge gets one block file and never repo access.
+`exp/out/` under the *same filename* as its `ref/` counterpart, so a careless copy
+overwrites archived evidence. `exp/ref/` is git-tracked, so `git checkout --
+exp/ref/` recovers an uncommitted clobber. The one genuinely irreplaceable file is
+`pilot-api-pilot1.jsonl` (paid, ~$0.90, cannot be re-derived); everything else is a
+cheap re-run, or reproducible against an older build via `--engine`/`--html` — older
+engines are always one `git show` away, which is how `run-ab.js` works. It also
+holds every panel's answer key, which is why a judge gets one block file and never
+repo access.
 
 ⚠ Several expectations in `t1b.js` look wrong and are not — they have comments
 explaining why (e.g. a set is ~75% against a flush draw, not 66%, because it redraws to a
@@ -699,6 +702,8 @@ history live in `exp/ref/`). Four mechanisms, all dial-shaped:
   Any policy size that lands below the legal minimum silently hands sizing
   control back to the engine — invisible to a local code reader, which is why
   `exp/t-exp.js` asserts zero emitted amounts were altered by the floor.
+  (Uniform sizing was the most-cited tell on the *action-only* panels, where play
+  is all a judge can see; on full transcripts the narration dominated instead.)
 - **Soft call/fold boundary**: the postflop step became a logistic in the
   equity margin with per-persona `callTemp` — bad calls and tight folds now
   happen at persona-tuned rates instead of never. NOT `clampFreq`'d (it is a
@@ -755,8 +760,9 @@ guard-aware.
 **Outcome, stated plainly: the pre-registered bar (blind-panel mean ≥ 5.0)
 was NOT met.** The layer measurably improved every comparison — the final
 archived panel scores the current engine 3.00 against the pre-humanize
-engine's 2.13, and every shared-seed pair improved in every round — but
-judges still call it mechanical. Full numbers, judge verdicts, instrument
+engine's 2.13, and 15 of 16 shared-seed pairs across the four rounds improved
+(one regressed, in the action-only Fable round) — but judges still call it
+mechanical. Full numbers, judge verdicts, instrument
 history and the LLM-arm rejection: `exp/ref/feel-panel.md` and
 `exp/PLAN.md`. Diagnosis (not a pass): the surviving tells are properties
 of the transcript format used to measure — finite phrase banks repeat, and

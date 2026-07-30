@@ -5,6 +5,5 @@ Thumbs.db
 .env
 .env.*
 
-.vercel
 exp/out/
 node_modules/
