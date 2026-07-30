@@ -1,11 +1,18 @@
 // C6: blind A/B feel packet — pre-humanize engine vs the working file.
 //
-//   node exp/run-ab.js [--old <commitish>] [--seed feelab1]
+//   node exp/run-ab.js [--old <commitish>] [--seed feelab1] [--action-only]
 //
 // Same protocol as the baseline instrument (exp/ref/feel-panel.md): 30-hand
 // blocks, shared deal seeds across arms (cards identical until decisions
 // diverge the roster), deterministic shuffle, key sequestered. Judges get
 // ONE extracted block file each and never repo access.
+//
+// TWO FORMATS, TWO INSTRUMENTS — scores are comparable only within a format:
+//   default        full transcript (action log + each bot's stated reason).
+//                  Use the judge prompt in ref/feel-panel.md.
+//   --action-only  action log alone, i.e. what a player at the table sees.
+//                  Produced the headline 3.00-vs-2.13 result; use the
+//                  action-only judge prompt in ref/feel-panel.md.
 
 const fs=require('fs');
 const path=require('path');
@@ -19,6 +26,7 @@ const args={};
   const argv=process.argv.slice(2);
   for(let i=0;i<argv.length;i++){
     const a=argv[i];
+    if(a==='--action-only'){ args['action-only']=true; continue; }
     if(!a.startsWith('--')||!['old','seed'].includes(a.slice(2))) fatal('unknown arg '+a);
     const v=argv[i+1];
     if(v===undefined||v.startsWith('--')) fatal('flag '+a+' needs a value');
@@ -43,10 +51,12 @@ const checkFoldHero=(G)=>{
   S.toAct=G.nextToAct(S.toAct);
   G.step();
 };
+const ACTION_ONLY=!!args['action-only'];
 const renderHand=(G)=>{
   const S=G.S;
-  return `--- hand ${S.handNum} ---\n`+
-    S.log.map(l=>l.text).join('\n')+'\n'+
+  const head=`--- hand ${S.handNum} ---\n`+S.log.map(l=>l.text).join('\n');
+  if(ACTION_ONLY) return head;
+  return head+'\n'+
     S.decisions.map(d=>`  [${d.name} ${d.street} ${d.action}] ${d.reason}`).join('\n');
 };
 
@@ -96,8 +106,10 @@ fs.rmSync(blockDir,{recursive:true,force:true});
 fs.mkdirSync(blockDir,{recursive:true});
 blocks.forEach((b,i)=>fs.writeFileSync(path.join(blockDir,'block-'+LETTERS[i]+'.txt'), b.text+'\n'));
 fs.writeFileSync(path.join(outDir,'ab-key.json'), JSON.stringify({
-  oldCommit:OLD, seed:SEED,
+  oldCommit:OLD, seed:SEED, format:ACTION_ONLY?'action-only':'full-transcript',
   scoring:'frozen bar: new-arm mean >= 5.0 AND no original tell cited in >= half of new-arm blocks; secondary: majority of pairs new > old',
   blocks:Object.fromEntries(blocks.map((b,i)=>[LETTERS[i],{arm:b.arm, pair:b.pair}])),
 },null,2));
-console.log(`wrote ${blocks.length} isolated blocks to exp/out/ab-blocks/ and ab-key.json (judges must never see the key or the repo)`);
+console.log(`wrote ${blocks.length} isolated ${ACTION_ONLY?'ACTION-ONLY':'full-transcript'} blocks to `+
+  `exp/out/ab-blocks/ and ab-key.json — use the matching judge prompt in exp/ref/feel-panel.md `+
+  `(judges must never see the key or the repo)`);

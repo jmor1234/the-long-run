@@ -73,7 +73,9 @@ folds often}. "(none)" is neither. Any-contradicting-fragment counts as contradi
    fail while the spot derives only from ctx — which is the property it pins).
    Criterion: purity tests stay green AND zero tripwire failures across 100% of
    decisions.
-6. **Feel (the product question).** Blind protocol, fixed before viewing: 30-hand
+6. **Feel (the product question).** *(AMENDED 2026-07-30 — see Step 4: the owner
+   declined to judge and directed a blind LLM panel; that is the protocol the
+   concluded result used.)* Blind protocol, fixed before viewing: 30-hand
    transcript blocks per arm, unlabeled, shuffled; the owner marks each block
    human/mechanical before seeing any metrics. The LLM arm must win a strict
    majority of paired comparisons. Run only if 1–5 pass; live-play A/B is the

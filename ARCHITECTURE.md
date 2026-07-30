@@ -34,7 +34,8 @@ reads** model — not LLMs, not GTO solvers.
 | Tilt / heaters | `moodStep` + `moodDials` (MOOD section, §12) |
 | Cross-hand memory | `freshReads` / `applyAction` reads block / `facingNudge` / `readLabel` |
 | Table / pots / streets | GAME STATE (`step`, `applyAction`, `buildPots`, `endHand`) |
-| Seats, dossiers, strip, export | RENDER |
+| Seats, strip, export | RENDER |
+| Dossier text | `playerBrief` / `readsLiveLine` (GAME STATE) + seat tips (RENDER) |
 | Tests | root `t*.js` / `audit.js` (via `harness.js`) **and** `exp/t-exp.js` + the locks (via `exp/exp-harness.js`) — keep `function botDecide(ctx){` literal |
 | Re-measuring "does this feel human" | `exp/run-ab.js` + the frozen protocol in `exp/ref/feel-panel.md` |
 
@@ -107,10 +108,16 @@ The script sections, in order (each has a banner comment):
 | `GAME STATE` | table, positions, betting loop, pots, styles |
 | `RENDER` | all DOM writing (seats, tips, strip, export) |
 
-⚠ `t3.js` slices the fairness ban-scan from `function botDecide` to the `GAME STATE`
-banner — so **BOT VOICE and MOOD are inside the scanned region** (deliberately: they
-run during a decision). Code placed above `botDecide` escapes that scan; don't move
-decision-path helpers there.
+(`BOT VOICE` and `MOOD` are `/* ---- */` sub-banners inside the BOT POLICY span,
+not top-level sections.)
+
+⚠ **The fairness ban-scan is positional.** `t3.js` slices from `function botDecide`
+to the `GAME STATE` banner, so BOT VOICE and MOOD are inside it — deliberately, since
+they run during a decision. Everything above (READS' `facingNudge`, EQUITY, `pctOf`,
+`handName`) and everything below is outside it, which is correct for those: they are
+shared helpers, not decision-path code, and they legitimately read state a bot may not.
+The rule for **new** code: anything that runs inside a bot's decision belongs in that
+span. Put it above or below and it is silently unscanned.
 
 **Repo:**
 
@@ -132,7 +139,9 @@ is how any behavioral claim about the bots gets proven:
 | `t-exp.js` | the behavior gate suite (sizing, boundary blur, roll governance, voice bans, mood, oracle, determinism) |
 | `run-probes.js` | exploitability LOCK — degenerate heroes must keep losing badly |
 | `run-labels.js` | readability LOCK — bots must stay as legible as before |
-| `run-ab.js` | generates blind A/B transcript packets, old engine vs current |
+| `run-ab.js` | blind A/B packets, old engine vs current; `--action-only` for play-only blocks (the headline instrument), default for full transcripts |
+| `run-baseline.js` | persona frequency bands + split-half + transcripts (produced the frozen bands) |
+| `run-feel.js` | the original LLM-vs-coded packet, superseded by `run-ab.js` for engine-vs-engine |
 | `ref/` | **frozen evidence** — panel verdicts, baselines, the LLM pilot's paid decisions, the judging protocol. Preserved history: never regenerate into it |
 | `PLAN.md` / `README.md` | the pre-registered experiment and its concluded verdict |
 | `prompt.js` `oracle.js` `legality.js` `spend.js` `run-pilot.js` `metrics.js` `prng.js` | LLM-arm machinery — the experiment concluded, kept as the record of how it was run |
@@ -184,8 +193,16 @@ call site expects). Inventing `size`/`bet` instead of `amount` silently breaks s
 `dbg` never reaches the UI — it carries the roll that decided this branch plus the
 threshold it was compared against, so tests can assert the stated randomness actually
 governed the action (§12). **A new stochastic branch should carry its roll and
-threshold in `dbg`**; the gate in `exp/t-exp.js` checks the inequality against the
-action for six such pairs and will not see a seventh you don't declare.
+threshold in `dbg` — and then register it in two places in `exp/t-exp.js`: the `ROLLS`
+name list (§3d) and a roll/threshold clause in the governance block (§3g).** The gate
+reads hardcoded names, so an unregistered branch passes invisibly; see §9.
+
+**Five raise sites, two rules each.** Preflop open, premium 3-bet, bluff 3-bet,
+postflop strong raise, postflop bluff raise: every one is guarded so a stack
+short of a full call cannot emit a raise (the open path returns a call with limp
+voice instead), and every one caps at `myBet+myStack`. Adding a sixth without
+both is the known bug shape — `exp/t-exp.js` crafts short-stack spots and
+asserts zero illegal raises.
 
 `t3.js` proves fairness two ways: statically (the decision code contains no reference
 to `isHero`, `players[0]`, `hero`, or `S.`) and at runtime, by wrapping **every** other
@@ -236,7 +253,15 @@ frequencies that were individually right produced correlated, machine-looking li
 The gate in `exp/t-exp.js` asserts a limp-band decision consumes two *distinct* draws;
 a shared-roll regression collapses them to one and fails. (This is also why the file
 has exactly 4 `Math.random()` sites, not more: every decision draw routes through the
-one `draw()` helper — see §9.)
+one `draw()` helper.)
+
+⚠ `EXPECTED_RAND_SITES=4` in `exp/exp-harness.js` is a deliberate tripwire, and
+the obvious response to it is wrong. Engine randomness is legal in exactly four
+places: deck shuffle, equity Monte Carlo, the `botDecide` `draw()` helper, and
+the button seat. A `Math.random()` anywhere else throws a clear count error —
+**route the draw through `draw()`; do not raise the constant.** Bumping it just
+moves the failure to a `strayDraws` assertion whose message doesn't point back
+at your edit.
 
 **Exploitability is enforced, not assumed.** `exp/run-probes.js` runs degenerate hero
 strategies (always-raise, call-station, always-3bet, check-fold) against the table and
@@ -308,6 +333,12 @@ dials are never mutated, so a bot's identity survives any tilt.
 
 Per-hand `S` also tracks public action for bots: `streetBets`, `streetAggressor`,
 `preflopRaiser` (reset on street advance as appropriate).
+
+Per-hand **player** fields, easy to miss because nothing else writes them:
+`p.inferredTier` (range cap, narrows monotonically) and `p.aggr` (postflop
+bet/raise count). Both are written only by `applyAction` and read only by
+`updateStrip`, which feeds them to `equity()` as `{cap, aggr}` — the path with
+no automated coverage (§9), so break it and nothing tells you.
 
 ### Per hand
 
@@ -441,12 +472,7 @@ Cost is ~8ms per readout. Don't raise the iteration count without measuring.
 
 ## 9. Testing
 
-```bash
-bash run-all.sh                     # everything; any BUG/FAIL line is a regression
-node t3.js                          # fairness only — run after touching botDecide
-```
-
-Node ≥ 18. No dependencies.
+Commands: see §0. Node ≥ 18, no dependencies.
 
 ### How the harness works
 
@@ -472,7 +498,7 @@ suspect the harness first.**
 
 | File | Covers |
 |---|---|
-| `t1b.js` | equity engine vs hand-verified draw maths |
+| `t1b.js` | the **hand evaluator** (`evaluate`/`cmpHand`) vs hand-verified draw maths, via its own head-to-head Monte Carlo. ⚠ Despite the name it does **not** touch `equity()`, `betLikelihood()` or `strengthVsRandom()` — see the coverage gap below. It also bypasses `harness.js` and slices the source itself between `const SUITS` and `function drawInfo`; don't rename or reorder those |
 | `t2.js` | 3000 hands: no hangs, no negative stacks, pot = money in; winner check is a narrow log heuristic, not a full pot-award oracle |
 | `t3.js` | fairness — static scan + Proxy trap on **all other seats**, ctx leak check, control |
 | `t6.js` | elimination, table shrinking 6→2, chip conservation, heads-up blind rules |
@@ -483,15 +509,45 @@ suspect the harness first.**
 
 All of the above run in `run-all.sh`, which exits nonzero on any suite failure
 or BUG/FAIL line (every suite sets a real exit code — added when it was
-discovered none did). Every test in `exp/` runs on a **seeded** harness
+discovered none did).
+
+⚠ **Where the gates are wired — green does not always mean enforced.** Three
+holes are by design and one is a real gap; know all four before trusting a
+clean run:
+
+- **The two locks arm only at their frozen default config.** `run-probes.js`
+  enforces at 30×200/`probe1`, `run-labels.js` at 90 sessions/`label1`. At any
+  other `--sessions`/`--hands`/`--seed` they print `lock skipped: exploratory
+  config` and exit 0 — a line containing neither BUG nor FAIL, so the grep belt
+  passes too. **Never speed `run-all.sh` up by passing those flags**; you would
+  silently disarm both.
+- **The `dbg` governance gate reads hardcoded name lists**, not the field
+  generically: `ROLLS` in t-exp §3d and six explicit (roll, threshold) pairs in
+  §3g. A new stochastic branch that declares `dbg` perfectly is still invisible
+  to the gate unless you add it in both places. Three low-volume branches
+  (spew-call, preflop bluff-3-bet, postflop bluff-raise) predate the rule and
+  carry partial or no `dbg` — the gate covers six pairs, not every branch.
+- **The equity path has no automated coverage at all.** `equity()`,
+  `betLikelihood()` and the `(likelihood/0.80)^aggr` rejection sampler (§8.3)
+  are tested by nothing. t1b's name suggests otherwise; it does not.
+- **`SB=1, BB=2, START=200` are frozen measurement units.** `START` is pinned by
+  t2/t6 (1200 chips). `BB` is guarded by nothing, yet it is the denominator of
+  every bb/100 in PLAN.md, both probe-lock thresholds, and the judge prompt's
+  "blinds 1/2". Change it and the probe lock fails with a message that reads
+  "the bots became beatable"; re-freeze all three number sets if you ever do. Every test in `exp/` runs on a **seeded** harness
 (`exp/exp-harness.js`: keyed RNG streams, `htmlPath` for cross-version A/B);
 the Math.random site count lives in ONE place, its `EXPECTED_RAND_SITES`
-export. Frozen evidence (baselines, blind-panel verdicts, the paid LLM pilot
-decisions, the panel instrument) is tracked in `exp/ref/` — it is preserved
-history from the pre-humanize engine; new outputs are expected to diverge
-from it, never "fix" that. ⚠ Nothing enforces this: no test, no ignore rule.
-`exp/ref/` also holds every panel's answer key, so a judge must be handed a
-single block file and never repo access.
+export. Frozen evidence is tracked in `exp/ref/`. Two kinds, don't conflate them:
+**pre-humanize measurements** (baseline metrics/probes/labels, the original
+feel packet + key, the paid LLM pilot records) and **old-vs-new panel results**
+whose `new` arm is a humanize-arc commit (`feel-panel-ab1/ab2/bare/final.json`).
+Either way it is history: new outputs are expected to diverge, never "fix" that.
+⚠ Nothing enforces this — no test, no ignore rule, and every runner writes to
+`exp/out/` under the *same filename* as its `ref/` counterpart, so a careless
+copy overwrites the only record of a measurement that cannot be reproduced (the
+engine it measured is gone). `exp/ref/` is git-tracked, so `git checkout --
+exp/ref/` recovers an uncommitted clobber. It also holds every panel's answer
+key, which is why a judge gets one block file and never repo access.
 
 ⚠ Several expectations in `t1b.js` look wrong and are not — they have comments
 explaining why (e.g. a set is ~75% against a flush draw, not 66%, because it redraws to a
@@ -505,8 +561,9 @@ full house). Verify by hand before "correcting" them.
 (fold/call/bet/raise). Revealed hole cards at showdown are ignored in v1 so the
 action/card boundary stays clean for fairness tests.
 
-**Range inference is crude.** `cap` narrows on a preflop raise and again on a postflop
-bet, but it doesn't model board texture or bet sizing.
+**Range inference is crude.** `cap` narrows on a preflop raise (to the raiser's
+`openThr`), on a postflop bet/raise (to 32), and on any call (55 preflop / 60
+postflop). It never widens, and it ignores board texture and bet sizing.
 
 **No rake.** Real games take a cut; win rates here are optimistic by a couple of bb/100.
 
@@ -515,10 +572,12 @@ refresh clears them. There is no profiles menu — bot *identity* is fixed seat 
 baked at `newSession` (only mood drifts within a session).
 
 **The bots still read as bots.** Blind panels score them ~3/10 on "reads like a real
-person" against a target of 5 (§12). Two known causes: the phrase banks are finite, so
-a long session repeats lines verbatim; and two seats of different personas are still
-more distinguishable than two different *people* would be. Anyone claiming to have
-fixed this should re-measure with `exp/run-ab.js` rather than assert it.
+person" against a target of 5. Two known causes: over a long session the finite phrase
+banks repeat lines verbatim, and two seats of different personas are still more
+distinguishable than two different *people* would be. §12 has the full diagnosis —
+including why much of the measured gap is a property of the transcript format rather
+than of play. Anyone claiming to have fixed this should re-measure with
+`exp/run-ab.js` rather than assert it.
 
 **Two VPIP numbers by design.** `session.vpip` is the hero's raw display counter (hands
 where they voluntarily put money in). `roster[i].reads.vpip` is an opportunity-based count
@@ -585,10 +644,22 @@ to open; `openSize` is the first-in raise in big blinds; `size`/`sizeJitter`
 shape all bet amounts; `callTemp` is how blurry the postflop call/fold
 boundary is (station 0.055 blurry, nit 0.020 sharp). The BB defends a wider
 band (`defend * 1.25`) — the blind discount is real poker, and a table where
-nobody defends the blind reads dead (measured blind-panel tell).
+nobody defends the blind reads dead (measured blind-panel tell). Likewise every
+persona now limps: nit and selective sat at `limp:0.00`, so three of five bots
+were structurally incapable of entering a pot without raising — the mechanical
+origin of the judges' "27 hands of perfect raise-or-fold" tell — and `spewCall`
+replaced what used to be an unconditional preflop fold. **Tightening these back
+up for "better play" restores a measured defect.**
 
 There is no profiles menu and base styles do not change mid-session; the
 per-hand *effective* style can drift with mood (below).
+
+⚠ **Tune dials as a set, not one persona at a time.** `exp/t-exp.js` asserts
+cross-persona *orderings*, not absolute values: mean open size station < nit <
+solid ≈ selective < maniac; postflop bet/pot maniac > solid > nit; and station's
+boundary-error rate ≥ 2× nit's (a constraint on the `callTemp` **spread**,
+0.055 vs 0.020, not on either number alone). Retuning one persona routinely
+fails a gate about a persona you never touched — that is the gate working.
 
 ### Humanize layer (sizing, judgment blur, voice, mood)
 
@@ -596,11 +667,22 @@ Added 2026-07-30 after a blind-panel measurement scored the original bots
 1–1.5/10 on "reads like a human" (evidence, verdicts, and the full design
 history live in `exp/ref/`). Four mechanisms, all dial-shaped:
 
-- **`humanSize(base)`** (inside `botDecide`): every bet/raise amount = base ×
-  persona factor × jitter, integer-rounded, capped at the true all-in target
-  (`myBet+myStack`). First-in opens are BB-denominated (`openSize`), 3-bets
-  are pot-sized (`pot+toCall` base), re-raises build on `myBet+toCall`.
-  `applyAction`'s min-raise floor is a legality backstop, never the sizer.
+- **`humanSize(base)`** (inside `botDecide`) = base × jitter, integer-rounded,
+  floored at 2. The persona `size` multiplier is applied **by the caller** to
+  postflop bets and 3-bets/re-raises; first-in opens skip it and are sized by
+  `openSize` in **big blinds** (2.4–3.4×), because preflop the pot is just
+  blinds and limps — a pot fraction there is a near-constant tiny number that
+  would flatten the whole persona spread, and BB multiples are the unit real
+  charts use. Once there is money in, pot-relative is the meaningful measure:
+  3-bets use `pot+toCall`, re-raises build on `myBet+toCall`. Every call site
+  clamps to the true all-in target `myBet+myStack` — never bare `myStack`.
+  ⚠ **`applyAction`'s min-raise floor is a legality backstop, never the sizer.**
+  Two historical collapse points prove why: a `Math.max(6, …)` open floor made
+  every open "raises to 6", and letting the clamp catch under-min 3-bets snapped
+  every one to exactly 10. Uniform sizing was the single most-cited judge tell.
+  Any policy size that lands below the legal minimum silently hands sizing
+  control back to the engine — invisible to a local code reader, which is why
+  `exp/t-exp.js` asserts zero emitted amounts were altered by the floor.
 - **Soft call/fold boundary**: the postflop step became a logistic in the
   equity margin with per-persona `callTemp` — bad calls and tight folds now
   happen at persona-tuned rates instead of never. NOT `clampFreq`'d (it is a
@@ -617,16 +699,32 @@ history live in `exp/ref/`). Four mechanisms, all dial-shaped:
   speaks fold language (emission-tested). Read mentions are occasional (35%,
   passive decisions only) and tiered by evidence (`unknown/lean/solid`),
   never raw counters. Text bans are enforced by an exhaustive static scan in
-  `exp/t-exp.js` that feeds each slot only its real call-site fields.
+  `exp/t-exp.js` that feeds each slot only its real call-site fields — so a
+  variant referencing a field its branch never passes renders a literal
+  `undefined` in the test instead of shipping. A **new slot** also needs a
+  `FIELDS` entry there or the gate fails with "unmapped slot".
+  ⚠ The banned patterns are `/roll/i`, `/\d+ of \d+/`, `/% of the time/i`,
+  `/\bbranch\b/i`, `/\bhero\b/i`, `/Math\./`. Two are traps for poker-literate
+  writers: "hero call" is normal jargon and "on a roll" is the obvious heater
+  line. And because VOICE sits inside t3's scanned slice, a phrase containing
+  "hero" fails **t3** with *"decision code contains no reference to you"* —
+  which reads like a fairness breach but is a phrase-bank typo.
   ⚠ `say()` is declared once, deliberately: a duplicate declaration shadowed
   it for three commits (hoisting), silently killing a third of the bank.
 - **Mood** (`moodStep`/`moodDials`): one decaying scalar per bot driven ONLY
   by its own chip swings (public info; decay ×0.75/hand, ±25BB ≈ ±0.4,
   clamped [-1,1]). One behavioral consumer — the per-hand effective dials at
   ctx build (the raw scalar also reaches ctx so voice can mutter about it,
-  but nothing else reads it). Tilt loosens entries and folding and inflates
-  sizing (caps 1.35/1.3/1.2); rush widens entry (`limp`) only — a heater
+  but nothing else reads it). Tilt widens entries (`limp` ×, cap 1.35),
+  loosens folding (`fold` ÷, cap 1.35), raises aggression (`bet` ×, cap 1.30)
+  and inflates sizing (`size` ×, cap 1.20); `limp` is additionally hard-capped
+  at 0.6 absolute. Rush widens entry (`limp`) only — a heater
   makes you play more hands, it does not make you call down worse.
+  The expected-value table that gates `moodStep` (`exp/t-exp.js` §3f) is
+  **hand-computed from the constants** and deliberately not derived from the
+  code — if you retune the decay or scale, re-derive those four numbers by
+  hand; pasting them out of a run turns the repo's one independent oracle
+  into an idempotency check.
   **`open` is never scaled — what counts as a premium range stays a stable,
   teachable concept, or the lesson moves whenever a bot runs bad.** Mood
   slips into voice as occasional mutters when |mood| ≥ 0.3.
@@ -674,7 +772,9 @@ see §10.
 ### UI
 
 - **Table reads** panel — strong labels after `READS_MIN_HANDS` (30); thinner “lean”
-  hints can appear earlier via `sampleTier` (`unknown` / `lean` / `solid`)
+  hints can appear earlier via `sampleTier` (`unknown` / `lean` / `solid`), but
+  need ≥ 12 hands **on that seat** and a non-`unknown` tier — a second gate that
+  is easy to miss when tuning `READS_MIN_HANDS`
 - **Seat pill + tip** — style tag on each seat; hover or tap opens a dossier
   (`playerBrief` / `readsLiveLine`: baked `blurb` + live rates with sample sizes).
   Tips shift for edge seats (`tip-left` / `tip-right` / `tip-below`) and raise
