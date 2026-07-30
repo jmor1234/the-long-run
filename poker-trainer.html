@@ -777,7 +777,8 @@ function botDecide(ctx){
           reason:say(style,'limpPass',{nm},draw())};
       }
       return {action: toCall>0?'fold':'check', pct, dbg:{openRoll, f},
-        reason:say(style,'foldWeak',{nm},draw())+moodTag()};
+        reason:(toCall>0 ? say(style,'foldWeak',{nm},draw())
+                        : say(style,'freeCheck',{nm},draw()))+moodTag()};
     }
 
     // facing a raise: continue with a tighter slice, plus a small bluff frequency.
@@ -891,12 +892,13 @@ nit:{
   bet:[d=>`${d.hand} here. I'll bet while I'm ahead of most.`, d=>`I have ${d.hand}. Small bet, keep it tidy.`, d=>`Betting ${d.hand} before the board gets scary.`],
   airBet:[d=>`Nothing much — but nobody's shown anything either. Small stab.`, d=>`I don't have it. Sometimes you bet anyway.`],
   semiBluff:[d=>`${d.draw} — a bet might just take it now.`, d=>`${d.draw}. Bet now, hit later.`],
-  check:[d=>`${d.hand}. No need to build a pot. Check.`, d=>`Checking. ${d.hand} doesn't want a big pot.`, d=>`Tap. Show me a cheap card.`],
+  check:[d=>`${d.hand}. No need to build a pot. Check.`, d=>`Checking — with ${d.hand} I don't want a big pot.`, d=>`Tap. Show me a cheap card.`],
   strongRaise:[d=>`This is what I sat here all night for. Raise.`, d=>`Now we raise. Finally.`],
   slowCall:[d=>`Big hand — I'll just call and keep the pot in hand.`, d=>`Calling. No sense chasing him off yet.`],
   bluffRaise:[d=>`${d.draw}, and he can fold better. Raise.`, d=>`${d.draw} plus a story. Raise.`],
   edgeCall:[d=>`About ${d.eff} percent with the price at ${d.need}. It's there. Call.`, d=>`The numbers say call. Barely. Fine.`, d=>`Close spot. The price is just about right.`],
   edgeFold:[d=>`${d.eff} percent against a price of ${d.need}? I don't pay that.`, d=>`Close, but close isn't good enough. Fold.`, d=>`Not quite the price. Away it goes.`],
+  freeCheck:[d=>`${d.nm} in the blind. Free look, nothing more.`, d=>`Checking my option. ${d.nm} earns nothing extra.`],
   tilt:[d=>` Still stewing over that last pot.`, d=>` This night is costing me.`],
   rush:[d=>` Cards are finally behaving.`, d=>` Small heater. Don't jinx it.`],
 },
@@ -921,6 +923,7 @@ solid:{
   bluffRaise:[d=>`${d.draw} — raising puts him in a hard spot.`, d=>`${d.draw}. Time to apply pressure.`],
   edgeCall:[d=>`Roughly ${d.eff} percent against ${d.need} needed. Call.`, d=>`Price is right, just barely. Call.`, d=>`Getting the odds by a hair. Call.`],
   edgeFold:[d=>`About ${d.eff} percent and I need ${d.need}. Fold.`, d=>`Not getting the price. Fold.`, d=>`The math says no. Fold.`],
+  freeCheck:[d=>`${d.nm} checks the option. Standard.`, d=>`Free flop with ${d.nm}. Fine by me.`],
   tilt:[d=>` That last pot is still bugging me.`, d=>` Rough stretch. Stay straight.`],
   rush:[d=>` Running well tonight.`, d=>` Good session so far.`],
 },
@@ -945,6 +948,7 @@ maniac:{
   bluffRaise:[d=>`${d.draw} and a story to tell. Raise.`, d=>`${d.draw}. Raise — make him sweat.`],
   edgeCall:[d=>`Whatever the math says, I'm not folding. Call.`, d=>`${d.eff} against ${d.need}? Close enough. Call.`, d=>`Call. Numbers are for nits.`],
   edgeFold:[d=>`Can't win them all. Fold.`, d=>`Even I need more than ${d.eff} percent here. Fold.`, d=>`Bah. Fold.`],
+  freeCheck:[d=>`${d.nm} for free? Sure, why not.`, d=>`Checking. Even I don't raise ${d.nm}. Usually.`],
   tilt:[d=>` That pot should've been mine.`, d=>` Somebody's paying for that last one.`],
   rush:[d=>` I literally can't lose tonight.`, d=>` The heater continues.`],
 },
@@ -960,7 +964,7 @@ selective:{
   spewCall:[d=>`A look with ${d.nm}. Information has a price.`, d=>`${d.nm} — paying for a read.`],
   bluff3bet:[d=>`${d.nm} — he opens too much for me to always have it. Raise.`, d=>`He won't expect it. Re-raise.`],
   outsideFold:[d=>`${d.nm} against a raise is a losing habit. Fold.`, d=>`${d.nm} — out. Waiting is free.`, d=>`Fold. My hand will come.`],
-  bet:[d=>`${d.hand} — now I punch. Bet.`, d=>`${d.hand}. This is why I waited. Bet.`, d=>`Betting ${d.hand}. On schedule.`],
+  bet:[d=>`${d.hand} — now I punch. Bet.`, d=>`Betting ${d.hand}. This is why I waited.`, d=>`Betting ${d.hand}. On schedule.`],
   airBet:[d=>`Nothing — but nobody else looks strong either. Stab.`, d=>`Empty hand, good moment. Bet.`],
   semiBluff:[d=>`${d.draw} — betting takes it now or makes it later.`, d=>`${d.draw}. Two ways to win. Bet.`],
   check:[d=>`${d.hand}. Nothing to attack yet. Check.`, d=>`Checking — the moment isn't right.`, d=>`Patience. Check.`],
@@ -969,6 +973,7 @@ selective:{
   bluffRaise:[d=>`${d.draw}, and he's weak. Take it away.`, d=>`${d.draw} — perfect cover for a raise.`],
   edgeCall:[d=>`${d.eff} percent against ${d.need} — thin, but it holds. Call.`, d=>`The price works. Call.`, d=>`Just enough equity to pay. Call.`],
   edgeFold:[d=>`${d.eff} against ${d.need} needed — the discipline pays here. Fold.`, d=>`Not quite there. Fold.`, d=>`Thin the wrong way. Fold.`],
+  freeCheck:[d=>`${d.nm}, free of charge. Check.`, d=>`No need to invest in ${d.nm}. Check.`],
   tilt:[d=>` That one stung more than it should.`, d=>` Recompose. The plan still works.`],
   rush:[d=>` The table is opening up nicely.`, d=>` Everything on time tonight.`],
 },
@@ -987,12 +992,13 @@ station:{
   bet:[d=>`${d.hand} — might as well bet it.`, d=>`${d.hand}! Betting.`, d=>`Chips in with ${d.hand}.`],
   airBet:[d=>`Got nothing... betting anyway. Feels right.`, d=>`No pair, no draw, no fear. Bet.`],
   semiBluff:[d=>`${d.draw} — so many cards can save me. Bet.`, d=>`${d.draw}! One of those always comes. Bet.`],
-  check:[d=>`${d.hand}. Free card sounds good.`, d=>`Checking. Let's see the next one first.`, d=>`Tap tap. Next card please.`],
+  check:[d=>`With ${d.hand}, a free card sounds good.`, d=>`Checking. Let's see the next one first.`, d=>`Tap tap. Next card please.`],
   strongRaise:[d=>`Finally! Raise!`, d=>`A real hand! Raise!`],
   slowCall:[d=>`Calling, calling, always calling.`, d=>`Big hand, same move: call.`],
   bluffRaise:[d=>`${d.draw} and a feeling. Raise.`, d=>`${d.draw}! Raising on hope.`],
   edgeCall:[d=>`The price is close enough for me. Call.`, d=>`${d.eff} percent? That can come in. Call.`, d=>`My cards, my call.`],
   edgeFold:[d=>`${d.eff} against ${d.need}... even I can't call that.`, d=>`That's too expensive even for me. Fold.`, d=>`Wow, okay, fold.`],
+  freeCheck:[d=>`Free flop! ${d.nm} checks.`, d=>`${d.nm} rides along for free.`],
   tilt:[d=>` I was supposed to win that last one.`, d=>` My luck has to turn soon.`],
   rush:[d=>` Everything's hitting tonight!`, d=>` What a run!`],
 },
@@ -1000,7 +1006,8 @@ station:{
 function say(style, slot, d, v){
   const bank=(VOICE[style.tag]||VOICE.solid)[slot];
   const t=bank[Math.min(bank.length-1, Math.floor(v*bank.length))];
-  return t(d);
+  const txt=t(d);
+  return txt.charAt(0).toUpperCase()+txt.slice(1);
 }
 
 /* ---- MOOD ---------------------------------------------------------------
