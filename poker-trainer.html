@@ -1484,59 +1484,76 @@ function buildPots(){
   const levels=[...new Set(S.players.filter(p=>p.invested>0).map(p=>p.invested))].sort((a,b)=>a-b);
   const pots=[]; let prev=0;
   for(const lvl of levels){
-    let amount=0; const elig=[];
+    let amount=0; const elig=[], contributors=[];
     for(const p of S.players){
       amount += Math.min(p.invested,lvl) - Math.min(p.invested,prev);
-      if(p.invested>=lvl && !p.folded) elig.push(p);
+      if(p.invested>=lvl){
+        contributors.push(p);
+        if(!p.folded) elig.push(p);
+      }
     }
-    if(amount>0) pots.push({amount,elig});
+    if(amount>0) pots.push({amount,elig,contributors});
     prev=lvl;
   }
   return pots;
 }
 
 function endHand(){
+  const pots=buildPots();
+  if(pots.reduce((sum,pot)=>sum+pot.amount,0)!==S.pot)
+    throw new Error('settlement: pot does not match invested chips');
+  if(pots.some(pot=>!pot.elig.length))
+    throw new Error('settlement: pot layer has no eligible player');
+
   S.done=true;
   clearActions();
   const alive=activePlayers();
   const results=[];
-
-  if(alive.length===1){
-    alive[0].stack += S.pot;
-    results.push({p:alive[0], amt:S.pot, desc:'everyone folded'});
-    logLine('win', `${alive[0].name} wins ${S.pot} (uncontested)`);
-  } else {
+  let evals=null;
+  if(alive.length>1){
     while(S.board.length<5) S.board.push(S.deck.pop());
-    const evals=new Map();
+    evals=new Map();
     for(const p of alive) evals.set(p, evaluate([...p.cards,...S.board]));
-    const tally=new Map();   // player -> chips won, so split pots read as one line
-    for(const pot of buildPots()){
-      if(!pot.elig.length) continue;
-      if(pot.elig.length===1){
-        // nobody could match this much; it was never live money
-        const w=pot.elig[0];
-        w.stack+=pot.amount;
-        results.push({p:w, amt:pot.amount, desc:'uncalled — returned to you', refund:true});
-        logLine('win', `${w.name} gets back ${pot.amount} (uncalled bet, nobody could match it)`);
-        continue;
-      }
+  }
+
+  const tally=new Map();   // player -> matched chips won across main and side pots
+  for(const pot of pots){
+    if(pot.contributors.length===1){
+      const w=pot.contributors[0];
+      w.stack+=pot.amount;
+      results.push({p:w, amt:pot.amount, desc:'uncalled bet', refund:true});
+      logLine('win', `${w.name} gets back ${pot.amount} (uncalled bet, nobody could match it)`);
+      continue;
+    }
+
+    let winners;
+    if(pot.elig.length===1){
+      winners=pot.elig;
+    } else {
       let best=null;
       for(const p of pot.elig){ if(!best||cmpHand(evals.get(p),evals.get(best))>0) best=p; }
-      const winners=pot.elig.filter(p=>cmpHand(evals.get(p),evals.get(best))===0)
-        .sort((a,b)=>((a.idx-S.btnPos+S.n)%S.n)-((b.idx-S.btnPos+S.n)%S.n));  // odd chip goes left of the button
-      const share=Math.floor(pot.amount/winners.length);
-      let rem=pot.amount-share*winners.length;
-      for(const w of winners){
-        const amt=share+(rem>0?1:0);
-        if(rem>0) rem--;
-        w.stack+=amt;
-        tally.set(w,(tally.get(w)||0)+amt);
-      }
+      winners=pot.elig.filter(p=>cmpHand(evals.get(p),evals.get(best))===0);
     }
-    for(const [w,amt] of tally){
-      results.push({p:w, amt, desc:CAT_NAME[evals.get(w).cat]});
-      logLine('win', `${w.name} wins ${amt} with ${CAT_NAME[evals.get(w).cat]}`);
+    winners.sort((a,b)=>{
+      const da=(a.idx-S.btnPos+S.n)%S.n || S.n;
+      const db=(b.idx-S.btnPos+S.n)%S.n || S.n;
+      return da-db;
+    });
+    const share=Math.floor(pot.amount/winners.length);
+    let rem=pot.amount-share*winners.length;
+    for(const w of winners){
+      const amt=share+(rem>0?1:0);
+      if(rem>0) rem--;
+      w.stack+=amt;
+      tally.set(w,(tally.get(w)||0)+amt);
     }
+  }
+  for(const [w,amt] of tally){
+    const desc=evals?CAT_NAME[evals.get(w).cat]:'everyone folded';
+    results.push({p:w,amt,desc});
+    logLine('win', evals
+      ? `${w.name} wins ${amt} with ${desc}`
+      : `${w.name} wins ${amt} (uncontested)`);
   }
 
   for(const p of S.players){
@@ -1858,7 +1875,9 @@ function buildExport(results){
   for(const d of S.decisions) out+=`  [${d.street}] ${d.name} ${d.action} — ${d.reason}\n`;
   out+=`\nSHOWDOWN\n`;
   for(const p of S.players.filter(p=>!p.folded)) out+=`  ${p.name}: ${handStr(p.cards)}\n`;
-  for(const r of results) out+=`  → ${r.p.name} won ${r.amt} (${r.desc})\n`;
+  for(const r of results) out+=r.refund
+    ? `  → ${r.p.name} had ${r.amt} returned (${r.desc})\n`
+    : `  → ${r.p.name} won ${r.amt} (${r.desc})\n`;
   out+=`\nSESSION SO FAR: ${session.hands} hands, ${(session.net>0?'+':'')+session.net.toFixed(1)} bb, VPIP ${Math.round(session.vpip/Math.max(1,session.hands)*100)}%\n`;
   out+='\n'+readsSnapshot();
   return out;

@@ -173,6 +173,7 @@ for(const [label,amount] of [['under',17],['over',103],['missing',undefined],
     x.folded=true; x.allIn=false; x.bet=0; x.invested=0; x.stack=200;
     x.acted=false; x.actedAtBet=0; x.lastAct='';
   });
+  S.pot=0;
   for(const x of [a,b,c]) x.folded=false;
   const play=(p,d)=>{
     S.toAct=p.idx;

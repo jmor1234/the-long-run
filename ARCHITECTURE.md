@@ -217,24 +217,22 @@ Note: the static ban list is narrow — do not reach for `roster` or other globa
 Effective frequencies for mixed actions are `clampFreq`'d into `[0.05, 0.95]`.
 A true zero (e.g. never open this trash hand) stays zero — we do not invent a 5% open.
 
-### 3.2 Chips are conserved exactly — **tested (`t2.js`, `t6.js`)**
+### 3.2 Chips are conserved exactly — **tested (`t2.js`, `t6.js`, `t-settlement.js`)**
 
 Six players × 200 = **1200 chips, forever.** Nobody rebuys. `t2.js` and `t6.js`
 assert the table total never drifts.
 
-Historical bug worth knowing: split pots used `Math.floor` and silently destroyed the odd
-chip. The intended rule is to award remainders starting with the eligible player nearest
-the button's left. The current sort puts a tied button first, so that ordering still needs
-a focused fix and an independent award test (§10).
+Historical bug worth knowing: split pots once used `Math.floor` and silently destroyed the
+odd chip. Remainders now start with the tied winner nearest the button's left, with a tied
+button last. `t-settlement.js` locks the exact 2-to-1 award from a three-chip tied pot.
 
-### 3.3 An uncalled bet is a refund, not a win — **design intent (no dedicated test)**
+### 3.3 An uncalled bet is a refund, not a win — **tested (`t-settlement.js`)**
 
-If you bet 78 into someone with 73, the extra 5 forms an unmatched layer and must be
-returned. It must not fall through to the "wins with a full house" path because it was
-never live money. The current `endHand` proxy, `pot.elig.length === 1`, is broader than
-that rule: a layer can have one showdown-eligible player while also containing matched
-chips from someone who later folded. Allocation remains correct, but the whole layer is
-then mislabeled as a refund (§10).
+If you bet 78 into someone with 73, the extra 5 forms an unmatched layer and is returned.
+It was never live money. `buildPots` carries both `contributors` and showdown `elig` for
+each layer: exactly one contributor means refund; multiple contributors with one eligible
+player means matched folded money and is awarded as a win. Fold endings and showdowns use
+that same rule. Logs, review copy, and saved hand histories preserve the distinction.
 
 ### 3.4 Frequencies, never rules — **design intent (no `t4.js` in-repo)**
 
@@ -436,10 +434,13 @@ bounds and zero-mutation rejection checks; `audit.js` retains the original regre
 
 1. Collect distinct investment levels, ascending
 2. For each level, sum every player's contribution *within that band*
-3. Eligible = invested ≥ that level **and** not folded
+3. Contributors = invested ≥ that level
+4. Eligible = contributor **and** not folded
 
-Sum of all pot amounts always equals total invested, which is why conservation holds.
-Folded players still contribute chips to lower layers — that is correct.
+Before any settlement mutation, `endHand` verifies that layer amounts equal `S.pot` and
+every layer has an eligible player. Invalid state throws before `S.done`, stacks, logs, or
+session records change. Folded players still contribute chips to matched layers — that is
+correct.
 
 ---
 
@@ -535,6 +536,7 @@ first.**
 | `t-harness.js` | source-transform guards: current source builds, missing/duplicated anchors throw, bootstrap stays inert until explicitly started, hero and bot hooks execute |
 | `t-policy.js` | Policy A source hash + exact dispatcher lock; seeded direct-vs-dispatched traces include actions, reasons, RNG draws, deals, logs, stacks, reads, mood, and session state |
 | `t-legal.js` | independent legal-action oracle: effective calls, exact min/max bet-to bounds, short and cumulative all-ins, raise rights, stale revisions, malformed input, and byte-identical state on rejection |
+| `t-settlement.js` | independent literal pot-award oracle against real `endHand`: fold/showdown refunds, matched folded money, main/side recipients, odd chips, review/export wording, conservation, and mutation-free invalid-state guards |
 | `t1b.js` | the **hand evaluator** (`evaluate`/`cmpHand`) vs hand-verified draw maths, via its own head-to-head Monte Carlo. ⚠ Despite the name it does **not** touch `equity()`, `betLikelihood()` or `strengthVsRandom()` — see the coverage gap below. It also bypasses `harness.js` and slices the source itself between `const SUITS` and `function drawInfo`; don't rename or reorder those |
 | `t2.js` | 3000 hands: no hangs, no negative stacks, pot = money in; winner check is a narrow log heuristic, not a full pot-award oracle |
 | `t3.js` | fairness — static scan + Proxy trap on **all other seats**, ctx leak check, control |
@@ -601,10 +603,6 @@ full house). Verify by hand before "correcting" them.
 
 ### Confirmed implementation gaps, not design decisions
 
-- **Settlement semantics:** the odd-chip sort can award the first remainder to the
-  button instead of starting left of it, and `elig.length === 1` can label matched dead
-  money as an uncalled refund (§3.2-3.3). Conservation still holds; exact recipient,
-  layer, remainder, and label behavior lack an independent pot-award oracle.
 - **Short-stack decisions:** the policy and teaching strip use the full `toCall` and
   undifferentiated pot even when a player cannot match the wager. Unmatched excess will
   later be returned, so the displayed pot odds and the bot's call boundary can be wrong.
@@ -700,7 +698,7 @@ gated on evidence that it's worth the complexity (blind-panel score, or your own
 | A no-repeat phrase ring | Humans repeat themselves; two independent designs refused it. Fix bank *depth* instead |
 | Tracery-style grammars, Perlin noise, an N×N grudge matrix, mid-session style mutation, showdown-derived state, decision-latency simulation | All considered during the humanize design and cut as complexity that no measurement asked for. A single grudge/nemesis slot was unanimous across all three designs and still deliberately not built — it had no defined behavioral consumer |
 | Profiles menu, cross-session persistence, `localStorage` | §0 — sandbox failures plus clean-slate sessions |
-| Wholesale pot/side-pot rewrite | The layered structure conserves chips and should remain. Fix recipient, remainder, and refund-label gaps surgically, backed by an independent pot-award oracle (§3.2-3.3, §10) |
+| Wholesale pot/side-pot rewrite | Rejected. The existing layered structure was retained; contributor metadata plus the independent award oracle fixed recipient, remainder, and refund semantics surgically (§3.2-3.3, §7) |
 
 ---
 

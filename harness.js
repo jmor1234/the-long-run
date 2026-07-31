@@ -12,7 +12,7 @@ function buildSrc(htmlText){
     'const _botDecide=function(ctx){ return botPolicyV1(ctx); };\nconst botDecide=function(ctx){ BOTFLAG(true); SETCTX(ctx); try{ return _botDecide(ctx); } finally { BOTFLAG(false); } };',
     'botDecide wrap');
   src=stripEngineBootstrap(src);
-  src+='\nreturn {newHand, newSession, get roster(){return roster}, botDecide, pctOf, strengthVsRandom, openThreshold, posName, behindCount, get S(){return S}, get session(){return session}, legalActionView, policyActionForView, applyAction, nextToAct, step, renderActions, buildPots, evaluate, cmpHand, handStr, START, BB, SB, clampFreq, freshReads, shrinkReads, readLabel, BOT_STYLES, sampleTier};';
+  src+='\nreturn {newHand, newSession, get roster(){return roster}, botDecide, pctOf, strengthVsRandom, openThreshold, posName, behindCount, get S(){return S}, get session(){return session}, legalActionView, policyActionForView, applyAction, nextToAct, step, renderActions, buildPots, endHand, evaluate, cmpHand, handStr, START, BB, SB, clampFreq, freshReads, shrinkReads, readLabel, BOT_STYLES, sampleTier};';
   return src;
 }
 
