@@ -124,7 +124,7 @@ span. Put it above or below and it is silently unscanned.
 | Path | Role |
 |---|---|
 | `poker-trainer.html` | the app — the only file that ships |
-| `harness.js` / `t*.js` / `audit.js` | Node test suite for the shipped app |
+| `harness.js` / `harness-transform.js` / `t*.js` / `audit.js` | Node test suite for the shipped app; shared harness transforms must match exactly once |
 | `run-all.sh` | runs every suite **and** the two locks; exits nonzero on any failure; rewrites disposable `exp/out/` artifacts |
 | `exp/` | measurement toolkit (see below) — never deployed (`.vercelignore`) |
 | `vercel.json` | `/` → `poker-trainer.html` |
@@ -496,19 +496,20 @@ replacements, and evaluates it as a function with a fake DOM:
 3. strips the bootstrap call so tests control when a session starts
 
 ⚠ **The transforms are string matches against the app source.** Keep the literal
-`function botDecide(ctx){` declaration line unchanged — if that wrap fails, harness
-**throws**. Renames of `renderActions` → `HERO_ACT` or the bootstrap strip
-(`updateSession();` + `newHand`/`newSession`) still **fail silently** and tests will
-behave strangely rather than failing loudly. This actually happened: renaming
-`newHand()` to `newSession()` at the bootstrap made the harness run a phantom session
-whose leftover callbacks bled into later ones, producing a fake chip-conservation
-failure that took four diagnostics to trace. **If a test result looks impossible,
-suspect the harness first.**
+`function botDecide(ctx){` declaration line unchanged. `harness-transform.js`
+requires every anchor to match exactly once, so a missing or duplicated hero hook,
+bot wrapper, bootstrap strip, RNG stream hook, or experiment ctx extension throws
+before the engine runs. `t-harness.js` proves the root harness fails closed and that
+its injected hooks execute. This guard exists because a bootstrap rename once made
+the harness run a phantom session whose leftover callbacks produced a fake
+chip-conservation failure. **If a test result looks impossible, suspect the harness
+first.**
 
 ### Suites
 
 | File | Covers |
 |---|---|
+| `t-harness.js` | source-transform guards: current source builds, missing/duplicated anchors throw, bootstrap stays inert until explicitly started, hero and bot hooks execute |
 | `t1b.js` | the **hand evaluator** (`evaluate`/`cmpHand`) vs hand-verified draw maths, via its own head-to-head Monte Carlo. ⚠ Despite the name it does **not** touch `equity()`, `betLikelihood()` or `strengthVsRandom()` — see the coverage gap below. It also bypasses `harness.js` and slices the source itself between `const SUITS` and `function drawInfo`; don't rename or reorder those |
 | `t2.js` | 3000 hands: no hangs, no negative stacks, pot = money in; winner check is a narrow log heuristic, not a full pot-award oracle |
 | `t3.js` | fairness — static scan + Proxy trap on **all other seats**, ctx leak check, control |

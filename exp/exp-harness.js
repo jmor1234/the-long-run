@@ -11,6 +11,7 @@
 const fs=require('fs');
 const path=require('path');
 const {stream}=require('./prng');
+const {replaceExactlyOnce,extractEngineSource,stripEngineBootstrap}=require('../harness-transform');
 
 const DEFAULT_HTML=path.join(__dirname,'..','poker-trainer.html');
 // Single source for the expected Math.random() site count (t-exp reads this
@@ -22,39 +23,33 @@ const DEFAULT_HTML=path.join(__dirname,'..','poker-trainer.html');
 const EXPECTED_RAND_SITES=4;
 
 // Every rewrite must actually land; silent no-ops corrupt results (see ARCHITECTURE §9).
-function mustReplace(src, from, to, label){
-  const out=src.replace(from, to);
-  if(out===src) throw new Error('exp-harness: rewrite failed: '+label);
-  return out;
-}
-
 const srcCache=new Map();
 function buildSrc(htmlPath, expectedSites){
   const key=htmlPath+'|'+expectedSites;
   if(srcCache.has(key)) return srcCache.get(key);
   const html=fs.readFileSync(htmlPath,'utf8');
-  let src=html.match(/<script>\n"use strict";([\s\S]*?)<\/script>/)[1];
-  src=mustReplace(src, 'if(p.isHero){ renderActions(); return; }',
-    'if(p.isHero){ HERO_ACT(); return; }', 'hero hook');
-  src=mustReplace(src, 'function botDecide(ctx){',
+  let src=extractEngineSource(html, 'exp-harness');
+  src=replaceExactlyOnce(src, 'if(p.isHero){ renderActions(); return; }',
+    'if(p.isHero){ HERO_ACT(); return; }', 'hero hook', 'exp-harness');
+  src=replaceExactlyOnce(src, 'function botDecide(ctx){',
     'function botDecide(ctx){ return __DECIDE(ctx, _botDecide); }\nfunction _botDecide(ctx){',
-    'botDecide wrap');
-  src=mustReplace(src, /updateSession\(\);\s*new(Hand|Session)\(\);\s*$/, '', 'bootstrap strip');
-  src=mustReplace(src, 'function newSession(){', 'function newSession(){ __STREAM("session");',
-    'newSession stream hook');
-  src=mustReplace(src, 'function newHand(){', 'function newHand(){ __STREAM("deal");',
-    'newHand stream hook');
+    'botDecide wrap', 'exp-harness');
+  src=stripEngineBootstrap(src, 'exp-harness');
+  src=replaceExactlyOnce(src, 'function newSession(){', 'function newSession(){ __STREAM("session");',
+    'newSession stream hook', 'exp-harness');
+  src=replaceExactlyOnce(src, 'function newHand(){', 'function newHand(){ __STREAM("deal");',
+    'newHand stream hook', 'exp-harness');
   // Extend ctx with the public betting state the legality normalizer needs.
   // Two anchor generations: post-all-in-cap files carry myBet themselves;
   // older builds (cross-version A/B arms) need it injected.
   if(src.includes('streetBets:S.streetBets||0, myBet:p.bet,')){
-    src=mustReplace(src, 'streetBets:S.streetBets||0, myBet:p.bet,',
+    src=replaceExactlyOnce(src, 'streetBets:S.streetBets||0, myBet:p.bet,',
       'streetBets:S.streetBets||0, myBet:p.bet, currentBet:S.currentBet, minRaise:S.minRaise,',
-      'ctx betting-state extension');
+      'ctx betting-state extension', 'exp-harness');
   } else {
-    src=mustReplace(src, 'streetBets:S.streetBets||0,',
+    src=replaceExactlyOnce(src, 'streetBets:S.streetBets||0,',
       'streetBets:S.streetBets||0, currentBet:S.currentBet, minRaise:S.minRaise, myBet:p.bet,',
-      'ctx betting-state extension (legacy)');
+      'ctx betting-state extension (legacy)', 'exp-harness');
   }
 
   // Route all engine randomness through the injected generator.
