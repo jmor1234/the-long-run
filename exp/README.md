@@ -13,12 +13,13 @@ node exp/run-ab.js --seed <fresh>                 # full transcripts (play + sta
 ```
 
 The old arm is genuinely the old engine, not a memory: `run-ab.js` git-shows a
-commitish (default `8f0bada`, the last pre-humanize build) into `exp/out/` and
+commitish (default `8f0bada`, the frozen pre-humanize engine anchor) into `exp/out/` and
 loads it through `exp-harness`'s `htmlPath` + `expectedRandSites`. That constant
 is load-bearing — it is also the readability lock's reference and the `old` arm of
-every archived panel.
+every archived panel. Later experiment-only commits preceded the first humanize engine
+change, but their `poker-trainer.html` blob is identical to this anchor.
 
-then run the protocol frozen in [ref/feel-panel.md](ref/feel-panel.md) — judges get ONE
+Then run the protocol frozen in [ref/feel-panel.md](ref/feel-panel.md) — judges get ONE
 block file each and never repo access (`ref/` holds the answer key and every prior
 verdict; a judge who has seen it is burned).
 
@@ -51,6 +52,11 @@ Key design calls, with independent-assessment findings folded in:
   counted separately and excluded from it.
 
 **Live tooling** — used by `run-all.sh` or by anyone re-measuring the bots:
+
+⚠ `run-all.sh` is not read-only. `t-exp.js` removes and recreates test directories, and
+the probe and label locks overwrite their matching files under `exp/out/`. Those outputs
+are disposable and gitignored, but run the suite only when replacing scratch state is
+acceptable.
 
 | File | Role |
 |---|---|

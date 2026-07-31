@@ -58,7 +58,7 @@ reads** model — not LLMs, not GTO solvers.
 ### Quick verify after changes
 
 ```bash
-bash run-all.sh    # any BUG/FAIL line = regression
+bash run-all.sh    # full suite; writes disposable artifacts under exp/out/
 node t3.js         # always after touching botDecide or its ctx
 ```
 
@@ -125,7 +125,7 @@ span. Put it above or below and it is silently unscanned.
 |---|---|
 | `poker-trainer.html` | the app — the only file that ships |
 | `harness.js` / `t*.js` / `audit.js` | Node test suite for the shipped app |
-| `run-all.sh` | runs every suite **and** the two locks; exits nonzero on any failure |
+| `run-all.sh` | runs every suite **and** the two locks; exits nonzero on any failure; rewrites disposable `exp/out/` artifacts |
 | `exp/` | measurement toolkit (see below) — never deployed (`.vercelignore`) |
 | `vercel.json` | `/` → `poker-trainer.html` |
 | `ARCHITECTURE.md` / `README.md` | handoff + how to run |
@@ -221,15 +221,18 @@ Six players × 200 = **1200 chips, forever.** Nobody rebuys. `t2.js` and `t6.js`
 assert the table total never drifts.
 
 Historical bug worth knowing: split pots used `Math.floor` and silently destroyed the odd
-chip. Fixed by awarding remainders to the player nearest the button's left, which is the
-real cardroom rule.
+chip. The intended rule is to award remainders starting with the eligible player nearest
+the button's left. The current sort puts a tied button first, so that ordering still needs
+a focused fix and an independent award test (§10).
 
 ### 3.3 An uncalled bet is a refund, not a win — **design intent (no dedicated test)**
 
-If you bet 78 into someone with 73, the extra 5 forms a pot with exactly one eligible
-player. `endHand` detects `pot.elig.length === 1` and returns it, labelled as a refund.
-Do not let it fall through to the "wins with a full house" path — it's the player's own
-money coming back.
+If you bet 78 into someone with 73, the extra 5 forms an unmatched layer and must be
+returned. It must not fall through to the "wins with a full house" path because it was
+never live money. The current `endHand` proxy, `pot.elig.length === 1`, is broader than
+that rule: a layer can have one showdown-eligible player while also containing matched
+chips from someone who later folded. Allocation remains correct, but the whole layer is
+then mislabeled as a refund (§10).
 
 ### 3.4 Frequencies, never rules — **design intent (no `t4.js` in-repo)**
 
@@ -277,7 +280,8 @@ the table into a cash machine.
 
 ## 4. Hand evaluation
 
-`evaluate(cards)` takes **any number of cards ≥ 5** (usually 7) and returns:
+`evaluate(cards)` ranks a complete poker holding of **5 or more cards** (usually 7) and
+returns:
 
 ```js
 { cat: 0..8, tie: [descending tiebreakers] }
@@ -291,8 +295,9 @@ equity simulation.
 Edge cases that are **handled in code** (not covered by dedicated `evaluate` unit tests —
 `t1b` is equity Monte Carlo, `t2` is table integrity): the wheel (A-2-3-4-5, ace plays
 low), a wheel *flush* that is not a straight flush, a full house built from two sets of
-trips, exact ties splitting correctly. Call `evaluate` with ≥5 cards; shorter inputs are
-undefined.
+trips, exact ties splitting correctly. `betLikelihood()` also calls the same function on
+a 3- or 4-card board as a coarse partial-board category comparison. That internal use is
+a heuristic, not a complete poker-hand evaluation.
 
 `straightHigh(ranks)` appends a phantom rank-1 when an ace is present. Ranks are `2..14`.
 
@@ -381,9 +386,10 @@ advanceStreet: deal → reset bets → step()   (river → endHand)
 
 ## 6. ⚠ Incomplete raises
 
-An all-in for **less than a full raise** is not a raise. It does not reset `minRaise`, and
-it does **not** give players who already acted another turn. This is real poker law and
-it was a bug here until recently:
+An all-in for **less than a full raise** raises the price to call but does not reopen the
+right to raise for players who already acted. Those players still get another action if
+they owe chips, but their legal choices are call or fold. The engine correctly leaves
+`minRaise` unchanged and does not clear their `acted` flags:
 
 ```js
 const inc = p.bet - S.currentBet;
@@ -395,7 +401,9 @@ if (fullRaise) {                   // but only a legal raise reopens action
 }
 ```
 
-Covered by `audit.js`.
+`audit.js` covers those two facts. The engine does not yet model raise rights separately,
+so the betting loop can return a prior actor to the controls or policy and allow another
+raise. That is a confirmed implementation gap, not the intended rule (§10).
 
 ---
 
@@ -512,7 +520,8 @@ suspect the harness first.**
 
 All of the above run in `run-all.sh`, which exits nonzero on any suite failure
 or BUG/FAIL line (every suite sets a real exit code — added when it was
-discovered none did).
+discovered none did). It is not read-only: `exp/t-exp.js` removes and recreates test
+directories, and the two locks overwrite their matching scratch files under `exp/out/`.
 
 ⚠ **Where the gates are wired — green does not always mean enforced.** Three
 holes are by design and one is a real gap; know all four before trusting a
@@ -541,9 +550,10 @@ clean run:
 (`exp/exp-harness.js`: keyed RNG streams, `htmlPath` for cross-version A/B);
 the Math.random site count lives in ONE place, its `EXPECTED_RAND_SITES`
 export. Frozen evidence is tracked in `exp/ref/`. Two kinds, don't conflate them:
-**pre-humanize measurements** (baseline metrics/probes/labels, the original
-feel packet + key, the paid LLM pilot records) and **old-vs-new panel results**
-whose `new` arm is a humanize-arc commit (`feel-panel-ab1/ab2/bare/final.json`).
+**pre-humanize measurements** (baseline metrics/probes/labels, the feel key whose
+packet is regenerated on demand, and the paid LLM pilot records) and **old-vs-new
+panel results** whose `new` arm is a humanize-arc commit
+(`feel-panel-ab1/ab2/bare/final.json`).
 Either way it is history: new outputs are expected to diverge, never "fix" that.
 ⚠ Nothing enforces this — no test, no ignore rule, and every runner writes to
 `exp/out/` under the *same filename* as its `ref/` counterpart, so a careless copy
@@ -563,6 +573,35 @@ full house). Verify by hand before "correcting" them.
 
 ## 10. Known limitations
 
+### Confirmed implementation gaps, not design decisions
+
+- **Incomplete-raise action rights:** prior actors may call or fold the extra amount, but
+  the engine can currently offer another raise because it tracks `acted` and `minRaise`,
+  not whether raising was reopened (§6). The existing audit does not exercise the full
+  loop or the hero controls after the short all-in.
+- **Settlement semantics:** the odd-chip sort can award the first remainder to the
+  button instead of starting left of it, and `elig.length === 1` can label matched dead
+  money as an uncalled refund (§3.2-3.3). Conservation still holds; exact recipient,
+  layer, remainder, and label behavior lack an independent pot-award oracle.
+- **Short-stack decisions:** the policy and teaching strip use the full `toCall` and
+  undifferentiated pot even when a player cannot match the wager. Unmatched excess will
+  later be returned, so the displayed pot odds and the bot's call boundary can be wrong.
+  The hero's unconditional All in button also submits a `bet` when short of a call,
+  producing the right chip movement but the wrong action label and read counters.
+- **Equity heuristics:** the core `equity()` / `betLikelihood()` path remains uncovered.
+  Bot `strengthVsRandom()` already simulates the future runout, then the call boundary
+  adds flush- and straight-draw bonuses again. Aggression accumulated on earlier streets
+  is also re-evaluated against the current board. Treat the strip as a useful estimate,
+  not an exact oracle, until these paths have focused tests.
+- **Browser UX:** the decision strip is refreshed only when hero controls render, so old
+  guidance can remain during review or early in the next hand. Training-wheel switches
+  and seat dossiers are not keyboard controls, dynamic state has no live-region
+  semantics, and fixed seat/card sizing is not verified on narrow phones.
+
+Correctness gaps above take precedence over the product backlog in §11. Fix each as a
+small behavior increment with an independent oracle; do not rewrite the working state
+machine or pot layering wholesale.
+
 **Showdown cards are not in the reads model.** Reads update from public actions only
 (fold/call/bet/raise). Revealed hole cards at showdown are ignored in v1 so the
 action/card boundary stays clean for fairness tests.
@@ -577,8 +616,10 @@ postflop). It never widens, and it ignores board texture and bet sizing.
 refresh clears them. There is no profiles menu — bot *identity* is fixed seat styles
 baked at `newSession` (only mood drifts within a session).
 
-**The bots still read as bots.** Blind panels score them ~3/10 on "reads like a real
-person" against a target of 5. Two known causes: over a long session the finite phrase
+**The bots still read as bots.** The final archived action-only panel scored humanize
+commit `4c4f544` at 3.00/10 against a target of 5. That is historical evidence, not a
+literal measurement of current HEAD after the later correctness and voice fixes. Two
+known causes remain: over a long session the finite phrase
 banks repeat lines verbatim, and two seats of different personas are still more
 distinguishable than two different *people* would be. §12 has the full diagnosis —
 including why much of the measured gap is a property of the transcript format rather
@@ -637,7 +678,7 @@ gated on evidence that it's worth the complexity (blind-panel score, or your own
 | A no-repeat phrase ring | Humans repeat themselves; two independent designs refused it. Fix bank *depth* instead |
 | Tracery-style grammars, Perlin noise, an N×N grudge matrix, mid-session style mutation, showdown-derived state, decision-latency simulation | All considered during the humanize design and cut as complexity that no measurement asked for. A single grudge/nemesis slot was unanimous across all three designs and still deliberately not built — it had no defined behavioral consumer |
 | Profiles menu, cross-session persistence, `localStorage` | §0 — sandbox failures plus clean-slate sessions |
-| Rewriting pot/sidepot math | Works, tested, and the odd-chip rule is a real cardroom rule (§3.2) |
+| Wholesale pot/side-pot rewrite | The layered structure conserves chips and should remain. Fix recipient, remainder, and refund-label gaps surgically, backed by an independent pot-award oracle (§3.2-3.3, §10) |
 
 ---
 
@@ -759,10 +800,11 @@ guard-aware.
 
 **Outcome, stated plainly: the pre-registered bar (blind-panel mean ≥ 5.0)
 was NOT met.** The layer measurably improved every comparison — the final
-archived panel scores the current engine 3.00 against the pre-humanize
+archived panel scores humanize commit `4c4f544` at 3.00 against the pre-humanize
 engine's 2.13, and 15 of 16 shared-seed pairs across the four rounds improved
 (one regressed, in the action-only Fable round) — but judges still call it
-mechanical. Full numbers, judge verdicts, instrument
+mechanical. Later commits fixed correctness and voice issues, so 3.00 is not a
+measurement of current HEAD. Full numbers, judge verdicts, instrument
 history and the LLM-arm rejection: `exp/ref/feel-panel.md` and
 `exp/PLAN.md`. Diagnosis (not a pass): the surviving tells are properties
 of the transcript format used to measure — finite phrase banks repeat, and

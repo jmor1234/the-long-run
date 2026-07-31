@@ -36,7 +36,7 @@ preset **Other**, no build command, empty output directory.
 ## Test suite
 
 ```bash
-bash run-all.sh     # everything
+bash run-all.sh     # everything; rewrites disposable exp/out/ artifacts
 node t3.js          # fairness only — run this after touching botDecide
 ```
 
