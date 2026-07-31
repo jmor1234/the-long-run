@@ -501,6 +501,12 @@ board that actually existed at each decision. This matters across streets: apply
 flop bet again to the river board invents information the bettor did not have. Weighted
 scoring also avoids discarding almost every sample after a long aggressive line.
 
+Capped ranges precompute their eligible two-card combinations once per equity call.
+Multiway samples draw a complete tuple and reject the whole tuple when cards collide;
+resampling only the later seat would bias the result through blockers and descriptor
+order. Rejection is bounded, and an iteration is skipped if no compatible tuple is
+found. Fully uncapped ranges keep the direct shuffled-deal path.
+
 ⚠ Known imprecision: the in-browser version uses hand *categories* as a strength proxy
 rather than a nested simulation, for speed. It gets the decision right (25% vs 32% needed
 → fold) but understates how bad the spot is (truth ≈ 2%). Improving this means a faster
@@ -512,11 +518,11 @@ Cost is ~8ms per readout. Don't raise the iteration count without measuring.
 heads-up opponent combinations, turn runouts, exact weighting, and expected shares;
 production supplies only the scoring primitive after a compact literal evaluator
 contract checks every hand category, the wheel, two-trip full houses, and a board-only
-tie. Exact enumeration is deliberately heads-up only. Multiway growth is combinatorial,
-so the multiway invariant uses a royal-flush board where every legal deal must split
-one third. A second literal multiway fixture adds an AA-only opponent to prove the
-second descriptor is not dropped. Seeded Monte Carlo bands are fixed regression bounds,
-not confidence intervals.
+tie. General exact enumeration is deliberately heads-up only because multiway growth
+is combinatorial. Bounded three-way river fixtures independently enumerate constrained
+joint ranges; a royal-flush board still proves every legal three-way deal splits one
+third, and an AA-only opponent proves the second descriptor is not dropped. Seeded
+Monte Carlo bands are fixed regression bounds, not confidence intervals.
 
 ### 8.4 Short all-in prices use only contestable chips
 
@@ -597,7 +603,7 @@ first.**
 | `t-policy-b.js` | Policy B preflop delegation, chronological line effect, live legal price, no draw double-count, all-live-opponent use, layered fallback, hero evidence, and opt-in seeded execution |
 | `t-legal.js` | independent legal-action oracle: complete call-price snapshot, exact min/max bet-to bounds, short and cumulative all-ins, raise rights, stale revisions, malformed input, and byte-identical state on rejection |
 | `t-teaching.js` | literal call-price oracle: full and short calls, total-investment caps across streets, folded dead money, deeper side-pot layers, layered-verdict suppression, rendered copy, purity, and RNG alignment |
-| `t-equity.js` | literal evaluator contract + exact heads-up river/turn oracle, premium cap, chronological weighting, multiway inclusion and second-line weighting, purity, wrapper defaults, and live two-street range wiring |
+| `t-equity.js` | literal evaluator contract + exact heads-up river/turn oracle, capped heads-up and joint multiway sampling, chronological weighting, multiway inclusion and second-line weighting, purity, wrapper defaults, and live two-street range wiring |
 | `t-settlement.js` | independent literal pot-award oracle against real `endHand`: fold/showdown refunds, matched folded money, main/side recipients, odd chips, review/export wording, conservation, and mutation-free invalid-state guards |
 | `t1b.js` | five hand-verified heads-up draw estimates through `evaluate`/`cmpHand`, via its own unseeded Monte Carlo. Direct equity-pipeline coverage lives in `t-equity.js`. This suite bypasses `harness.js` and slices the source itself between `const SUITS` and `function drawInfo`; don't rename or reorder those |
 | `t2.js` | 3000 hands: no hangs, no negative stacks, pot = money in; winner check is a narrow log heuristic, not a full pot-award oracle |

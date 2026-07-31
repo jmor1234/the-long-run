@@ -410,8 +410,9 @@ function makeDeck(){
   for(const s of SUITS) for(let r=2;r<=14;r++) d.push({r,s});
   return d;
 }
+function randomIndex(n){ return Math.floor(Math.random()*n); }
 function shuffle(a){
-  for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}
+  for(let i=a.length-1;i>0;i--){const j=randomIndex(i+1);[a[i],a[j]]=[a[j],a[i]];}
   return a;
 }
 const cardStr = c => RANK_CH[c.r]+c.s;
@@ -542,29 +543,59 @@ function equity(mine, board, opps_, iters){
   iters = iters || 350;
   const used = new Set([...mine,...board].map(cardStr));
   const stub = makeDeck().filter(c=>!used.has(cardStr(c)));
+  if(tiers.length*2>stub.length) return 0.5;
+  const allUncapped=tiers.every(o=>o.cap>=100);
+  const combosByCap=new Map();
+  const combosFor=cap=>{
+    if(combosByCap.has(cap)) return combosByCap.get(cap);
+    const combos=[];
+    for(let i=0;i<stub.length-1;i++) for(let j=i+1;j<stub.length;j++){
+      const h=[stub[i],stub[j]];
+      if(pctOf(h)<=cap) combos.push(h);
+    }
+    combosByCap.set(cap,combos);
+    return combos;
+  };
+  const pools=allUncapped?null:tiers.map(o=>combosFor(o.cap));
+  if(pools && pools.some(pool=>!pool.length)) return 0.5;
+  const maxAssignmentTries=80;
   let score=0, totalWeight=0;
 
   for(let it=0; it<iters; it++){
-    const d = stub.slice();
-    shuffle(d);
-    let ptr=0, ok=true, weight=1;
-    const opps=[];
-    for(const o of tiers){
-      let found=null;
-      for(let t=0;t<40 && ptr+1<d.length;t++){
-        const h=[d[ptr],d[ptr+1]];
-        if(pctOf(h)<=o.cap){
-          found=h; ptr+=2;
-          for(const eventBoard of (o.bets||[]))
-            weight *= betLikelihood(h,eventBoard)/0.80;
-          break;
+    let d,ptr=0,opps;
+    if(allUncapped){
+      d=stub.slice();
+      shuffle(d);
+      opps=tiers.map(()=>[d[ptr++],d[ptr++]]);
+    }else{
+      opps=null;
+      // Draw every range independently, then reject the whole tuple on a
+      // collision. Resampling only the later seat would make blockers and
+      // descriptor order change the joint distribution.
+      for(let attempt=0;attempt<maxAssignmentTries && !opps;attempt++){
+        const candidate=pools.map(pool=>pool[randomIndex(pool.length)]);
+        const occupied=new Set();
+        let compatible=true;
+        for(const h of candidate){
+          if(occupied.has(h[0]) || occupied.has(h[1])){
+            compatible=false;
+            break;
+          }
+          occupied.add(h[0]);occupied.add(h[1]);
         }
-        d.push(d.splice(ptr,1)[0]);
+        if(compatible) opps=candidate;
       }
-      if(!found){ ok=false; break; }
-      opps.push(found);
+      if(!opps) continue;
+      const occupied=new Set(opps.flat());
+      d=stub.filter(c=>!occupied.has(c));
+      shuffle(d);
     }
-    if(!ok) continue;
+
+    let weight=1;
+    for(let i=0;i<tiers.length;i++){
+      for(const eventBoard of (tiers[i].bets||[]))
+        weight *= betLikelihood(opps[i],eventBoard)/0.80;
+    }
     const runout=[];
     while(board.length+runout.length<5 && ptr<d.length) runout.push(d[ptr++]);
     const full=[...board,...runout];

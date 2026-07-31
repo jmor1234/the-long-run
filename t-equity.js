@@ -149,6 +149,41 @@ if(typeof G.equity!=='function' || typeof G.betLikelihood!=='function'){
   chk('literal top-half-percent cap samples only aces',premiumExact===0 && premiumGot===0,
     `got ${(premiumGot*100).toFixed(1)}%`);
 
+  const cappedMine=P('Qc Ks'), cappedBoard=P('3d Th 8c Qs Ad');
+  const cap28=hole=>G.pctOf(hole)<=28, cap50=hole=>G.pctOf(hole)<=50,
+    cap5=hole=>G.pctOf(hole)<=5;
+  const cappedExact=exactHeadsUp(cappedMine,cappedBoard,{range:cap28});
+  const cappedGot=seeded('river-cap-28',()=>G.equity(cappedMine,cappedBoard,
+    [{cap:28,bets:[]}],30000));
+  chk('mid-capped river equity matches exact eligible-combination enumeration',
+    close(cappedGot,cappedExact,0.012),
+    `got ${(cappedGot*100).toFixed(2)}%, exact ${(cappedExact*100).toFixed(2)}%`);
+
+  const unitWeight=()=>1;
+  const jointExact=exactThreeWayRiver(cappedMine,cappedBoard,[
+    {range:cap50,weight:unitWeight},{range:cap5,weight:unitWeight}
+  ]);
+  const jointReverseExact=exactThreeWayRiver(cappedMine,cappedBoard,[
+    {range:cap5,weight:unitWeight},{range:cap50,weight:unitWeight}
+  ]);
+  const jointGot=seeded('river-joint-caps',()=>G.equity(cappedMine,cappedBoard,
+    [{cap:50,bets:[]},{cap:5,bets:[]}],50000));
+  const jointReverseGot=seeded('river-joint-caps-reverse',()=>G.equity(cappedMine,cappedBoard,
+    [{cap:5,bets:[]},{cap:50,bets:[]}],50000));
+  chk('capped three-way equity matches the exact joint distribution in either order',
+    close(jointGot,jointExact,0.006) &&
+    close(jointReverseGot,jointReverseExact,0.006) &&
+    close(jointExact,jointReverseExact),
+    `forward ${(jointGot*100).toFixed(2)}%, reverse ${(jointReverseGot*100).toFixed(2)}%, `+
+    `exact ${(jointExact*100).toFixed(2)}%`);
+
+  const impossible=seeded('impossible-aa-tuple',()=>G.equity(P('Kc Qd'),P('2c 7h 9s Td 3c'),
+    [{cap:0.5,bets:[]},{cap:0.5,bets:[]},{cap:0.5,bets:[]}],100));
+  chk('incompatible capped ranges terminate with the no-valid-sample fallback',impossible===0.5);
+  const overfull=G.equity(P('2c 3d'),royal,
+    Array.from({length:23},()=>({cap:100,bets:[]})),1);
+  chk('too many uncapped opponents return the no-valid-sample fallback',overfull===0.5);
+
   const aggrMine=P('Ac Kd'), aggrBoard=P('Qs 9h 7h 4c 2s');
   const line=[aggrBoard.slice(0,3),aggrBoard.slice(0,4)];
   const aggrExact=exactHeadsUp(aggrMine,aggrBoard,{
