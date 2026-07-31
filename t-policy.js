@@ -34,8 +34,8 @@ chk('dispatcher is only the Policy A delegation',
 chk('dispatcher has one immutable binding and one game call',
   (html.match(/\bbotDecide\b/g)||[]).length===2 &&
   (html.match(/const botDecide=/g)||[]).length===1);
-chk('Policy A has one immutable binding and one dispatcher reference',
-  (html.match(/\bbotPolicyV1\b/g)||[]).length===2 &&
+chk('Policy A has one immutable binding and four explicit callers',
+  (html.match(/\bbotPolicyV1\b/g)||[]).length===5 &&
   (html.match(/const botPolicyV1=/g)||[]).length===1);
 chk('Policy A source matches the 15dbbb4 baseline',
   policyHash==='8f48ffd3eeefa1026d6fc5fc756508a2ccae4d84a4b2938dcb6ceea1ae48d6ae',

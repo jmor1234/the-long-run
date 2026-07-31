@@ -39,6 +39,9 @@ const rejectsUnchanged=(f,d,code,seq)=>{
   chk('view exposes literal call and raise bounds',v.ok && v.toCall===10 &&
     v.effectiveCall===10 && v.aggressive.action==='raise' &&
     v.aggressive.minBetTo===18 && v.aggressive.maxBetTo===102);
+  chk('view exposes the exact engine-owned call-price snapshot',
+    v.contestablePot===14 && v.excludedPot===0 && v.finalPot===24 &&
+    v.need===10/24 && v.layeredEquity===false);
   chk('view exposes exactly fold, call, raise',
     v.actions.map(x=>x.action).join(',')==='fold,call,raise');
 }
@@ -46,7 +49,9 @@ const rejectsUnchanged=(f,d,code,seq)=>{
 {
   const f=fixture({stack:7}), v=f.G.legalActionView(f.p);
   chk('short stack sees effective call, not unmatched wager',
-    v.toCall===10 && v.effectiveCall===7 && v.aggressive===null);
+    v.toCall===10 && v.effectiveCall===7 && v.contestablePot===11 &&
+    v.excludedPot===3 && v.finalPot===18 && v.need===7/18 &&
+    v.aggressive===null);
   const beforePot=f.S.pot, beforeInvested=f.p.invested;
   const result=submit(f.G,f.p,{action:'call'});
   chk('short call moves exactly the remaining seven chips',result.ok &&

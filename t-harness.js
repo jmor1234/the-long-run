@@ -59,9 +59,16 @@ const heroPolicy=(G)=>{
 const h=make(heroPolicy);
 chk('bootstrap is stripped before explicit session start', h.G.S===null && h.queue.length===0);
 h.G.newSession();
+h.queue.length=0;
+h.G.S.toAct=h.G.S.players[0].idx;
+h.G.S.players[0].acted=false;
+h.G.S.players[0].allIn=false;
+h.G.S.players[1].folded=false;
+h.G.S.players[1].allIn=false;
 h.G.equity(h.G.S.players[0].cards,[],[],1);
 chk('equity hook captures the exact descriptor array',
   Array.isArray(h.state.lastEquityOpps) && h.state.lastEquityOpps.length===0);
+h.G.step();
 h.drain();
 chk('hero hook executes', heroCalls>0, `calls=${heroCalls}`);
 chk('bot decision hook executes', !!h.state.lastBotCtx);

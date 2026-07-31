@@ -28,7 +28,7 @@ reads** model — not LLMs, not GTO solvers.
 
 | Goal | Touch |
 |---|---|
-| Bot decisions / frequencies | `botDecide` dispatches to versioned `botPolicyV1` in `poker-trainer.html` (BOT POLICY) |
+| Bot decisions / frequencies | `botDecide` still dispatches to frozen `botPolicyV1`; opt-in `botPolicyV2` is the line-aware challenger awaiting A/B evaluation |
 | Styles / limps / sizing / blurbs | `BOT_STYLES` (dials incl. `openSize`, `size`, `sizeJitter`, `callTemp`) |
 | What bots *say* | `VOICE` bank + `say()` (BOT VOICE section, §12) |
 | Tilt / heaters | `moodStep` + `moodDials` (MOOD section, §12) |
@@ -163,7 +163,8 @@ but the suite may not catch it). Treat both as load-bearing.
 
 ```js
 { myCards, board, street, toCall, pot, myStack, myBet, position, raisedBefore, openThr,
-  tableSize, inPosition, streetBets, facingReads, aggressorHadInitiative, style, mood }
+  tableSize, inPosition, streetBets, legal, opponents, facingReads,
+  aggressorHadInitiative, style, mood }
 ```
 
 `tableSize` is passed today but unused inside `botDecide` (kept for call-site symmetry /
@@ -179,6 +180,13 @@ Hero's cards / other hole cards are **not** parameters (except the acting bot's 
 pre-shrunk, never a seat index into `S`). Shrinkage / nudge math runs inside
 `facingNudge`. The function never touches `S` — it is pure with respect to its
 arguments. That is what makes the guarantee structural rather than a promise.
+
+`legal` is the exact action and call-price snapshot returned by `legalActionView`.
+`opponents` contains only detached `{cap, bets}` range descriptors. Each `bets` entry
+is a cloned public board as it existed when that opponent bet or raised. `t3.js`
+recursively allowlists this nested schema, proves every event is a prefix of the public
+board, mutates the copies to prove detachment, and directly runs Policy B while every
+foreign hole-card array is trapped.
 
 **Return shape** (what the engine action controller consumes):
 
@@ -199,12 +207,11 @@ threshold in `dbg` — and then register it in two places in `exp/t-exp.js`: the
 name list (§3d) and a roll/threshold clause in the governance block (§3g).** The gate
 reads hardcoded names, so an unregistered branch passes invisibly; see §9.
 
-**Five raise sites, two rules each.** Preflop open, premium 3-bet, bluff 3-bet,
-postflop strong raise, postflop bluff raise: every one is guarded so a stack
-short of a full call cannot emit a raise (the open path returns a call with limp
-voice instead), and every one caps at `myBet+myStack`. Adding a sixth without
-both is the known bug shape — `exp/t-exp.js` crafts short-stack spots and
-asserts zero illegal raises.
+Policy A has five aggressive sites: preflop open, premium 3-bet, bluff 3-bet,
+postflop strong raise, and postflop bluff raise. Every one guards short calls and caps
+at `myBet+myStack`. Policy B delegates the three preflop sites and gates both of its
+postflop sites on `legal.aggressive`, so a closed raise can never be proposed. The
+crafted short-stack and raise-closed tests keep both forms structural.
 
 `t3.js` proves fairness two ways: statically (the decision code contains no reference
 to `isHero`, `players[0]`, `hero`, or `S.`) and at runtime, by wrapping **every** other
@@ -342,12 +349,12 @@ dials are never mutated, so a bot's identity survives any tilt.
 Per-hand `S` also tracks public action for bots: `streetBets`, `streetAggressor`,
 `preflopRaiser` (reset on street advance as appropriate).
 
-Per-hand **player** fields, easy to miss because nothing else writes them:
-`p.inferredTier` (range cap, narrows monotonically) and `p.aggr` (postflop
-bet/raise count). Both are written only by `applyAction` and read only by
-`updateStrip`, which feeds them to `equity()` as `{cap, aggr}`. `t-equity.js`
-drives a real postflop bet through that entire path and compares the rendered
-percentage with the independently constrained direct call.
+Each per-hand player owns one public range record: `p.range={cap,bets}`. `newHand`
+initializes it and `applyAction` is its only action-driven writer. Preflop calls and
+raises narrow `cap` for every actor, including hero. Postflop calls do not alter the
+preflop cap; each postflop bet or raise appends a cloned board snapshot to `bets`.
+`rangeSnapshot` is the sole projection into both `step` and `updateStrip`, so Policy B
+and the teaching strip cannot drift onto different betting stories.
 
 ### Per hand
 
@@ -483,19 +490,16 @@ That taper is what makes the range unexploitable.
 
 ### 8.3 Equity is conditioned on the betting story
 
-`equity(mine, board, opps, iters)` where each opponent is `{ cap, aggr }`:
+`equity(mine, board, opps, iters)` where each opponent is `{ cap, bets }`:
 
-- `cap` — percentile ceiling inferred from their **preflop** action
-- `aggr` — how many times they've bet or raised **postflop**
+- `cap` is the percentile ceiling inferred only from preflop calls and raises
+- `bets` contains the public board snapshot for each postflop bet or raise, in order
 
-⚠ **`aggr` is the important half and was missing originally.** Sampling only from a
-preflop range told the player that ace-high was 48% to win against someone who had bet
-three streets. The true number was 2%.
-
-The fix: `betLikelihood(hole, board)` mirrors the bots' own betting frequencies, and
-sampled opponent hands are accepted with probability `(likelihood/0.80)^aggr`. Hands that
-would rarely have bet that many times are rejected. Three barrels means the range is
-~99% real hands, because bluffing three streets in a row is `0.13³ ≈ 1 in 500`.
+`betLikelihood(hole, eventBoard)` mirrors the bots' broad betting frequencies. Each
+sampled opponent hand receives the product of those event weights, evaluated on the
+board that actually existed at each decision. This matters across streets: applying a
+flop bet again to the river board invents information the bettor did not have. Weighted
+scoring also avoids discarding almost every sample after a long aggressive line.
 
 ⚠ Known imprecision: the in-browser version uses hand *categories* as a strength proxy
 rather than a nested simulation, for speed. It gets the decision right (25% vs 32% needed
@@ -510,8 +514,9 @@ production supplies only the scoring primitive after a compact literal evaluator
 contract checks every hand category, the wheel, two-trip full houses, and a board-only
 tie. Exact enumeration is deliberately heads-up only. Multiway growth is combinatorial,
 so the multiway invariant uses a royal-flush board where every legal deal must split
-one third. Seeded Monte Carlo bands are fixed regression bounds, not confidence
-intervals: capped and weighted production iterations can be discarded after 40 misses.
+one third. A second literal multiway fixture adds an AA-only opponent to prove the
+second descriptor is not dropped. Seeded Monte Carlo bands are fixed regression bounds,
+not confidence intervals.
 
 ### 8.4 Short all-in prices use only contestable chips
 
@@ -524,8 +529,9 @@ deeper chips do not, because this player cannot win them. The break-even fractio
 effective call / (contestable existing pot + effective call)
 ```
 
-`legalActionView` puts the effective amount on the call descriptor and `applyAction`
-charges that descriptor, so the displayed risk and the executed risk cannot drift.
+`legalActionView` exposes the complete `callPrice` snapshot and puts the effective amount
+on the call descriptor. `applyAction`, the teaching strip, and Policy B's non-layered
+decisions all consume that same snapshot, so their price cannot drift.
 When the call is a short all-in, the strip names both the contestable pot and chips above
 the player's cap. It does not call the deeper chips a refund or a side pot because either
 can be true depending on other contributors. `t-teaching.js` fixes the arithmetic with
@@ -533,8 +539,9 @@ literal heads-up and multiway cases, including prior-street investment where `be
 `invested` differ. If a shallower opponent is already all-in, different pot layers have
 different eligible opponents. The strip then says `layered pot` and withholds the single
 equity threshold and call/fold verdict; pretending one whole-pot percentage prices every
-layer would be false. The equity oracle now constrains the single-field calculation;
-per-layer expected value remains a Policy B design problem. The suppressed readout still
+layer would be false. Policy B explicitly defers these spots to Policy A until a
+separate per-layer EV model and oracle exist; it does not disguise scoop equity as
+layer-aware strategy. The suppressed readout still
 performs the existing equity draw:
 equity Monte Carlo and gameplay currently share `Math.random`, so skipping those draws
 would silently change later deals and bot decisions. `t-teaching.js` guards that sequence.
@@ -573,13 +580,14 @@ first.**
 |---|---|
 | `t-harness.js` | source-transform guards: current source builds, missing/duplicated anchors throw, bootstrap stays inert until explicitly started, hero, bot, and equity hooks execute |
 | `t-policy.js` | Policy A source hash + exact dispatcher lock; seeded direct-vs-dispatched traces include actions, reasons, RNG draws, deals, logs, stacks, reads, mood, and session state |
-| `t-legal.js` | independent legal-action oracle: effective calls, exact min/max bet-to bounds, short and cumulative all-ins, raise rights, stale revisions, malformed input, and byte-identical state on rejection |
+| `t-policy-b.js` | Policy B preflop delegation, chronological line effect, live legal price, no draw double-count, all-live-opponent use, layered fallback, hero evidence, and opt-in seeded execution |
+| `t-legal.js` | independent legal-action oracle: complete call-price snapshot, exact min/max bet-to bounds, short and cumulative all-ins, raise rights, stale revisions, malformed input, and byte-identical state on rejection |
 | `t-teaching.js` | literal call-price oracle: full and short calls, total-investment caps across streets, folded dead money, deeper side-pot layers, layered-verdict suppression, rendered copy, purity, and RNG alignment |
-| `t-equity.js` | literal evaluator contract + exact heads-up river/turn oracle, premium cap, aggression weighting, multiway forced tie, purity, wrapper defaults, and live `applyAction` → strip range wiring |
+| `t-equity.js` | literal evaluator contract + exact heads-up river/turn oracle, premium cap, chronological weighting, multiway inclusion and second-line weighting, purity, wrapper defaults, and live two-street range wiring |
 | `t-settlement.js` | independent literal pot-award oracle against real `endHand`: fold/showdown refunds, matched folded money, main/side recipients, odd chips, review/export wording, conservation, and mutation-free invalid-state guards |
 | `t1b.js` | five hand-verified heads-up draw estimates through `evaluate`/`cmpHand`, via its own unseeded Monte Carlo. Direct equity-pipeline coverage lives in `t-equity.js`. This suite bypasses `harness.js` and slices the source itself between `const SUITS` and `function drawInfo`; don't rename or reorder those |
 | `t2.js` | 3000 hands: no hangs, no negative stacks, pot = money in; winner check is a narrow log heuristic, not a full pot-award oracle |
-| `t3.js` | fairness — static scan + Proxy trap on **all other seats**, ctx leak check, control |
+| `t3.js` | fairness: static scan, Proxy trap on every other seat for both policies, recursive opponent-schema allowlist, descriptor detachment, and control |
 | `t6.js` | elimination, table shrinking 6→2, chip conservation, heads-up blind rules |
 | `audit.js` | VPIP scope, session bb, incomplete raises, styles/limps, forced 3-bet & fold-to-cbet spots |
 | `exp/t-exp.js` | seeded-harness gate suite, two halves: **humanize** (sizing spread + raw coded-policy sizes observed through the independent legality normalizer, boundary blur persona-shaped by *rate*, dbg-roll drawn-and-governs, short-stack never raises, exhaustive VOICE text-ban scan, mood arithmetic vs a hand-computed table + call-site fidelity) and **experiment infrastructure** (determinism, stream isolation, cross-arm deal identity, oracle replay, legality unit + engine integration, prompt purity) |
@@ -643,14 +651,15 @@ full house). Verify by hand before "correcting" them.
 - **Policy A short-stack decisions:** frozen Policy A still uses the full `toCall` and
   undifferentiated pot when a bot cannot match the wager, so its call boundary can be
   wrong. Action controls, execution, and the teaching strip now share the exact effective
-  call; the strip also excludes deeper layers that hero cannot win. Bot strategy remains
-  deliberately unchanged until the Policy B challenger.
+  call; the strip also excludes deeper layers that hero cannot win. Opt-in Policy B uses
+  that legal price in non-layered spots and explicitly defers layered spots, but Policy A
+  remains the shipped default until the A/B gate.
 - **Policy A equity use:** `t-equity.js` now constrains `equity()`, `betLikelihood()`,
   range weighting, and the live strip wiring. Policy A still takes
   `strengthVsRandom()` after it has simulated the future runout, then adds flush- and
-  straight-draw bonuses again. Its `aggr` count also accumulates across postflop streets
-  and is re-evaluated against the current board. Those are Policy B inputs, not reasons
-  to mutate the frozen baseline.
+  straight-draw bonuses again. Opt-in Policy B instead consumes chronological public
+  range records and uses range-conditioned runout equity exactly once. The baseline is
+  intentionally unchanged until paired evaluation establishes whether B should ship.
 - **Browser UX:** the decision strip is refreshed only when hero controls render, so old
   guidance can remain during review or early in the next hand. Training-wheel switches
   and seat dossiers are not keyboard controls, dynamic state has no live-region
@@ -750,6 +759,12 @@ to `botPolicyV1(ctx)`, whose body is the coded policy preserved from commit `15d
 paths inside the guarded experiment harness over the same keyed decision streams and
 requires their complete traces to match. Shared engine helpers remain outside the
 policy version, so later correctness fixes apply equally to Policy A and any challenger.
+
+`botPolicyV2` lives after the shared voice and mood helpers so it cannot enter the
+Policy A hash span. It delegates all preflop decisions to V1 and replaces only the
+postflop assessment. `exp/exp-harness.js` selects it explicitly with `policy:'v2'`;
+the shipped dispatcher remains byte-identical to Policy A. `t-policy-b.js` constrains
+the challenger before the paired evaluation decides whether the dispatcher should move.
 
 ### Fixed seat styles (recreational leaks)
 

@@ -16,7 +16,7 @@ function buildSrc(htmlText){
     'function equity(mine, board, opps_, iters){ EQUITY_CTX(opps_);',
     'equity hook');
   src=stripEngineBootstrap(src);
-  src+='\nreturn {newHand, newSession, get roster(){return roster}, botDecide, pctOf, betLikelihood, equity, strengthVsRandom, openThreshold, posName, behindCount, get S(){return S}, get session(){return session}, callPrice, legalActionView, policyActionForView, applyAction, nextToAct, step, updateStrip, renderActions, buildPots, endHand, evaluate, cmpHand, handStr, START, BB, SB, clampFreq, freshReads, shrinkReads, readLabel, BOT_STYLES, sampleTier};';
+  src+='\nreturn {newHand, newSession, get roster(){return roster}, botDecide, botPolicyV1, botPolicyV2, pctOf, betLikelihood, equity, strengthVsRandom, rangeSnapshot, openThreshold, posName, behindCount, get S(){return S}, get session(){return session}, callPrice, legalActionView, policyActionForView, applyAction, nextToAct, step, updateStrip, renderActions, buildPots, endHand, evaluate, cmpHand, handStr, START, BB, SB, clampFreq, freshReads, shrinkReads, readLabel, BOT_STYLES, sampleTier};';
   return src;
 }
 
@@ -37,10 +37,12 @@ const document={getElementById:id=>els[id]||(els[id]=fakeEl()),createElement:()=
 
 function make(heroPolicy){
   const queue=[];
-  const state={inBot:false, leaks:[], lastBotCtx:null, lastEquityOpps:null};
+  const state={inBot:false, leaks:[], lastBotCtx:null, botContexts:[], lastEquityOpps:null};
   const BOTFLAG=v=>{state.inBot=v;};
-  const SETCTX=c=>{state.lastBotCtx=c;};
-  const EQUITY_CTX=opps=>{state.lastEquityOpps=opps.map(o=>typeof o==='number'?o:{...o});};
+  const SETCTX=c=>{state.lastBotCtx=c;state.botContexts.push(c);};
+  const EQUITY_CTX=opps=>{state.lastEquityOpps=opps.map(o=>typeof o==='number'?o:{
+    cap:o.cap,bets:(o.bets||[]).map(board=>board.map(c=>({r:c.r,s:c.s})))
+  });};
   const HERO_ACT=()=>heroPolicy(G,state);
   const G=new Function('document','navigator','setTimeout','HERO_ACT','BOTFLAG','SETCTX','EQUITY_CTX','window',
     '"use strict";'+src)(document,{},fn=>queue.push(fn),HERO_ACT,BOTFLAG,SETCTX,EQUITY_CTX,{});

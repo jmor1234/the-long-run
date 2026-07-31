@@ -4,7 +4,7 @@
 set -u
 cd "$(dirname "$0")"
 status=0
-for t in t-harness.js t-policy.js t-legal.js t-teaching.js t-equity.js t-settlement.js t1b.js t2.js t3.js t6.js audit.js exp/t-exp.js exp/run-probes.js exp/run-labels.js; do
+for t in t-harness.js t-policy.js t-policy-b.js t-legal.js t-teaching.js t-equity.js t-settlement.js t1b.js t2.js t3.js t6.js audit.js exp/t-exp.js exp/run-probes.js exp/run-labels.js; do
   echo "=============================== $t"
   out="$(node "$t" 2>&1)" || status=1
   printf '%s\n' "$out"

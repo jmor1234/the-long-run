@@ -62,6 +62,34 @@ function exactHeadsUp(mine,board,{range=()=>true,weight=()=>1}={}){
   return score/total;
 }
 
+// Exact labeled three-way river enumeration. The first fixture range is tiny,
+// which keeps this independent multiway check bounded.
+function exactThreeWayRiver(mine,board,configs){
+  if(board.length!==5 || configs.length!==2) throw new Error('three-way river only');
+  const used=new Set([...mine,...board].map(key));
+  const stub=deck().filter(c=>!used.has(key(c)));
+  const my=G.evaluate([...mine,...board]);
+  const combos=[];
+  for(let i=0;i<stub.length-1;i++) for(let j=i+1;j<stub.length;j++){
+    const hole=[stub[i],stub[j]];
+    combos.push({i,j,hole,hand:G.evaluate([...hole,...board])});
+  }
+  let score=0,total=0;
+  for(const a of combos){
+    if(!configs[0].range(a.hole)) continue;
+    const wa=configs[0].weight(a.hole);
+    for(const b of combos){
+      if(a.i===b.i||a.i===b.j||a.j===b.i||a.j===b.j||!configs[1].range(b.hole)) continue;
+      const w=wa*configs[1].weight(b.hole);
+      if(!(w>0)) continue;
+      const ca=G.cmpHand(my,a.hand),cb=G.cmpHand(my,b.hand);
+      if(ca>=0&&cb>=0) score+=w/(1+(ca===0?1:0)+(cb===0?1:0));
+      total+=w;
+    }
+  }
+  return score/total;
+}
+
 // Small literal evaluator contract. The equity oracle is independent of the
 // production sampler, but intentionally shares this now-explicit scoring primitive.
 const ranks=[
@@ -104,39 +132,78 @@ if(typeof G.equity!=='function' || typeof G.betLikelihood!=='function'){
 
   const riverMine=P('As Kd'), riverBoard=P('Ah 9c 7d 4s 2h');
   const riverExact=exactHeadsUp(riverMine,riverBoard);
-  const riverGot=seeded('river-random',()=>G.equity(riverMine,riverBoard,[{cap:100,aggr:0}],30000));
+  const riverGot=seeded('river-random',()=>G.equity(riverMine,riverBoard,[{cap:100,bets:[]}],30000));
   chk('random river equity matches exact enumeration',close(riverGot,riverExact,0.02),
     `got ${(riverGot*100).toFixed(1)}%, exact ${(riverExact*100).toFixed(1)}%`);
 
   const turnMine=P('9c 8c'), turnBoard=P('Jh Ts 2d 4s');
   const turnExact=exactHeadsUp(turnMine,turnBoard);
-  const turnGot=seeded('turn-random',()=>G.equity(turnMine,turnBoard,[{cap:100,aggr:0}],30000));
+  const turnGot=seeded('turn-random',()=>G.equity(turnMine,turnBoard,[{cap:100,bets:[]}],30000));
   chk('random turn equity matches exact opponent-plus-river enumeration',close(turnGot,turnExact,0.02),
     `got ${(turnGot*100).toFixed(1)}%, exact ${(turnExact*100).toFixed(1)}%`);
 
   const premiumMine=P('Ks Kd'), premiumBoard=P('2c 7h 9s Td 3c');
   const aaOnly=h=>h[0].r===14 && h[1].r===14;
   const premiumExact=exactHeadsUp(premiumMine,premiumBoard,{range:aaOnly});
-  const premiumGot=seeded('river-aa-only',()=>G.equity(premiumMine,premiumBoard,[{cap:0.5,aggr:0}],30000));
+  const premiumGot=seeded('river-aa-only',()=>G.equity(premiumMine,premiumBoard,[{cap:0.5,bets:[]}],30000));
   chk('literal top-half-percent cap samples only aces',premiumExact===0 && premiumGot===0,
     `got ${(premiumGot*100).toFixed(1)}%`);
 
-  const aggrMine=P('Ac Kd'), aggrBoard=P('Qs 9h 7h 4c 2s'), aggr=2;
+  const aggrMine=P('Ac Kd'), aggrBoard=P('Qs 9h 7h 4c 2s');
+  const line=[aggrBoard.slice(0,3),aggrBoard.slice(0,4)];
   const aggrExact=exactHeadsUp(aggrMine,aggrBoard,{
-    weight:hole=>Math.pow(literalLikelihood(hole,aggrBoard)/0.80,aggr)
+    weight:hole=>line.reduce((w,eventBoard)=>w*literalLikelihood(hole,eventBoard)/0.80,1)
   });
-  const aggrGot=seeded('river-aggression',()=>G.equity(aggrMine,aggrBoard,[{cap:100,aggr}],40000));
+  const aggrGot=seeded('river-aggression',()=>G.equity(aggrMine,aggrBoard,
+    [{cap:100,bets:line}],40000));
   const neutralExact=exactHeadsUp(aggrMine,aggrBoard);
-  chk('aggression-weighted river equity matches exact weighting',close(aggrGot,aggrExact,0.035),
+  const repeatedExact=exactHeadsUp(aggrMine,aggrBoard,{
+    weight:hole=>Math.pow(literalLikelihood(hole,aggrBoard)/0.80,line.length)
+  });
+  chk('chronological river equity matches exact multi-street weighting',
+    close(aggrGot,aggrExact,0.012) &&
+    Math.abs(aggrGot-aggrExact)<Math.abs(aggrGot-repeatedExact),
     `got ${(aggrGot*100).toFixed(1)}%, exact ${(aggrExact*100).toFixed(1)}%`);
+  chk('historical boards differ from re-evaluating every bet on the river',
+    Math.abs(aggrExact-repeatedExact)>0.015,
+    `line ${(aggrExact*100).toFixed(1)}%, repeated ${(repeatedExact*100).toFixed(1)}%`);
   chk('aggression fixture materially differs from a random range',Math.abs(aggrExact-neutralExact)>0.08,
     `weighted ${(aggrExact*100).toFixed(1)}%, random ${(neutralExact*100).toFixed(1)}%`);
 
   const tie=seeded('multiway-board-tie',()=>G.equity(P('2c 3d'),royal,
-    [{cap:100,aggr:0},{cap:100,aggr:0}],100));
+    [{cap:100,bets:[]},{cap:100,bets:[]}],100));
   chk('multiway board tie always awards one third',close(tie,1/3));
 
-  const pureMine=P('Qh Jd'), pureBoard=P('9c 7s 4h'), pureOpps=[{cap:32,aggr:1}];
+  const secondOpponentMine=P('Ks Kd'), secondOpponentBoard=P('2c 7h 9s Td 3c');
+  const headsUp=seeded('second-opponent-heads-up',()=>G.equity(secondOpponentMine,
+    secondOpponentBoard,[{cap:100,bets:[]}],30000));
+  const threeWay=seeded('second-opponent-three-way',()=>G.equity(secondOpponentMine,
+    secondOpponentBoard,[{cap:100,bets:[]},{cap:0.5,bets:[]}],30000));
+  chk('a literal second opponent is included in multiway equity',headsUp>0.75 && threeWay===0,
+    `heads-up ${(headsUp*100).toFixed(1)}%, with AA ${(threeWay*100).toFixed(1)}%`);
+
+  const weightedMine=P('Ks 9d'),weightedBoard=P('Kc 7h 9s Td 3c');
+  const weightedLine=[weightedBoard.slice(0,3),weightedBoard.slice(0,4)];
+  const aa=hole=>hole[0].r===14&&hole[1].r===14;
+  const any=()=>true,unit=()=>1;
+  const lineWeight=hole=>weightedLine.reduce((w,eventBoard)=>
+    w*literalLikelihood(hole,eventBoard)/0.80,1);
+  const multiExact=exactThreeWayRiver(weightedMine,weightedBoard,[
+    {range:aa,weight:unit},{range:any,weight:lineWeight}
+  ]);
+  const multiNeutral=exactThreeWayRiver(weightedMine,weightedBoard,[
+    {range:aa,weight:unit},{range:any,weight:unit}
+  ]);
+  const multiGot=seeded('weighted-second-opponent',()=>G.equity(weightedMine,
+    weightedBoard,[{cap:0.5,bets:[]},{cap:100,bets:weightedLine}],50000));
+  chk('multiway equity weights the second opponent chronological line',
+    close(multiGot,multiExact,0.02) &&
+    Math.abs(multiGot-multiExact)<Math.abs(multiGot-multiNeutral) &&
+    Math.abs(multiExact-multiNeutral)>0.04,
+    `got ${(multiGot*100).toFixed(1)}%, line ${(multiExact*100).toFixed(1)}%, neutral ${(multiNeutral*100).toFixed(1)}%`);
+
+  const pureMine=P('Qh Jd'), pureBoard=P('9c 7s 4h'),
+    pureOpps=[{cap:32,bets:[pureBoard.map(c=>({...c}))]}];
   const before=JSON.stringify({pureMine,pureBoard,pureOpps}), random=Math.random;
   seeded('purity',()=>G.equity(pureMine,pureBoard,pureOpps,200));
   chk('equity leaves cards, descriptors, and global RNG binding unchanged',
@@ -144,14 +211,14 @@ if(typeof G.equity!=='function' || typeof G.betLikelihood!=='function'){
 
   const wrapMine=P('Qh Jd'), wrapBoard=P('9c 7s 4h');
   const wrapDefault=seeded('wrapper-default',()=>G.strengthVsRandom(wrapMine,wrapBoard));
-  const direct160=seeded('wrapper-default',()=>G.equity(wrapMine,wrapBoard,[{cap:100,aggr:0}],160));
+  const direct160=seeded('wrapper-default',()=>G.equity(wrapMine,wrapBoard,[{cap:100,bets:[]}],160));
   const wrapExplicit=seeded('wrapper-explicit',()=>G.strengthVsRandom(wrapMine,wrapBoard,240));
-  const direct240=seeded('wrapper-explicit',()=>G.equity(wrapMine,wrapBoard,[{cap:100,aggr:0}],240));
+  const direct240=seeded('wrapper-explicit',()=>G.equity(wrapMine,wrapBoard,[{cap:100,bets:[]}],240));
   chk('strengthVsRandom default delegates with 160 iterations',wrapDefault===direct160);
   chk('strengthVsRandom preserves an explicit iteration count',wrapExplicit===direct240);
 
-  // Live integration: a real postflop bet narrows the public range and increments
-  // aggression; updateStrip must feed those exact values into the checked equity path.
+  // Live integration: real flop and turn bets record their public boards;
+  // updateStrip must feed those exact detached values into the checked equity path.
   const live=make(()=>{}); live.G.newSession(); live.queue.length=0;
   const S=live.G.S, hero=S.players[0], villain=S.players[1];
   S.done=false; S.street='flop'; S.board=P('Qs 9h 7h');
@@ -159,23 +226,31 @@ if(typeof G.equity!=='function' || typeof G.betLikelihood!=='function'){
   S.streetBets=0; S.raisedBefore=false; S.actionSeq=9;
   S.players.forEach(p=>{
     p.folded=true; p.allIn=false; p.bet=0; p.invested=0; p.stack=100;
-    p.acted=false; p.actedAtBet=0; p.inferredTier=100; p.aggr=0;
+    p.acted=false; p.actedAtBet=0; p.range={cap:100,bets:[]};
   });
   Object.assign(hero,{folded:false,invested:10,cards:P('Ac Kd')});
   Object.assign(villain,{folded:false,invested:10,cards:P('Js Td')});
   const view=live.G.legalActionView(villain);
   const applied=live.G.applyAction(villain,{action:'bet',amount:10,actionSeq:view.actionSeq});
+  S.street='turn'; S.board.push(P('4c')[0]); S.currentBet=0; S.minRaise=2;
+  S.streetBets=0; S.actionSeq++; hero.bet=0; villain.bet=0;
+  hero.acted=false; villain.acted=false; hero.actedAtBet=0; villain.actedAtBet=0;
+  S.toAct=villain.idx;
+  const turnView=live.G.legalActionView(villain);
+  const turnApplied=live.G.applyAction(villain,{action:'bet',amount:12,
+    actionSeq:turnView.actionSeq});
   S.toAct=hero.idx;
-  const tiers=[{cap:villain.inferredTier,aggr:villain.aggr}];
+  const tiers=[live.G.rangeSnapshot(villain)];
   const wired=seeded('live-strip',()=>live.G.equity(hero.cards,S.board,tiers,320));
-  const neutral=seeded('live-strip',()=>live.G.equity(hero.cards,S.board,[{cap:100,aggr:0}],320));
+  const neutral=seeded('live-strip',()=>live.G.equity(hero.cards,S.board,[{cap:100,bets:[]}],320));
   seeded('live-strip',()=>live.G.updateStrip());
-  chk('real postflop bet writes the public range and aggression inputs',applied.ok &&
-    villain.inferredTier===32 && villain.aggr===1);
+  chk('real flop and turn bets preserve their chronological public boards',
+    applied.ok && turnApplied.ok && villain.range.cap===100 &&
+    JSON.stringify(villain.range.bets)===JSON.stringify([S.board.slice(0,3),S.board]));
   chk('live strip renders the checked equity for those exact inputs',
     live.els.valEq.textContent===`${Math.round(wired*100)}%`);
   chk('live strip passes the exact public range descriptors into equity',
-    JSON.stringify(live.state.lastEquityOpps)===JSON.stringify([{cap:32,aggr:1}]));
+    JSON.stringify(live.state.lastEquityOpps)===JSON.stringify(tiers));
   chk('live wiring control differs from an unconditioned range',
     Math.round(wired*100)!==Math.round(neutral*100),
     `wired ${Math.round(wired*100)}%, neutral ${Math.round(neutral*100)}%`);

@@ -527,27 +527,37 @@ function betLikelihood(hole, board){
   return 0.13;
 }
 
-// equity of `mine` vs opponents described by {cap, aggr}
+// Public range evidence for one player. The returned descriptor is detached
+// from engine state so policy code cannot mutate the recorded betting story.
+function rangeSnapshot(p){
+  return {
+    cap:p.range.cap,
+    bets:p.range.bets.map(board=>board.map(c=>({r:c.r,s:c.s})))
+  };
+}
+
+// equity of `mine` vs opponents described by {cap, bets:[board snapshots]}
 function equity(mine, board, opps_, iters){
-  const tiers = opps_.map(o => typeof o==='number' ? {cap:o, aggr:0} : o);
+  const tiers = opps_.map(o => typeof o==='number' ? {cap:o, bets:[]} : o);
   iters = iters || 350;
   const used = new Set([...mine,...board].map(cardStr));
   const stub = makeDeck().filter(c=>!used.has(cardStr(c)));
-  let score=0, valid=0;
+  let score=0, totalWeight=0;
 
   for(let it=0; it<iters; it++){
     const d = stub.slice();
     shuffle(d);
-    let ptr=0, ok=true;
+    let ptr=0, ok=true, weight=1;
     const opps=[];
     for(const o of tiers){
       let found=null;
       for(let t=0;t<40 && ptr+1<d.length;t++){
         const h=[d[ptr],d[ptr+1]];
         if(pctOf(h)<=o.cap){
-          // accept in proportion to how often this hand would have bet as it did
-          const w = o.aggr>0 ? Math.pow(betLikelihood(h,board)/0.80, o.aggr) : 1;
-          if(w>=1 || Math.random()<w){ found=h; ptr+=2; break; }
+          found=h; ptr+=2;
+          for(const eventBoard of (o.bets||[]))
+            weight *= betLikelihood(h,eventBoard)/0.80;
+          break;
         }
         d.push(d.splice(ptr,1)[0]);
       }
@@ -567,15 +577,15 @@ function equity(mine, board, opps_, iters){
       if(c<0){ best=-1; break; }
       if(c===0) ties++;
     }
-    if(best===0) score += 1/ties;
-    valid++;
+    if(best===0) score += weight/ties;
+    totalWeight += weight;
   }
-  return valid? score/valid : 0.5;
+  return totalWeight? score/totalWeight : 0.5;
 }
 
 // crude but fast: strength vs one random hand (used by bots for their own hand)
 function strengthVsRandom(mine, board, iters){
-  return equity(mine, board, [{cap:100,aggr:0}], iters||160);
+  return equity(mine, board, [{cap:100,bets:[]}], iters||160);
 }
 
 function drawInfo(mine, board){
@@ -1032,6 +1042,102 @@ function moodDials(st, m){
     size:(st.size==null?1:st.size)*Math.min(1.2, 1+0.2*tilt)};
 }
 
+/* ---- POLICY B -----------------------------------------------------------
+   Opt-in challenger. Preflop remains exactly Policy A. Postflop uses the
+   public chronological betting line, every live opponent, and the legal
+   view's price. The shipped dispatcher stays on Policy A until A/B evidence
+   justifies promotion. */
+const botPolicyV2=function(ctx){
+  if(ctx.street==='preflop') return botPolicyV1(ctx);
+  if(!ctx.legal || !Array.isArray(ctx.opponents) || !ctx.opponents.length)
+    return botPolicyV1(ctx);
+  // A single scoop-equity number cannot price layers with different eligible
+  // opponents. Keep baseline behavior until a per-layer EV oracle exists.
+  if(ctx.legal.layeredEquity) return botPolicyV1(ctx);
+
+  const {myCards,board,pot} = ctx;
+  const legal=ctx.legal;
+  const toCall=legal.toCall;
+  const myBet=legal.myBet;
+  const myStack=legal.stack;
+  const style=ctx.style || {open:1,bet:1,fold:1,limp:0};
+  const inPosition=!!ctx.inPosition;
+  const nudge=facingNudge(ctx.facingReads,!!ctx.aggressorHadInitiative);
+  const draw=()=>Math.random();
+  const readTag=()=>(nudge.note && draw()<0.35)?nudge.note:'';
+  const moodTag=()=>(Math.abs(ctx.mood||0)>=0.3 && draw()<0.4)
+    ? say(style,(ctx.mood<0?'tilt':'rush'),{},draw()):'';
+  const humanSize=(base)=>{
+    const j=style.sizeJitter==null?0.12:style.sizeJitter;
+    return Math.max(2,Math.round(base*(1+(draw()*2-1)*j)));
+  };
+  const sizeMult=style.size==null?1:style.size;
+  const s=equity(myCards,board,ctx.opponents,180);
+  const dr=drawInfo(myCards,board);
+  const bucket=s>0.82?'strong':s>0.62?'good':s>0.45?'marginal':'weak';
+  const halfPot=Math.max(2,Math.round(pot*0.5));
+  const fullPot=Math.max(2,Math.round(pot*0.9));
+  const posBet=inPosition?1.12:0.88;
+  const posCall=inPosition?1.06:0.94;
+  const multiway=ctx.opponents.length>1?0.85:1;
+  const chaseMult=Math.max(0.75,Math.min(1.4,1.2/style.fold));
+
+  if(toCall===0){
+    let betFreq=bucket==='strong'?0.80:bucket==='good'?0.55:
+      bucket==='marginal'?0.22:(dr.any?0.35*chaseMult:0.13);
+    betFreq=clampFreq(betFreq*style.bet*posBet*multiway);
+    const betRoll=draw();
+    if(betRoll<betFreq && legal.aggressive){
+      const amt=Math.min(myBet+myStack,
+        humanSize((bucket==='strong'?fullPot:halfPot)*sizeMult));
+      return {action:legal.aggressive.action,amount:amt,
+        dbg:{betRoll,betFreq,equity:s,opponents:ctx.opponents.length},
+        reason:(bucket==='weak'
+          ? (dr.any
+             ? say(style,'semiBluff',{draw:dr.flushDraw?'Four to a flush':'An open-ended draw'},draw())
+             : say(style,'airBet',{},draw()))
+          : say(style,'bet',{hand:bucket==='strong'?'a big hand':bucket==='good'?'a solid hand':'a piece of this'},draw()))+moodTag()};
+    }
+    return {action:'check',dbg:{betRoll,betFreq,equity:s,opponents:ctx.opponents.length},
+      reason:say(style,'check',{hand:bucket==='strong'?'a monster':bucket==='good'?'a decent hand':bucket==='marginal'?'something thin':'not much'},draw())+moodTag()};
+  }
+
+  const canRaise=!!legal.aggressive && legal.aggressive.action==='raise';
+  if(bucket==='strong'){
+    const raiseFreq=clampFreq(0.55*style.bet*nudge.raiseMult);
+    const strongRoll=draw();
+    if(strongRoll<raiseFreq && canRaise)
+      return {action:'raise',amount:Math.min(myBet+myStack,
+        myBet+toCall+humanSize(pot*0.9*sizeMult)),
+        dbg:{strongRoll,raiseFreq,equity:s,opponents:ctx.opponents.length},
+        reason:say(style,'strongRaise',{},draw())};
+    return {action:'call',dbg:{strongRoll,raiseFreq,equity:s,opponents:ctx.opponents.length},
+      reason:say(style,'slowCall',{},draw())};
+  }
+
+  const bluffRaise=clampFreq(0.07*style.bet*nudge.raiseMult*(inPosition?1.15:0.85));
+  const bluffRoll=draw();
+  if(bluffRoll<bluffRaise && dr.any && canRaise)
+    return {action:'raise',amount:Math.min(myBet+myStack,
+      myBet+toCall+humanSize(pot*0.8*sizeMult)),
+      dbg:{bluffRoll,bluffRaise,equity:s,opponents:ctx.opponents.length},
+      reason:say(style,'bluffRaise',{draw:dr.flushDraw?'Four to a flush':'An open-ended draw'},draw())};
+
+  const need=legal.need;
+  const edgeNeed=Math.max(0.005,Math.min(0.08,0.02*style.fold/nudge.callMult/posCall));
+  const temp=style.callTemp==null?0.035:style.callTemp;
+  const pCall=1/(1+Math.exp(-(s-need-edgeNeed)/temp));
+  const cRoll=draw();
+  const calls=cRoll<pCall;
+  const eq={eff:Math.round(s*100),need:Math.round(need*100)};
+  return {
+    action:calls?'call':'fold',
+    dbg:{cRoll,pCall,effPct:eq.eff,needPct:eq.need,equity:s,
+      opponents:ctx.opponents.length},
+    reason:say(style,calls?'edgeCall':'edgeFold',eq,draw())+readTag()+moodTag()
+  };
+};
+
 
 
 /* ============================================================
@@ -1180,7 +1286,7 @@ function newHand(){
       idx:i, seat:r.seat, name:r.name, isHero:r.isHero, stack:r.stack,
       cards:[deck.pop(),deck.pop()],
       folded:false, allIn:false, bet:0, invested:0,
-      acted:false, actedAtBet:0, lastAct:'', inferredTier:100, aggr:0,
+      acted:false, actedAtBet:0, lastAct:'', range:{cap:100,bets:[]},
       pos, openThr:openThreshold(pos,behind,n)
     };
   });
@@ -1281,7 +1387,8 @@ function legalActionView(p){
       p.bet>S.currentBet || p.actedAtBet>S.currentBet) return deny('invalid-betting-state');
   if(p.acted && p.bet===S.currentBet) return deny('already-acted');
 
-  const {toCall,effectiveCall}=callPrice(p);
+  const price=callPrice(p);
+  const {toCall,effectiveCall}=price;
   const actions=toCall>0
     ? [{action:'fold'},{action:'call',cost:effectiveCall,allIn:effectiveCall===p.stack}]
     : [{action:'check'}];
@@ -1300,7 +1407,7 @@ function legalActionView(p){
     };
     actions.push(aggressive);
   }
-  return {ok:true,code:null,actionSeq:S.actionSeq,toCall,effectiveCall,raiseReopened,
+  return {ok:true,code:null,actionSeq:S.actionSeq,...price,raiseReopened,
     minRaise:S.minRaise,currentBet:S.currentBet,myBet:p.bet,stack:p.stack,
     aggressive,actions};
 }
@@ -1382,7 +1489,7 @@ function applyAction(p, d){
     const isLimp = S.street==='preflop' && !S.raisedBefore;
     p.lastAct=(isLimp?'limp ':'call ')+a;
     logLine(p.isHero?'hero':'', `${p.name} ${isLimp?'limps':'calls'} ${a}`);
-    p.inferredTier=Math.min(p.inferredTier, S.street==='preflop'?55:60);
+    if(S.street==='preflop') p.range.cap=Math.min(p.range.cap,55);
   }
   else { // bet / raise
     const target=d.amount;
@@ -1404,14 +1511,13 @@ function applyAction(p, d){
         S.players.forEach(o=>{ if(o!==p && !o.folded && !o.allIn) o.acted=false; });
       }
     }
-    if(S.street!=='preflop') p.aggr++;
+    if(S.street!=='preflop')
+      p.range.bets.push(S.board.map(c=>({r:c.r,s:c.s})));
     p.lastAct=(fullRaise?(d.action==='bet'?'bet ':'raise '):'all-in ')+p.bet;
     logLine(p.isHero?'hero':'', fullRaise
       ? `${p.name} ${d.action}s to ${p.bet}`
       : `${p.name} goes all in to ${p.bet}`);
-    if(!p.isHero){
-      p.inferredTier = S.street==='preflop' ? Math.min(p.inferredTier, p.openThr||30) : Math.min(p.inferredTier,32);
-    }
+    if(S.street==='preflop') p.range.cap=Math.min(p.range.cap,p.openThr||30);
   }
 
   if(d.reason && !p.isHero){
@@ -1444,7 +1550,7 @@ function step(){
     if(S.done) return;
     const view=legalActionView(p);
     if(!view.ok) return;
-    const toCall=S.currentBet-p.bet;
+    const toCall=view.toCall;
     const agg=S.streetAggressor;
     const aggRoster=agg?rosterOf(agg):null;
     const d=botDecide({
@@ -1454,6 +1560,7 @@ function step(){
       inPosition:isInPosition(p.idx),
       streetBets:S.streetBets||0, myBet:p.bet,
       legal:view,
+      opponents:S.players.filter(o=>o!==p && !o.folded).map(rangeSnapshot),
       facingReads: (toCall>0 && aggRoster) ? aggRoster.reads : null,
       aggressorHadInitiative: !!(agg && S.preflopRaiser && agg.seat===S.preflopRaiser.seat),
       style: (r=>r&&r.style ? moodDials(r.style, r.mood) : {open:1, bet:1, fold:1, limp:0})(rosterOf(p)),
@@ -1716,7 +1823,7 @@ function updateStrip(){
     ? `Going all in for ${effectiveCall} creates a ${finalPot}-chip pot you can contest. Your stack reaches ${contestablePot} of the ${S.pot} chips already in the middle; ${excludedPot} are above your cap.`
     : `Calling ${effectiveCall} risks ${effectiveCall} to win ${contestablePot}.`;
   const opps=S.players.filter(p=>!p.folded && !p.isHero);
-  const tiers=opps.map(p=>({cap:p.inferredTier, aggr:p.aggr}));
+  const tiers=opps.map(rangeSnapshot);
   const eq = tiers.length? equity(hero.cards, S.board, tiers, S.board.length?320:260) : 1;
 
   if(toCall>0 && layeredEquity){

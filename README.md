@@ -38,6 +38,7 @@ preset **Other**, no build command, empty output directory.
 ```bash
 bash run-all.sh     # everything; rewrites disposable exp/out/ artifacts
 node t3.js          # fairness only — run this after touching botDecide
+node t-policy-b.js  # opt-in Policy B public-line and pricing oracle
 node t-legal.js     # legal-action boundary and no-mutation rejection oracle
 node t-teaching.js  # exact full-call and short-all-in teaching price
 node t-equity.js    # exact heads-up equity and live range-wiring oracle

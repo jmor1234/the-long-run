@@ -30,13 +30,14 @@ function buildSrc(htmlPath, expectedSites){
   const html=fs.readFileSync(htmlPath,'utf8');
   let src=extractEngineSource(html, 'exp-harness');
   const hasPolicyV1=src.includes('const botPolicyV1=function(ctx){');
-  const policyArg=hasPolicyV1 ? ', botPolicyV1' : '';
+  const hasPolicyV2=src.includes('const botPolicyV2=function(ctx){');
+  const policyArgs=hasPolicyV1 ? ', botPolicyV1'+(hasPolicyV2?', botPolicyV2':'') : '';
   src=replaceExactlyOnce(src, 'if(p.isHero){ renderActions(); return; }',
     'if(p.isHero){ HERO_ACT(); return; }', 'hero hook', 'exp-harness');
   if(hasPolicyV1){
     src=replaceExactlyOnce(src,
       /const botDecide=function\(ctx\)\{\s*return botPolicyV1\(ctx\);\s*\};/,
-      `const _botDecide=function(ctx){ return botPolicyV1(ctx); };\nconst botDecide=function(ctx){ return __DECIDE(ctx, _botDecide${policyArg}); };`,
+      `const _botDecide=function(ctx){ return botPolicyV1(ctx); };\nconst botDecide=function(ctx){ return __DECIDE(ctx, _botDecide${policyArgs}); };`,
       'botDecide wrap', 'exp-harness');
   } else {
     src=replaceExactlyOnce(src, 'function botDecide(ctx){',
@@ -71,7 +72,8 @@ function buildSrc(htmlPath, expectedSites){
     +(src.includes('const VOICE=') ? ', VOICE, say' : '');
   const legalExports=src.includes('function legalActionView')
     ? ', legalActionView, policyActionForView' : '';
-  src+='\nreturn {newHand, newSession, get roster(){return roster}, botDecide, pctOf, strengthVsRandom, openThreshold, posName, behindCount, get S(){return S}, get session(){return session}'+legalExports+', applyAction, nextToAct, step, buildPots, evaluate, cmpHand, handStr, START, BB, SB, clampFreq, freshReads, shrinkReads, readLabel, BOT_STYLES, sampleTier'+moodExports+'};';
+  const policyExports=hasPolicyV1?', botPolicyV1'+(hasPolicyV2?', botPolicyV2, rangeSnapshot':''):'';
+  src+='\nreturn {newHand, newSession, get roster(){return roster}, botDecide, pctOf, strengthVsRandom, openThreshold, posName, behindCount, get S(){return S}, get session(){return session}'+legalExports+', applyAction, nextToAct, step, buildPots, evaluate, cmpHand, handStr, START, BB, SB, clampFreq, freshReads, shrinkReads, readLabel, BOT_STYLES, sampleTier'+moodExports+policyExports+'};';
   srcCache.set(key, src);
   return src;
 }
@@ -81,7 +83,7 @@ function fakeEl(){return{style:{},className:'',innerHTML:'',textContent:'',value
  querySelectorAll:()=>[],querySelector:()=>null,focus(){},select(){},setAttribute(){},remove(){}};}
 
 // opts: { seed, decide: null | (ctx, meta, fallthrough) => decision,
-//         policy?: 'dispatch' | 'v1', captureDecisions?,
+//         policy?: 'dispatch' | 'v1' | 'v2', captureDecisions?,
 //         htmlPath?, expectedRandSites? (cross-version A/B only) }
 // decide=null runs the coded policy (baseline arm) under the decision stream.
 function make(heroPolicy, opts={}){
@@ -94,8 +96,9 @@ function make(heroPolicy, opts={}){
 
   const queue=[];
   const policy=opts.policy||'dispatch';
-  if(policy!=='dispatch' && policy!=='v1') throw new Error('exp-harness: unknown policy '+policy);
-  if(policy==='v1' && opts.decide) throw new Error('exp-harness: policy v1 cannot be combined with decide override');
+  if(!['dispatch','v1','v2'].includes(policy)) throw new Error('exp-harness: unknown policy '+policy);
+  if(policy!=='dispatch' && opts.decide)
+    throw new Error('exp-harness: explicit policy cannot be combined with decide override');
   const state={hand:0, decision:0, sessions:0, strayDraws:0, lastBotCtx:null,
     decisionTrace:[]};
 
@@ -109,7 +112,7 @@ function make(heroPolicy, opts={}){
     if(kind==='session'){ state.sessions++; state.hand=0; gen=stream(`${seed}|session|${state.sessions}`); }
     else if(kind==='deal'){ state.hand++; state.decision=0; gen=stream(`${seed}|deal|${state.hand}`); }
   };
-  const __DECIDE=(ctx, fall, policyV1)=>{
+  const __DECIDE=(ctx, fall, policyV1, policyV2)=>{
     const meta={hand:state.hand, index:state.decision++};
     state.lastBotCtx=ctx;
     state.lastDraws=[];
@@ -120,6 +123,9 @@ function make(heroPolicy, opts={}){
       if(policy==='v1'){
         if(!policyV1) throw new Error('exp-harness: Policy A unavailable in this engine');
         result=policyV1(ctx);
+      } else if(policy==='v2'){
+        if(!policyV2) throw new Error('exp-harness: Policy B unavailable in this engine');
+        result=policyV2(ctx);
       } else result=opts.decide ? opts.decide(ctx, meta, fall) : fall(ctx);
       if(opts.captureDecisions)
         state.decisionTrace.push({meta,result,draws:state.lastDraws.slice()});

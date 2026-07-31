@@ -33,21 +33,21 @@ Key design calls, with independent-assessment findings folded in:
   decision outside the engine, replay from seed. Replays reproduce identical ctx
   (verified on every cache hit — divergence throws). Cache keys are scoped by seed so
   a cache shared across runs can never serve another session's decision.
-- **ctx is extended in exp builds** with the public betting-state the legality view
-  needs. Today that is `currentBet` and `minRaise` only — `myBet` ships in the app
-  itself since bet-to totals had to reach the true all-in target. `exp-harness.js`
-  branches on which generation of the file it is loading, so it can still run
-  pre-humanize builds for A/B. The extension carries no hidden information.
+- **ctx is extended in older exp builds** with `currentBet` and `minRaise` for the
+  external legality normalizer. Current builds already ship the exact `legal` view and
+  detached public opponent ranges. `exp-harness.js` still branches by engine generation
+  so historical A/B runs remain reproducible. The extension carries no hidden data.
 - **Keyed RNG streams** (`prng.js`, wired in `exp-harness.js`): button per session,
   deck per hand index, policy rolls + equity Monte Carlo per (hand, decision). Deals are identical
   across arms at the same seed (duplicate-poker variance reduction); draws outside the
   expected windows are counted and must be zero.
-- **The shipped engine has no legality guard**, so any decision source that is not
-  the coded policy must pass through `normalize()` first. Amount convention, once:
-  every `amount` is a bet-**to** total for the street, never an increment.
-- **Legality normalizer** (`legality.js`) runs before `applyAction` for LLM arms —
-  the engine accepts `check` facing a bet and would loop forever (the harness `drain`
-  throws at its step cap rather than truncating silently). Every coercion is counted;
+- **The shipped engine has a strict legal-action boundary.** External decision sources
+  still pass through `normalize()` so malformed model output becomes a measured,
+  deterministic fallback before it reaches that boundary. Every `amount` is a
+  bet-**to** total for the street, never an increment.
+- **Legality normalizer** (`legality.js`) runs before `applyAction` for LLM arms.
+  Historical engines accepted malformed actions that could stall the loop, while the
+  current boundary rejects them. Every coercion is counted;
   raw illegality is a pre-registered metric, with verb-only relabels (bet↔raise)
   counted separately and excluded from it.
 
@@ -60,7 +60,7 @@ acceptable.
 
 | File | Role |
 |---|---|
-| `exp-harness.js` | seeded harness: RNG stream injection, decision hook, `htmlPath` to load any engine build (cross-version A/B); every source rewrite asserted |
+| `exp-harness.js` | seeded harness: RNG stream injection, explicit `dispatch`/`v1`/`v2` policy selection, decision hook, and `htmlPath` for cross-version A/B; every source rewrite asserted |
 | `t-exp.js` | the gate suite — humanize gates (sizing, boundary blur, roll governance, short-stack raises, voice bans, mood) plus experiment infrastructure (determinism, deal identity, oracle replay, legality, prompt purity) |
 | `run-probes.js` | exploitability LOCK — degenerate heroes must keep losing badly; fails the build otherwise. **Arms only at 30×200/`probe1`**; any other config prints `lock skipped` and exits 0. bb/100 here is a *floor*, not an estimate: no rebuys, so a busting strategy caps its loss at −200 per session — valid for relative comparison only |
 | `run-labels.js` | readability LOCK — bots must stay legible; `--html`/`--sites` re-measures another engine build (that is how the bounds were set). **Arms only at 90 sessions/`label1`** |
