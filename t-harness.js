@@ -17,6 +17,7 @@ const throws=(fn,pattern)=>{
 
 const html=fs.readFileSync('./poker-trainer.html','utf8');
 const heroAnchor='if(p.isHero){ renderActions(); return; }';
+const equityAnchor='function equity(mine, board, opps_, iters){';
 const bootstrap='updateSession();\nnewSession();';
 chk('current engine source transforms successfully', typeof make.buildSrc(html)==='string');
 chk('missing rewrite anchor fails closed',
@@ -25,6 +26,13 @@ chk('missing rewrite anchor fails closed',
 chk('duplicated rewrite anchor fails closed',
   throws(()=>make.buildSrc(html.replace(heroAnchor, heroAnchor+'\n'+heroAnchor)),
     /hero hook anchor, found 2$/));
+chk('missing equity hook anchor fails closed',
+  throws(()=>make.buildSrc(html.replace(equityAnchor,
+    'function equity(mine, board, opponents, iters){')),
+    /equity hook anchor, found 0$/));
+chk('duplicated equity hook anchor fails closed',
+  throws(()=>make.buildSrc(html.replace(equityAnchor,equityAnchor+'\n'+equityAnchor)),
+    /equity hook anchor, found 2$/));
 const duplicatedBootstrap=html.replace(bootstrap, bootstrap+'\n'+bootstrap);
 chk('duplicated bootstrap fails closed in root harness',
   throws(()=>make.buildSrc(duplicatedBootstrap), /bootstrap strip anchor must terminate the engine script$/));
@@ -51,6 +59,9 @@ const heroPolicy=(G)=>{
 const h=make(heroPolicy);
 chk('bootstrap is stripped before explicit session start', h.G.S===null && h.queue.length===0);
 h.G.newSession();
+h.G.equity(h.G.S.players[0].cards,[],[],1);
+chk('equity hook captures the exact descriptor array',
+  Array.isArray(h.state.lastEquityOpps) && h.state.lastEquityOpps.length===0);
 h.drain();
 chk('hero hook executes', heroCalls>0, `calls=${heroCalls}`);
 chk('bot decision hook executes', !!h.state.lastBotCtx);

@@ -345,8 +345,9 @@ Per-hand `S` also tracks public action for bots: `streetBets`, `streetAggressor`
 Per-hand **player** fields, easy to miss because nothing else writes them:
 `p.inferredTier` (range cap, narrows monotonically) and `p.aggr` (postflop
 bet/raise count). Both are written only by `applyAction` and read only by
-`updateStrip`, which feeds them to `equity()` as `{cap, aggr}` — the path with
-no automated coverage (§9), so break it and nothing tells you.
+`updateStrip`, which feeds them to `equity()` as `{cap, aggr}`. `t-equity.js`
+drives a real postflop bet through that entire path and compares the rendered
+percentage with the independently constrained direct call.
 
 ### Per hand
 
@@ -503,6 +504,15 @@ strength estimator, not a different formula.
 
 Cost is ~8ms per readout. Don't raise the iteration count without measuring.
 
+`t-equity.js` is the canonical oracle for this path. It owns deck construction,
+heads-up opponent combinations, turn runouts, exact weighting, and expected shares;
+production supplies only the scoring primitive after a compact literal evaluator
+contract checks every hand category, the wheel, two-trip full houses, and a board-only
+tie. Exact enumeration is deliberately heads-up only. Multiway growth is combinatorial,
+so the multiway invariant uses a royal-flush board where every legal deal must split
+one third. Seeded Monte Carlo bands are fixed regression bounds, not confidence
+intervals: capped and weighted production iterations can be discarded after 40 misses.
+
 ### 8.4 Short all-in prices use only contestable chips
 
 `callPrice(player)` is the shared source for the legal call amount and the decision
@@ -523,8 +533,9 @@ literal heads-up and multiway cases, including prior-street investment where `be
 `invested` differ. If a shallower opponent is already all-in, different pot layers have
 different eligible opponents. The strip then says `layered pot` and withholds the single
 equity threshold and call/fold verdict; pretending one whole-pot percentage prices every
-layer would be false. Per-layer expected value belongs with the independently tested
-equity-oracle increment. The suppressed readout still performs the existing equity draw:
+layer would be false. The equity oracle now constrains the single-field calculation;
+per-layer expected value remains a Policy B design problem. The suppressed readout still
+performs the existing equity draw:
 equity Monte Carlo and gameplay currently share `Math.random`, so skipping those draws
 would silently change later deals and bot decisions. `t-teaching.js` guards that sequence.
 
@@ -542,12 +553,14 @@ replacements, and evaluates it as a function with a fake DOM:
 1. `renderActions()` → `HERO_ACT()` so a test can drive hero programmatically
 2. wraps `botDecide` with `BOTFLAG` + `SETCTX` so card access can be trapped and the
    last ctx inspected
-3. strips the bootstrap call so tests control when a session starts
+3. instruments the `equity` entry point with `EQUITY_CTX` so integration tests can
+   inspect the exact range descriptors supplied by live rendering
+4. strips the bootstrap call so tests control when a session starts
 
 ⚠ **The transforms are string matches against the app source.** Keep the literal
 `const botDecide=function(ctx){` declaration line unchanged. `harness-transform.js`
 requires every anchor to match exactly once, so a missing or duplicated hero hook,
-bot wrapper, bootstrap strip, RNG stream hook, or experiment ctx extension throws
+bot wrapper, equity hook, bootstrap strip, RNG stream hook, or experiment ctx extension throws
 before the engine runs. `t-harness.js` proves the root harness fails closed and that
 its injected hooks execute. This guard exists because a bootstrap rename once made
 the harness run a phantom session whose leftover callbacks produced a fake
@@ -558,12 +571,13 @@ first.**
 
 | File | Covers |
 |---|---|
-| `t-harness.js` | source-transform guards: current source builds, missing/duplicated anchors throw, bootstrap stays inert until explicitly started, hero and bot hooks execute |
+| `t-harness.js` | source-transform guards: current source builds, missing/duplicated anchors throw, bootstrap stays inert until explicitly started, hero, bot, and equity hooks execute |
 | `t-policy.js` | Policy A source hash + exact dispatcher lock; seeded direct-vs-dispatched traces include actions, reasons, RNG draws, deals, logs, stacks, reads, mood, and session state |
 | `t-legal.js` | independent legal-action oracle: effective calls, exact min/max bet-to bounds, short and cumulative all-ins, raise rights, stale revisions, malformed input, and byte-identical state on rejection |
 | `t-teaching.js` | literal call-price oracle: full and short calls, total-investment caps across streets, folded dead money, deeper side-pot layers, layered-verdict suppression, rendered copy, purity, and RNG alignment |
+| `t-equity.js` | literal evaluator contract + exact heads-up river/turn oracle, premium cap, aggression weighting, multiway forced tie, purity, wrapper defaults, and live `applyAction` → strip range wiring |
 | `t-settlement.js` | independent literal pot-award oracle against real `endHand`: fold/showdown refunds, matched folded money, main/side recipients, odd chips, review/export wording, conservation, and mutation-free invalid-state guards |
-| `t1b.js` | the **hand evaluator** (`evaluate`/`cmpHand`) vs hand-verified draw maths, via its own head-to-head Monte Carlo. ⚠ Despite the name it does **not** touch `equity()`, `betLikelihood()` or `strengthVsRandom()` — see the coverage gap below. It also bypasses `harness.js` and slices the source itself between `const SUITS` and `function drawInfo`; don't rename or reorder those |
+| `t1b.js` | five hand-verified heads-up draw estimates through `evaluate`/`cmpHand`, via its own unseeded Monte Carlo. Direct equity-pipeline coverage lives in `t-equity.js`. This suite bypasses `harness.js` and slices the source itself between `const SUITS` and `function drawInfo`; don't rename or reorder those |
 | `t2.js` | 3000 hands: no hangs, no negative stacks, pot = money in; winner check is a narrow log heuristic, not a full pot-award oracle |
 | `t3.js` | fairness — static scan + Proxy trap on **all other seats**, ctx leak check, control |
 | `t6.js` | elimination, table shrinking 6→2, chip conservation, heads-up blind rules |
@@ -577,8 +591,8 @@ or BUG/FAIL line (every suite sets a real exit code — added when it was
 discovered none did). It is not read-only: `exp/t-exp.js` removes and recreates test
 directories, and the two locks overwrite their matching scratch files under `exp/out/`.
 
-⚠ **Where the gates are wired — green does not always mean enforced.** Three
-holes are by design and one is a real gap; know all four before trusting a
+⚠ **Where the gates are wired — green does not always mean enforced.** Two
+limitations are by design and one is a real gap; know all three before trusting a
 clean run:
 
 - **The two locks arm only at their frozen default config.** `run-probes.js`
@@ -593,9 +607,6 @@ clean run:
   to the gate unless you add it in both places. Three low-volume branches
   (spew-call, preflop bluff-3-bet, postflop bluff-raise) predate the rule and
   carry partial or no `dbg` — the gate covers six pairs, not every branch.
-- **The equity path has no automated coverage at all.** `equity()`,
-  `betLikelihood()` and the `(likelihood/0.80)^aggr` rejection sampler (§8.3)
-  are tested by nothing. t1b's name suggests otherwise; it does not.
 - **`SB=1, BB=2, START=200` are frozen measurement units.** `START` is pinned by
   t2/t6 (1200 chips). `BB` is guarded by nothing, yet it is the denominator of
   every bb/100 in PLAN.md, both probe-lock thresholds, and the judge prompt's
@@ -634,11 +645,12 @@ full house). Verify by hand before "correcting" them.
   wrong. Action controls, execution, and the teaching strip now share the exact effective
   call; the strip also excludes deeper layers that hero cannot win. Bot strategy remains
   deliberately unchanged until the Policy B challenger.
-- **Equity heuristics:** the core `equity()` / `betLikelihood()` path remains uncovered.
-  Bot `strengthVsRandom()` already simulates the future runout, then the call boundary
-  adds flush- and straight-draw bonuses again. Aggression accumulated on earlier streets
-  is also re-evaluated against the current board. Treat the strip as a useful estimate,
-  not an exact oracle, until these paths have focused tests.
+- **Policy A equity use:** `t-equity.js` now constrains `equity()`, `betLikelihood()`,
+  range weighting, and the live strip wiring. Policy A still takes
+  `strengthVsRandom()` after it has simulated the future runout, then adds flush- and
+  straight-draw bonuses again. Its `aggr` count also accumulates across postflop streets
+  and is re-evaluated against the current board. Those are Policy B inputs, not reasons
+  to mutate the frozen baseline.
 - **Browser UX:** the decision strip is refreshed only when hero controls render, so old
   guidance can remain during review or early in the next hand. Training-wheel switches
   and seat dossiers are not keyboard controls, dynamic state has no live-region

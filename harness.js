@@ -11,8 +11,12 @@ function buildSrc(htmlText){
     /const botDecide=function\(ctx\)\{\s*return botPolicyV1\(ctx\);\s*\};/,
     'const _botDecide=function(ctx){ return botPolicyV1(ctx); };\nconst botDecide=function(ctx){ BOTFLAG(true); SETCTX(ctx); try{ return _botDecide(ctx); } finally { BOTFLAG(false); } };',
     'botDecide wrap');
+  src=replaceExactlyOnce(src,
+    'function equity(mine, board, opps_, iters){',
+    'function equity(mine, board, opps_, iters){ EQUITY_CTX(opps_);',
+    'equity hook');
   src=stripEngineBootstrap(src);
-  src+='\nreturn {newHand, newSession, get roster(){return roster}, botDecide, pctOf, strengthVsRandom, openThreshold, posName, behindCount, get S(){return S}, get session(){return session}, callPrice, legalActionView, policyActionForView, applyAction, nextToAct, step, updateStrip, renderActions, buildPots, endHand, evaluate, cmpHand, handStr, START, BB, SB, clampFreq, freshReads, shrinkReads, readLabel, BOT_STYLES, sampleTier};';
+  src+='\nreturn {newHand, newSession, get roster(){return roster}, botDecide, pctOf, betLikelihood, equity, strengthVsRandom, openThreshold, posName, behindCount, get S(){return S}, get session(){return session}, callPrice, legalActionView, policyActionForView, applyAction, nextToAct, step, updateStrip, renderActions, buildPots, endHand, evaluate, cmpHand, handStr, START, BB, SB, clampFreq, freshReads, shrinkReads, readLabel, BOT_STYLES, sampleTier};';
   return src;
 }
 
@@ -33,12 +37,13 @@ const document={getElementById:id=>els[id]||(els[id]=fakeEl()),createElement:()=
 
 function make(heroPolicy){
   const queue=[];
-  const state={inBot:false, leaks:[], lastBotCtx:null};
+  const state={inBot:false, leaks:[], lastBotCtx:null, lastEquityOpps:null};
   const BOTFLAG=v=>{state.inBot=v;};
   const SETCTX=c=>{state.lastBotCtx=c;};
+  const EQUITY_CTX=opps=>{state.lastEquityOpps=opps.map(o=>typeof o==='number'?o:{...o});};
   const HERO_ACT=()=>heroPolicy(G,state);
-  const G=new Function('document','navigator','setTimeout','HERO_ACT','BOTFLAG','SETCTX','window',
-    '"use strict";'+src)(document,{},fn=>queue.push(fn),HERO_ACT,BOTFLAG,SETCTX,{});
+  const G=new Function('document','navigator','setTimeout','HERO_ACT','BOTFLAG','SETCTX','EQUITY_CTX','window',
+    '"use strict";'+src)(document,{},fn=>queue.push(fn),HERO_ACT,BOTFLAG,SETCTX,EQUITY_CTX,{});
   const drain=()=>{let n=0; while(queue.length && n++<500000) queue.shift()();};
   return {G,drain,state,queue,els};
 }

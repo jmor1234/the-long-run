@@ -40,13 +40,15 @@ bash run-all.sh     # everything; rewrites disposable exp/out/ artifacts
 node t3.js          # fairness only — run this after touching botDecide
 node t-legal.js     # legal-action boundary and no-mutation rejection oracle
 node t-teaching.js  # exact full-call and short-all-in teaching price
+node t-equity.js    # exact heads-up equity and live range-wiring oracle
 node t-settlement.js # exact pot recipients, odd chips, and refund semantics
 ```
 
 Node >= 18, no dependencies. Any line starting `BUG` or `FAIL` is a regression.
 
-The harness reads `./poker-trainer.html` and rewrites three exact source anchors.
+The harness reads `./poker-trainer.html` and rewrites four exact source anchors.
 Every rewrite must match exactly once or the harness throws; `t-harness.js` proves
 missing and duplicated anchors fail closed and that the injected hooks execute.
-Keep `const botDecide=function(ctx){` literal.
+Keep `const botDecide=function(ctx){` and
+`function equity(mine, board, opps_, iters){` literal.
 See [ARCHITECTURE.md](ARCHITECTURE.md) §9.
