@@ -36,7 +36,7 @@ preset **Other**, no build command, empty output directory.
 ## Test suite
 
 ```bash
-bash run-all.sh     # everything; rewrites disposable exp/out/ artifacts
+bash run-all.sh     # everything; POSIX/WSL; see ARCHITECTURE.md §9 for Windows
 node t3.js          # fairness only — run this after touching botDecide
 node t-policy-b.js  # opt-in Policy B public-line and pricing oracle
 node t-legal.js     # legal-action boundary and no-mutation rejection oracle

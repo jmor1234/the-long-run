@@ -552,6 +552,20 @@ would silently change later deals and bot decisions. `t-teaching.js` guards that
 
 Commands: see §0. Node ≥ 18, no dependencies.
 
+`run-all.sh` requires a POSIX shell or an installed WSL distribution. On Windows
+without WSL, run the Node scripts listed in that file directly. If reproducing its
+failure scan in PowerShell, use the case-sensitive operator:
+
+```powershell
+$hasFailure = @(
+  $output | Where-Object { $_ -cmatch '(^|[^A-Za-z])(BUG|FAIL)' }
+).Count -gt 0
+```
+
+PowerShell's default `-match` is case-insensitive and falsely treats ordinary text
+such as "fails closed" as the uppercase `FAIL` sentinel. Capture `$LASTEXITCODE`
+immediately after each Node process as the other failure signal.
+
 ### How the harness works
 
 `harness.js` extracts the `<script>` body from the HTML, applies surgical string
