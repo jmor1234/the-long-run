@@ -1253,6 +1253,19 @@ function nextToAct(from){
   return -1;
 }
 
+function callPrice(p){
+  const toCall=Math.max(0,S.currentBet-p.bet);
+  const effectiveCall=Math.min(toCall,p.stack);
+  const cap=p.invested+effectiveCall;
+  const contestablePot=S.players.reduce((sum,o)=>sum+Math.min(o.invested,cap),0);
+  const excludedPot=S.pot-contestablePot;
+  const finalPot=contestablePot+effectiveCall;
+  const layeredEquity=S.players.some(o=>o!==p && !o.folded && o.allIn &&
+    o.invested>0 && o.invested<cap);
+  return {toCall,effectiveCall,contestablePot,excludedPot,finalPot,layeredEquity,
+    need:effectiveCall>0?effectiveCall/finalPot:0};
+}
+
 function legalActionView(p){
   const deny=code=>({ok:false,code,actions:[]});
   if(!S || S.done) return deny('hand-closed');
@@ -1268,8 +1281,7 @@ function legalActionView(p){
       p.bet>S.currentBet || p.actedAtBet>S.currentBet) return deny('invalid-betting-state');
   if(p.acted && p.bet===S.currentBet) return deny('already-acted');
 
-  const toCall=S.currentBet-p.bet;
-  const effectiveCall=Math.min(toCall,p.stack);
+  const {toCall,effectiveCall}=callPrice(p);
   const actions=toCall>0
     ? [{action:'fold'},{action:'call',cost:effectiveCall,allIn:effectiveCall===p.stack}]
     : [{action:'check'}];
@@ -1364,7 +1376,7 @@ function applyAction(p, d){
     logLine(p.isHero?'hero':'', `${p.name} checks`);
   }
   else if(d.action==='call'){
-    const a=Math.min(toCall,p.stack);
+    const a=descriptor.cost;
     p.stack-=a; p.bet+=a; p.invested+=a; S.pot+=a;
     if(p.stack===0) p.allIn=true;
     const isLimp = S.street==='preflop' && !S.raisedBefore;
@@ -1692,26 +1704,42 @@ function updateStrip(){
   strip.classList.remove('off');
 
   const hero=S.players[0];
-  const toCall=S.currentBet-hero.bet;
+  const price=callPrice(hero);
+  const {toCall,effectiveCall,contestablePot,excludedPot,finalPot,layeredEquity,need}=price;
+  const barEq=document.getElementById('barEq');
+  const valEq=document.getElementById('valEq');
+  const barNeed=document.getElementById('barNeed');
+  const valNeed=document.getElementById('valNeed');
+  const v=document.getElementById('verdict');
+  const note=document.getElementById('stripNote');
+  const priceLine=effectiveCall<toCall
+    ? `Going all in for ${effectiveCall} creates a ${finalPot}-chip pot you can contest. Your stack reaches ${contestablePot} of the ${S.pot} chips already in the middle; ${excludedPot} are above your cap.`
+    : `Calling ${effectiveCall} risks ${effectiveCall} to win ${contestablePot}.`;
   const opps=S.players.filter(p=>!p.folded && !p.isHero);
   const tiers=opps.map(p=>({cap:p.inferredTier, aggr:p.aggr}));
   const eq = tiers.length? equity(hero.cards, S.board, tiers, S.board.length?320:260) : 1;
-  const need = toCall>0 ? toCall/(S.pot+toCall) : 0;
 
-  document.getElementById('barEq').style.width=(eq*100).toFixed(0)+'%';
-  document.getElementById('valEq').textContent=(eq*100).toFixed(0)+'%';
-  document.getElementById('barNeed').style.width=(need*100).toFixed(0)+'%';
-  document.getElementById('valNeed').textContent= toCall>0?(need*100).toFixed(0)+'%':'—';
+  if(toCall>0 && layeredEquity){
+    barEq.style.width='0%'; valEq.textContent='varies';
+    barNeed.style.width='0%'; valNeed.textContent='varies';
+    v.textContent='layered pot'; v.className='verdict';
+    note.textContent=`${priceLine} Different opponents can win different layers, so one equity percentage cannot honestly label this call or fold.`;
+    return;
+  }
 
-  const v=document.getElementById('verdict');
-  const note=document.getElementById('stripNote');
+  barEq.style.width=(eq*100).toFixed(0)+'%';
+  valEq.textContent=(eq*100).toFixed(0)+'%';
+  barNeed.style.width=(need*100).toFixed(0)+'%';
+  valNeed.textContent= toCall>0?(need*100).toFixed(0)+'%':'—';
+
   if(toCall>0){
     const edge=(eq-need)*100;
     v.textContent = edge>0? `+${edge.toFixed(0)} edge` : `${edge.toFixed(0)} edge`;
     v.className='verdict '+(edge>0?'good':'bad');
-    note.innerHTML = edge>0
-      ? `Calling ${toCall} risks ${toCall} to win ${S.pot}. You need ${(need*100).toFixed(0)}% and you have about ${(eq*100).toFixed(0)}%. Calling makes money over the long run.`
-      : `Calling ${toCall} needs ${(need*100).toFixed(0)}% equity. You have about ${(eq*100).toFixed(0)}%. Folding is the profitable choice here, even when you'd have won.`;
+    note.textContent = `${priceLine} You need ${(need*100).toFixed(0)}% and you have about ${(eq*100).toFixed(0)}%. `
+      +(edge>0
+        ? 'Calling makes money over the long run.'
+        : `Folding is the profitable choice here, even when you'd have won.`);
   } else {
     v.textContent = eq>0.55?'ahead':'behind';
     v.className='verdict '+(eq>0.55?'good':'bad');

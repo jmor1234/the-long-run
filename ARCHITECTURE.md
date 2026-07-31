@@ -503,6 +503,31 @@ strength estimator, not a different formula.
 
 Cost is ~8ms per readout. Don't raise the iteration count without measuring.
 
+### 8.4 Short all-in prices use only contestable chips
+
+`callPrice(player)` is the shared source for the legal call amount and the decision
+strip's pot odds. It caps the player's total post-call investment, then sums every
+player's `invested` chips only up to that cap. Folded chips below the cap still count;
+deeper chips do not, because this player cannot win them. The break-even fraction is:
+
+```text
+effective call / (contestable existing pot + effective call)
+```
+
+`legalActionView` puts the effective amount on the call descriptor and `applyAction`
+charges that descriptor, so the displayed risk and the executed risk cannot drift.
+When the call is a short all-in, the strip names both the contestable pot and chips above
+the player's cap. It does not call the deeper chips a refund or a side pot because either
+can be true depending on other contributors. `t-teaching.js` fixes the arithmetic with
+literal heads-up and multiway cases, including prior-street investment where `bet` and
+`invested` differ. If a shallower opponent is already all-in, different pot layers have
+different eligible opponents. The strip then says `layered pot` and withholds the single
+equity threshold and call/fold verdict; pretending one whole-pot percentage prices every
+layer would be false. Per-layer expected value belongs with the independently tested
+equity-oracle increment. The suppressed readout still performs the existing equity draw:
+equity Monte Carlo and gameplay currently share `Math.random`, so skipping those draws
+would silently change later deals and bot decisions. `t-teaching.js` guards that sequence.
+
 ---
 
 ## 9. Testing
@@ -536,6 +561,7 @@ first.**
 | `t-harness.js` | source-transform guards: current source builds, missing/duplicated anchors throw, bootstrap stays inert until explicitly started, hero and bot hooks execute |
 | `t-policy.js` | Policy A source hash + exact dispatcher lock; seeded direct-vs-dispatched traces include actions, reasons, RNG draws, deals, logs, stacks, reads, mood, and session state |
 | `t-legal.js` | independent legal-action oracle: effective calls, exact min/max bet-to bounds, short and cumulative all-ins, raise rights, stale revisions, malformed input, and byte-identical state on rejection |
+| `t-teaching.js` | literal call-price oracle: full and short calls, total-investment caps across streets, folded dead money, deeper side-pot layers, layered-verdict suppression, rendered copy, purity, and RNG alignment |
 | `t-settlement.js` | independent literal pot-award oracle against real `endHand`: fold/showdown refunds, matched folded money, main/side recipients, odd chips, review/export wording, conservation, and mutation-free invalid-state guards |
 | `t1b.js` | the **hand evaluator** (`evaluate`/`cmpHand`) vs hand-verified draw maths, via its own head-to-head Monte Carlo. ⚠ Despite the name it does **not** touch `equity()`, `betLikelihood()` or `strengthVsRandom()` — see the coverage gap below. It also bypasses `harness.js` and slices the source itself between `const SUITS` and `function drawInfo`; don't rename or reorder those |
 | `t2.js` | 3000 hands: no hangs, no negative stacks, pot = money in; winner check is a narrow log heuristic, not a full pot-award oracle |
@@ -603,11 +629,11 @@ full house). Verify by hand before "correcting" them.
 
 ### Confirmed implementation gaps, not design decisions
 
-- **Short-stack decisions:** the policy and teaching strip use the full `toCall` and
-  undifferentiated pot even when a player cannot match the wager. Unmatched excess will
-  later be returned, so the displayed pot odds and the bot's call boundary can be wrong.
-  Action controls now use the effective call and label a short all-in call correctly;
-  policy and teaching math remain separate follow-up work.
+- **Policy A short-stack decisions:** frozen Policy A still uses the full `toCall` and
+  undifferentiated pot when a bot cannot match the wager, so its call boundary can be
+  wrong. Action controls, execution, and the teaching strip now share the exact effective
+  call; the strip also excludes deeper layers that hero cannot win. Bot strategy remains
+  deliberately unchanged until the Policy B challenger.
 - **Equity heuristics:** the core `equity()` / `betLikelihood()` path remains uncovered.
   Bot `strengthVsRandom()` already simulates the future runout, then the call boundary
   adds flush- and straight-draw bonuses again. Aggression accumulated on earlier streets
