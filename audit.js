@@ -2,6 +2,18 @@ const make=require('./harness');
 console.log('AUDIT — hunting for rule and accounting bugs\n');
 let fails=0;
 const chk=(name,ok,detail)=>{ if(!ok)fails++; console.log(`  ${ok?'ok  ':'BUG '} ${name}${detail?'   '+detail:''}`); };
+const act=(G,p,d)=>{
+  G.S.toAct=p.idx;
+  const view=G.legalActionView(p);
+  return G.applyAction(p,{...d,actionSeq:view.actionSeq});
+};
+const wager=(G,p,target)=>{
+  G.S.toAct=p.idx;
+  const view=G.legalActionView(p), ag=view.aggressive;
+  if(!ag) return act(G,p,view.toCall>0?{action:'call'}:{action:'check'});
+  return G.applyAction(p,{action:ag.action,
+    amount:Math.max(ag.minBetTo,Math.min(ag.maxBetTo,target)),actionSeq:view.actionSeq});
+};
 
 // ---- 1. VPIP must count preflop money only ----
 {
@@ -11,8 +23,9 @@ const chk=(name,ok,detail)=>{ if(!ok)fails++; console.log(`  ${ok?'ok  ':'BUG '}
     // check preflop whenever possible, then bet postflop
     let d;
     if(S.street==='preflop') d = tc>0?{action:'fold'}:{action:'check'};
-    else d = tc>0?{action:'call'}:{action:'bet',amount:h.bet+Math.max(2,Math.round(S.pot*0.5))};
-    G.applyAction(h,d); S.toAct=G.nextToAct(S.toAct); G.step();
+    else d = tc>0?{action:'call'}:null;
+    if(d) act(G,h,d); else wager(G,h,S.currentBet+Math.max(2,Math.round(S.pot*0.5)));
+    S.toAct=G.nextToAct(S.toAct); G.step();
   };
   const {G,drain}=make(policy);
   G.newSession(); drain();
@@ -26,8 +39,9 @@ const chk=(name,ok,detail)=>{ if(!ok)fails++; console.log(`  ${ok?'ok  ':'BUG '}
   const policy=(G)=>{
     const S=G.S,h=S.players[0],tc=S.currentBet-h.bet,r=Math.random();
     const d = tc>0 ? (r<0.5?{action:'call'}:{action:'fold'})
-                   : (r<0.6?{action:'check'}:{action:'bet',amount:h.bet+Math.max(2,Math.round(S.pot*0.6))});
-    G.applyAction(h,d); S.toAct=G.nextToAct(S.toAct); G.step();
+                   : (r<0.6?{action:'check'}:null);
+    if(d) act(G,h,d); else wager(G,h,S.currentBet+Math.max(2,Math.round(S.pot*0.6)));
+    S.toAct=G.nextToAct(S.toAct); G.step();
   };
   const {G,drain}=make(policy);
   G.newSession(); drain();
@@ -49,12 +63,12 @@ const chk=(name,ok,detail)=>{ if(!ok)fails++; console.log(`  ${ok?'ok  ':'BUG '}
   G.newSession();
   const S=G.S, [a,b,c]=[S.players[1],S.players[2],S.players[3]];
   S.street='flop'; S.currentBet=0; S.minRaise=2;
-  S.players.forEach(p=>{p.bet=0;p.acted=false;p.folded=false;p.allIn=false;});
+  S.players.forEach(p=>{p.bet=0;p.acted=false;p.actedAtBet=0;p.folded=false;p.allIn=false;});
   a.stack=200; b.stack=15; c.stack=200;
-  G.applyAction(a,{action:'bet',amount:10});           // a bets 10
+  wager(G,a,10);                                       // a bets 10
   const cActedBefore = c.acted;
-  G.applyAction(c,{action:'call'});                     // c calls 10
-  G.applyAction(b,{action:'bet',amount:999});           // b all-in for 15 (incomplete raise)
+  act(G,c,{action:'call'});                             // c calls 10
+  wager(G,b,15);                                       // b all-in for 15 (incomplete raise)
   chk('incomplete all-in does not reopen action', c.acted===true,
       `c had already called; after the short all-in c.acted=${c.acted}`);
   chk('min-raise unchanged by incomplete all-in', S.minRaise===10, `minRaise=${S.minRaise} (10 is correct: a's bet of 10 set it)`);
@@ -66,10 +80,10 @@ const chk=(name,ok,detail)=>{ if(!ok)fails++; console.log(`  ${ok?'ok  ':'BUG '}
   G.newSession();
   const S=G.S, a=S.players[1], b=S.players[2];
   S.street='flop'; S.currentBet=0; S.minRaise=2;
-  S.players.forEach(p=>{p.bet=0;p.acted=false;p.folded=false;p.allIn=false;});
+  S.players.forEach(p=>{p.bet=0;p.acted=false;p.actedAtBet=0;p.folded=false;p.allIn=false;});
   a.stack=200; b.stack=7;
-  G.applyAction(a,{action:'bet',amount:20});
-  G.applyAction(b,{action:'bet',amount:999});
+  wager(G,a,20);
+  wager(G,b,7);
   chk('short all-in labelled honestly', !/raise/.test(b.lastAct), `shows "${b.lastAct}"`);
 }
 
@@ -77,9 +91,10 @@ const chk=(name,ok,detail)=>{ if(!ok)fails++; console.log(`  ${ok?'ok  ':'BUG '}
 {
   const policy=(G)=>{
     const S=G.S,h=S.players[0],tc=S.currentBet-h.bet,r=Math.random();
-    const d = tc>0 ? (r<0.4?{action:'fold'}:r<0.75?{action:'call'}:{action:'bet',amount:h.bet+tc+Math.max(2,Math.round(S.pot*0.5))})
-                   : (r<0.5?{action:'check'}:{action:'bet',amount:h.bet+Math.max(2,Math.round(S.pot*0.5))});
-    G.applyAction(h,d); S.toAct=G.nextToAct(S.toAct); G.step();
+    const d = tc>0 ? (r<0.4?{action:'fold'}:r<0.75?{action:'call'}:null)
+                   : (r<0.5?{action:'check'}:null);
+    if(d) act(G,h,d); else wager(G,h,S.currentBet+Math.max(2,Math.round(S.pot*0.5)));
+    S.toAct=G.nextToAct(S.toAct); G.step();
   };
   const {G,drain,state}=make(policy);
   G.newSession(); drain();
@@ -109,7 +124,7 @@ const chk=(name,ok,detail)=>{ if(!ok)fails++; console.log(`  ${ok?'ok  ':'BUG '}
     const d = S.street==='preflop'
       ? (tc>0?{action:'fold'}:{action:'check'})
       : (tc>0?{action:'fold'}:{action:'check'});
-    G.applyAction(h,d); S.toAct=G.nextToAct(S.toAct); G.step();
+    act(G,h,d); S.toAct=G.nextToAct(S.toAct); G.step();
   };
   const {G,drain}=make(policy);
   G.newSession(); drain();
@@ -137,12 +152,12 @@ const chk=(name,ok,detail)=>{ if(!ok)fails++; console.log(`  ${ok?'ok  ':'BUG '}
     const S=G.S;
     const [a,b]=[S.players[1],S.players[2]];
     S.street='preflop'; S.raisedBefore=false; S.streetBets=0; S.currentBet=2; S.minRaise=2;
-    S.players.forEach(p=>{p.bet=0;p.acted=false;p.folded=false;p.allIn=false;p.invested=0;});
+    S.players.forEach(p=>{p.bet=0;p.acted=false;p.actedAtBet=0;p.folded=false;p.allIn=false;p.invested=0;});
     a.bet=0; a.stack=200;
-    G.applyAction(a,{action:'raise',amount:6}); // open → streetBets=1
+    wager(G,a,6); // open → streetBets=1
     const before=G.roster.find(r=>r.seat===b.seat).reads.threeBetOpps;
     b.bet=0; b.stack=200;
-    G.applyAction(b,{action:'raise',amount:18}); // 3-bet
+    wager(G,b,18); // 3-bet
     const after=G.roster.find(r=>r.seat===b.seat).reads;
     chk('3-bet opp+hit on forced spot', after.threeBetOpps===before+1 && after.threeBet>=1,
         `opps ${before}→${after.threeBetOpps}, hits=${after.threeBet}`);
@@ -153,16 +168,16 @@ const chk=(name,ok,detail)=>{ if(!ok)fails++; console.log(`  ${ok?'ok  ':'BUG '}
     const S=G.S;
     const [a,b]=[S.players[1],S.players[2]];
     S.street='preflop'; S.raisedBefore=false; S.streetBets=0; S.currentBet=2; S.minRaise=2;
-    S.players.forEach(p=>{p.bet=0;p.acted=false;p.folded=false;p.allIn=false;p.invested=0;});
-    G.applyAction(a,{action:'raise',amount:6});
-    G.applyAction(b,{action:'call'});
+    S.players.forEach(p=>{p.bet=0;p.acted=false;p.actedAtBet=0;p.folded=false;p.allIn=false;p.invested=0;});
+    wager(G,a,6);
+    act(G,b,{action:'call'});
     // advance-like reset into flop c-bet
     S.street='flop'; S.streetBets=0; S.streetAggressor=null; S.currentBet=0; S.minRaise=2;
-    S.players.forEach(p=>{p.bet=0;p.acted=false;});
+    S.players.forEach(p=>{p.bet=0;p.acted=false;p.actedAtBet=0;});
     S.preflopRaiser=a;
-    G.applyAction(a,{action:'bet',amount:8}); // c-bet, streetBets=1, aggressor=a
+    wager(G,a,8); // c-bet, streetBets=1, aggressor=a
     const before=G.roster.find(r=>r.seat===b.seat).reads.foldToCbetOpps;
-    G.applyAction(b,{action:'fold'});
+    act(G,b,{action:'fold'});
     const after=G.roster.find(r=>r.seat===b.seat).reads;
     chk('fold-to-cbet opp+fold on forced flop c-bet', after.foldToCbetOpps===before+1 && after.foldToCbet>=1,
         `opps ${before}→${after.foldToCbetOpps}, folds=${after.foldToCbet}`);
@@ -173,11 +188,11 @@ const chk=(name,ok,detail)=>{ if(!ok)fails++; console.log(`  ${ok?'ok  ':'BUG '}
     const S=G.S;
     const [a,b,c]=[S.players[1],S.players[2],S.players[3]];
     S.street='preflop'; S.streetBets=0; S.currentBet=2; S.minRaise=2;
-    S.players.forEach(p=>{p.bet=0;p.acted=false;p.folded=false;p.allIn=false;p.invested=0;});
-    G.applyAction(a,{action:'raise',amount:6});  // streetBets=1
-    G.applyAction(b,{action:'raise',amount:18}); // streetBets=2
+    S.players.forEach(p=>{p.bet=0;p.acted=false;p.actedAtBet=0;p.folded=false;p.allIn=false;p.invested=0;});
+    wager(G,a,6);  // streetBets=1
+    wager(G,b,18); // streetBets=2
     const before=G.roster.find(r=>r.seat===c.seat).reads.threeBetOpps;
-    G.applyAction(c,{action:'raise',amount:40}); // 4-bet face
+    wager(G,c,40); // 4-bet face
     const after=G.roster.find(r=>r.seat===c.seat).reads.threeBetOpps;
     chk('cold 4-bet spot is not a 3-bet opportunity', after===before, `opps ${before}→${after}`);
   }

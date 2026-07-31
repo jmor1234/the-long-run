@@ -4,11 +4,16 @@ console.log('TEST 2 — chip conservation and rule integrity over 3,000 hands\n'
 let topups=0;
 const heroPolicy=(G)=>{
   const S=G.S, hero=S.players[0], toCall=S.currentBet-hero.bet;
+  const view=G.legalActionView(hero);
   const r=Math.random();
   let d;
-  if(toCall>0) d = r<0.45?{action:'fold'} : r<0.85?{action:'call'} : {action:'bet',amount:hero.bet+toCall+Math.max(2,Math.round(S.pot*0.6))};
-  else d = r<0.7?{action:'check'} : {action:'bet',amount:hero.bet+Math.max(2,Math.round(S.pot*0.6))};
-  G.applyAction(hero,d);
+  if(toCall>0) d = r<0.45?{action:'fold'} : r<0.85||!view.aggressive?{action:'call'} :
+    {action:view.aggressive.action,amount:Math.max(view.aggressive.minBetTo,
+      Math.min(view.aggressive.maxBetTo,S.currentBet+Math.max(2,Math.round(S.pot*0.6))))};
+  else d = r<0.7||!view.aggressive?{action:'check'} :
+    {action:view.aggressive.action,amount:Math.max(view.aggressive.minBetTo,
+      Math.min(view.aggressive.maxBetTo,S.currentBet+Math.max(2,Math.round(S.pot*0.6))))};
+  G.applyAction(hero,{...d,actionSeq:view.actionSeq});
   S.toAct=G.nextToAct(S.toAct);
   G.step();
 };

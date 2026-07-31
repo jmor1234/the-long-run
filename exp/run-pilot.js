@@ -38,7 +38,8 @@ const MAX_OUTPUT_TOKENS=400; // JSON action + a two-sentence reason
 
 function checkFoldHero(G){
   const S=G.S, hero=S.players[0], toCall=S.currentBet-hero.bet;
-  G.applyAction(hero, {action:toCall>0?'fold':'check'});
+  const d={action:toCall>0?'fold':'check'};
+  G.applyAction(hero,G.legalActionView?{...d,actionSeq:G.legalActionView(hero).actionSeq}:d);
   S.toAct=G.nextToAct(S.toAct);
   G.step();
 }

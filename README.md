@@ -38,6 +38,7 @@ preset **Other**, no build command, empty output directory.
 ```bash
 bash run-all.sh     # everything; rewrites disposable exp/out/ artifacts
 node t3.js          # fairness only — run this after touching botDecide
+node t-legal.js     # legal-action boundary and no-mutation rejection oracle
 ```
 
 Node >= 18, no dependencies. Any line starting `BUG` or `FAIL` is a regression.

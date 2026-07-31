@@ -5,10 +5,13 @@ const chk=(n,ok,d)=>{ if(!ok)fails++; console.log(`  ${ok?'ok  ':'BUG '} ${n}${d
 
 const policy=(G)=>{
   const S=G.S,h=S.players[0],tc=S.currentBet-h.bet,r=Math.random();
+  const view=G.legalActionView(h);
+  const wager=()=>({action:view.aggressive.action,amount:Math.max(view.aggressive.minBetTo,
+    Math.min(view.aggressive.maxBetTo,S.currentBet+Math.max(2,Math.round(S.pot*0.8))))});
   let d;
-  if(tc>0) d = r<0.35?{action:'fold'} : r<0.8?{action:'call'} : {action:'bet',amount:h.bet+tc+Math.max(2,Math.round(S.pot*0.8))};
-  else     d = r<0.55?{action:'check'} : {action:'bet',amount:h.bet+Math.max(2,Math.round(S.pot*0.8))};
-  G.applyAction(h,d); S.toAct=G.nextToAct(S.toAct); G.step();
+  if(tc>0) d = r<0.35?{action:'fold'} : r<0.8||!view.aggressive?{action:'call'} : wager();
+  else     d = r<0.55||!view.aggressive?{action:'check'} : wager();
+  G.applyAction(h,{...d,actionSeq:view.actionSeq}); S.toAct=G.nextToAct(S.toAct); G.step();
 };
 
 const sizesSeen=new Set();
@@ -49,7 +52,8 @@ let firstActor=null, seen=0, sbOK=0, sbBad=0;
 const capture=(G)=>{
   const S=G.S,h=S.players[0];
   if(firstActor===null) firstActor=S.toAct;
-  G.applyAction(h,{action:'fold'}); S.toAct=G.nextToAct(S.toAct); G.step();
+  const view=G.legalActionView(h);
+  G.applyAction(h,{action:'fold',actionSeq:view.actionSeq}); S.toAct=G.nextToAct(S.toAct); G.step();
 };
 const {G:G2,drain:d2}=make(capture);
 for(let i=0;i<300 && seen<40;i++){

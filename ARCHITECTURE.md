@@ -180,7 +180,7 @@ pre-shrunk, never a seat index into `S`). Shrinkage / nudge math runs inside
 `facingNudge`. The function never touches `S` — it is pure with respect to its
 arguments. That is what makes the guarantee structural rather than a promise.
 
-**Return shape** (what `applyAction` consumes):
+**Return shape** (what the engine action controller consumes):
 
 ```js
 { action: 'fold'|'check'|'call'|'bet'|'raise', amount?: number, reason: string,
@@ -188,7 +188,9 @@ arguments. That is what makes the guarantee structural rather than a promise.
 ```
 
 `amount` is required for `bet`/`raise` (total chips to put in / raise-to sizing as the
-call site expects). Inventing `size`/`bet` instead of `amount` silently breaks sizing.
+call site expects). The controller attaches the current `actionSeq`; policy code never
+invents it. `applyAction` then validates the actor, turn revision, verb, and exact amount
+against `legalActionView` before touching chips, reads, logs, or action state.
 
 `dbg` never reaches the UI — it carries the roll that decided this branch plus the
 threshold it was compared against, so tests can assert the stated randomness actually
@@ -377,6 +379,24 @@ advanceStreet: deal → reset bets → step()   (river → endHand)
 ⚠ Bot actions are queued through `setTimeout` for readability. The test harness replaces
 `setTimeout` with a queue it drains synchronously (§9).
 
+### Legal action boundary
+
+`legalActionView(p)` is the one runtime source of truth for action legality. It returns
+the effective call, canonical passive actions, and either no aggressive action or exact
+minimum/maximum bet-to bounds. Hero controls render from it. Bot decisions are checked
+against it. `applyAction` recomputes it and rejects malformed, stale, out-of-turn, or
+out-of-range input with no mutation. A successful action increments `S.actionSeq`, so a
+decision cached for an earlier turn cannot become valid again when the same player acts
+after an incomplete all-in. Aggression is absent unless another opponent can contest at
+least one chip above the current wager, so the engine cannot create an empty side pot.
+
+Policy A predates the strict boundary and occasionally emits an integer just below the
+minimum raise. `policyActionForView` is the trusted client adapter: it fits only a
+canonical aggressive Policy A amount to the view's min/max bounds before submission.
+This preserves the old engine's legal sizing behavior without weakening `applyAction`;
+unknown verbs, non-integer amounts, forbidden raises, and every external caller still
+fail closed.
+
 ### Betting round completion
 
 `bettingDone()` is true when every player who can still act has acted **and** matched
@@ -384,7 +404,7 @@ advanceStreet: deal → reset bets → step()   (river → endHand)
 
 ---
 
-## 6. ⚠ Incomplete raises
+## 6. Incomplete raises
 
 An all-in for **less than a full raise** raises the price to call but does not reopen the
 right to raise for players who already acted. Those players still get another action if
@@ -401,9 +421,12 @@ if (fullRaise) {                   // but only a legal raise reopens action
 }
 ```
 
-`audit.js` covers those two facts. The engine does not yet model raise rights separately,
-so the betting loop can return a prior actor to the controls or policy and allow another
-raise. That is a confirmed implementation gap, not the intended rule (§10).
+Raise rights are derived from `actedAtBet`, the bet level a player last acted against. A
+single short all-in therefore returns a prior actor to call or fold without offering a
+raise. If several short all-ins cumulatively increase the wager by at least `minRaise`,
+raising reopens for a player who has faced that full cumulative increase. Players who
+have not acted retain their raise right. `t-legal.js` covers all three cases with literal
+bounds and zero-mutation rejection checks; `audit.js` retains the original regression.
 
 ---
 
@@ -511,12 +534,13 @@ first.**
 |---|---|
 | `t-harness.js` | source-transform guards: current source builds, missing/duplicated anchors throw, bootstrap stays inert until explicitly started, hero and bot hooks execute |
 | `t-policy.js` | Policy A source hash + exact dispatcher lock; seeded direct-vs-dispatched traces include actions, reasons, RNG draws, deals, logs, stacks, reads, mood, and session state |
+| `t-legal.js` | independent legal-action oracle: effective calls, exact min/max bet-to bounds, short and cumulative all-ins, raise rights, stale revisions, malformed input, and byte-identical state on rejection |
 | `t1b.js` | the **hand evaluator** (`evaluate`/`cmpHand`) vs hand-verified draw maths, via its own head-to-head Monte Carlo. ⚠ Despite the name it does **not** touch `equity()`, `betLikelihood()` or `strengthVsRandom()` — see the coverage gap below. It also bypasses `harness.js` and slices the source itself between `const SUITS` and `function drawInfo`; don't rename or reorder those |
 | `t2.js` | 3000 hands: no hangs, no negative stacks, pot = money in; winner check is a narrow log heuristic, not a full pot-award oracle |
 | `t3.js` | fairness — static scan + Proxy trap on **all other seats**, ctx leak check, control |
 | `t6.js` | elimination, table shrinking 6→2, chip conservation, heads-up blind rules |
 | `audit.js` | VPIP scope, session bb, incomplete raises, styles/limps, forced 3-bet & fold-to-cbet spots |
-| `exp/t-exp.js` | seeded-harness gate suite, two halves: **humanize** (sizing spread + zero engine-floor clamps via the legality oracle, boundary blur persona-shaped by *rate*, dbg-roll drawn-and-governs, short-stack never raises, exhaustive VOICE text-ban scan, mood arithmetic vs a hand-computed table + call-site fidelity) and **experiment infrastructure** (determinism, stream isolation, cross-arm deal identity, oracle replay, legality unit + engine integration, prompt purity) |
+| `exp/t-exp.js` | seeded-harness gate suite, two halves: **humanize** (sizing spread + raw coded-policy sizes observed through the independent legality normalizer, boundary blur persona-shaped by *rate*, dbg-roll drawn-and-governs, short-stack never raises, exhaustive VOICE text-ban scan, mood arithmetic vs a hand-computed table + call-site fidelity) and **experiment infrastructure** (determinism, stream isolation, cross-arm deal identity, oracle replay, legality unit + engine integration, prompt purity) |
 | `exp/run-probes.js` | exploitability LOCK: degenerate heroes must lose ≥ hardcoded bb/100 thresholds (see §3.4 for the numbers and their baseline), nonzero exit |
 | `exp/run-labels.js` | readability LOCK: per-persona dossier labels at hand 31 within 10pp of the pre-humanize engine, measured at 90 sessions (at 30, one label = 3.3pp against ~8pp of noise, so the lock bounced personas across its own line). Two personas sit within 1pp of their bound **by construction** — a marginal failure here is expected sensitivity, not automatically a regression; re-measure the old engine with `--html`/`--sites` before assuming |
 
@@ -577,10 +601,6 @@ full house). Verify by hand before "correcting" them.
 
 ### Confirmed implementation gaps, not design decisions
 
-- **Incomplete-raise action rights:** prior actors may call or fold the extra amount, but
-  the engine can currently offer another raise because it tracks `acted` and `minRaise`,
-  not whether raising was reopened (§6). The existing audit does not exercise the full
-  loop or the hero controls after the short all-in.
 - **Settlement semantics:** the odd-chip sort can award the first remainder to the
   button instead of starting left of it, and `elig.length === 1` can label matched dead
   money as an uncalled refund (§3.2-3.3). Conservation still holds; exact recipient,
@@ -588,8 +608,8 @@ full house). Verify by hand before "correcting" them.
 - **Short-stack decisions:** the policy and teaching strip use the full `toCall` and
   undifferentiated pot even when a player cannot match the wager. Unmatched excess will
   later be returned, so the displayed pot odds and the bot's call boundary can be wrong.
-  The hero's unconditional All in button also submits a `bet` when short of a call,
-  producing the right chip movement but the wrong action label and read counters.
+  Action controls now use the effective call and label a short all-in call correctly;
+  policy and teaching math remain separate follow-up work.
 - **Equity heuristics:** the core `equity()` / `betLikelihood()` path remains uncovered.
   Bot `strengthVsRandom()` already simulates the future runout, then the call boundary
   adds flush- and straight-draw bonuses again. Aggression accumulated on earlier streets
@@ -747,13 +767,15 @@ history live in `exp/ref/`). Four mechanisms, all dial-shaped:
   charts use. Once there is money in, pot-relative is the meaningful measure:
   3-bets use `pot+toCall`, re-raises build on `myBet+toCall`. Every call site
   clamps to the true all-in target `myBet+myStack` — never bare `myStack`.
-  ⚠ **`applyAction`'s min-raise floor is a legality backstop, never the sizer.**
+  ⚠ **The engine action boundary rejects an under-minimum size; it never sizes for the
+  policy.**
   Two historical collapse points prove why: a `Math.max(6, …)` open floor made
   every open "raises to 6", and letting the clamp catch under-min 3-bets snapped
   every one to exactly 10. Uniform sizing was the single most-cited judge tell.
-  Any policy size that lands below the legal minimum silently hands sizing
-  control back to the engine — invisible to a local code reader, which is why
-  `exp/t-exp.js` asserts zero emitted amounts were altered by the floor.
+  Policy A's trusted client fits its occasional below-floor integer to the engine-owned
+  descriptor, preserving the historical legal floor without moving that behavior back
+  into `applyAction`. `t-legal.js` proves the adapter lands on the literal minimum and
+  that the engine itself still rejects an under-minimum submission without mutation.
   (Uniform sizing was the most-cited tell on the *action-only* panels, where play
   is all a judge can see; on full transcripts the narration dominated instead.)
 - **Soft call/fold boundary**: the postflop step became a logistic in the

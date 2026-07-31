@@ -43,7 +43,8 @@ let heroCalls=0;
 const heroPolicy=(G)=>{
   heroCalls++;
   const S=G.S, hero=S.players[0], toCall=S.currentBet-hero.bet;
-  G.applyAction(hero, toCall>0?{action:'fold'}:{action:'check'});
+  const view=G.legalActionView(hero);
+  G.applyAction(hero,{...(toCall>0?{action:'fold'}:{action:'check'}),actionSeq:view.actionSeq});
   S.toAct=G.nextToAct(S.toAct);
   G.step();
 };

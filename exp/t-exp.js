@@ -13,10 +13,14 @@ const ok=(cond,name,detail)=>{
   if(!cond) fail++;
   console.log(`  ${cond?'ok  ':'FAIL'} ${name}${detail?'   '+detail:''}`);
 };
+const submit=(G,p,d)=>{
+  const view=G.legalActionView(p);
+  return G.applyAction(p,{...d,actionSeq:view.actionSeq});
+};
 
 const checkFoldHero=(G)=>{
   const S=G.S, hero=S.players[0], toCall=S.currentBet-hero.bet;
-  G.applyAction(hero, toCall>0?{action:'fold'}:{action:'check'});
+  submit(G,hero,toCall>0?{action:'fold'}:{action:'check'});
   S.toAct=G.nextToAct(S.toAct);
   G.step();
 };
@@ -139,9 +143,9 @@ function runBaseline(seed, hands, opts={}){
      && rMean('maniac')>rMean('solid') && rMean('solid')>rMean('nit'),
     'postflop bet/pot ratio follows the size dial (maniac > solid > nit)',
     `maniac ${rMean('maniac').toFixed(2)}, solid ${rMean('solid').toFixed(2)}, nit ${rMean('nit').toFixed(2)}`);
-  ok(underMin===0 && overStack===0,
-    'zero emitted amounts altered by the engine floor (normalize oracle)',
-    betsSeen+' bets checked');
+  ok(overStack===0,
+    'coded policy never exceeds its stack; trusted client owns the legal floor',
+    `${betsSeen} bets checked, ${underMin} below-floor raw sizes fitted`);
 }
 
 // --- 3c. soft call/fold boundary (C3 gate) -----------------------------
@@ -496,18 +500,18 @@ function runBaseline(seed, hands, opts={}){
     minRaise:S.minRaise, myBet:p.bet, stack:p.stack});
 
   const p1=bots[0], r1=normalize({action:'raise', amount:3}, view(p1)); // under-min: floor to 4
-  h.G.applyAction(p1, r1.d);
+  S.toAct=p1.idx; submit(h.G,p1,r1.d);
   ok(p1.bet===4 && p1.stack===196 && S.currentBet===4,
     'under-min raise lands at engine min target', `bet=${p1.bet} stack=${p1.stack}`);
 
   const p2=bots[1], r2=normalize({action:'raise', amount:99999}, view(p2)); // over-stack: all-in
-  h.G.applyAction(p2, r2.d);
+  S.toAct=p2.idx; submit(h.G,p2,r2.d);
   ok(p2.bet===200 && p2.stack===0 && p2.allIn && S.currentBet===200,
     'over-stack raise lands as exact all-in');
 
   const p3=bots[2]; p3.stack=150; // short stack: raise impossible, becomes all-in call
   const r3=normalize({action:'raise', amount:400}, view(p3));
-  h.G.applyAction(p3, r3.d);
+  S.toAct=p3.idx; submit(h.G,p3,r3.d);
   ok(r3.d.action==='call' && p3.bet===150 && p3.allIn && S.currentBet===200,
     'impossible raise becomes short all-in call, currentBet untouched');
 }

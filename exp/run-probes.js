@@ -42,8 +42,11 @@ if(!Number.isInteger(HANDS) || HANDS<2) fatal('--hands must be an integer >= 2')
 const PROBES={
   'always-raise':(G)=>{ // maniac: bet/raise every single turn
     const S=G.S, hero=S.players[0], toCall=S.currentBet-hero.bet;
-    return {action:toCall>0?'raise':'bet',
-      amount:Math.min(hero.bet+hero.stack, S.currentBet+Math.max(S.minRaise, Math.round(S.pot*0.8)))};
+    const view=G.legalActionView(hero), ag=view.aggressive;
+    if(!ag) return {action:toCall>0?'call':'check'};
+    return {action:ag.action,
+      amount:Math.max(ag.minBetTo,Math.min(ag.maxBetTo,
+        S.currentBet+Math.max(S.minRaise,Math.round(S.pot*0.8))))};
   },
   'call-station':(G)=>{ // call anything, never fold, never raise
     const S=G.S, hero=S.players[0], toCall=S.currentBet-hero.bet;
@@ -51,9 +54,11 @@ const PROBES={
   },
   '3bet-preflop':(G)=>{ // re-raise every preflop bet, passive postflop
     const S=G.S, hero=S.players[0], toCall=S.currentBet-hero.bet;
-    if(S.street==='preflop' && toCall>0)
-      return {action:'raise',
-        amount:Math.min(hero.bet+hero.stack, S.currentBet+Math.max(S.minRaise, Math.round(S.pot*1.0)))};
+    const view=G.legalActionView(hero), ag=view.aggressive;
+    if(S.street==='preflop' && toCall>0 && ag)
+      return {action:ag.action,
+        amount:Math.max(ag.minBetTo,Math.min(ag.maxBetTo,
+          S.currentBet+Math.max(S.minRaise,Math.round(S.pot*1.0))))};
     return {action:toCall>0?'call':'check'};
   },
   'check-fold':(G)=>{ // pure blind bleed: the floor any strategy should beat
@@ -72,7 +77,8 @@ for(const [name,policy] of Object.entries(PROBES)){
   const perSession=[];
   const heroPolicy=(G)=>{
     const S=G.S, hero=S.players[0];
-    G.applyAction(hero, policy(G));
+    const view=G.legalActionView(hero);
+    G.applyAction(hero,{...policy(G),actionSeq:view.actionSeq});
     S.toAct=G.nextToAct(S.toAct);
     G.step();
   };

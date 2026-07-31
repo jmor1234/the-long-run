@@ -15,10 +15,13 @@ if(hits.length) console.log('    offending patterns:',hits.map(String).join(', '
 // (b) runtime: trap every OTHER seat's hole cards while a bot is deciding
 const heroPolicy=(G)=>{
   const S=G.S, hero=S.players[0], toCall=S.currentBet-hero.bet;
+  const view=G.legalActionView(hero);
   const r=Math.random();
   const d = toCall>0 ? (r<0.5?{action:'call'}:{action:'fold'})
-                     : (r<0.6?{action:'check'}:{action:'bet',amount:hero.bet+Math.max(2,Math.round(S.pot*0.6))});
-  G.applyAction(hero,d); S.toAct=G.nextToAct(S.toAct); G.step();
+                     : (r<0.6||!view.aggressive?{action:'check'}:
+                       {action:view.aggressive.action,amount:Math.max(view.aggressive.minBetTo,
+                         Math.min(view.aggressive.maxBetTo,S.currentBet+Math.max(2,Math.round(S.pot*0.6))))});
+  G.applyAction(hero,{...d,actionSeq:view.actionSeq}); S.toAct=G.nextToAct(S.toAct); G.step();
 };
 const {G,drain,state}=make(heroPolicy);
 let peeks=0, handsWatched=0, ctxLeaks=0;

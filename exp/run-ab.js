@@ -47,7 +47,8 @@ fs.writeFileSync(oldPath, oldHtml);
 
 const checkFoldHero=(G)=>{
   const S=G.S, hero=S.players[0], toCall=S.currentBet-hero.bet;
-  G.applyAction(hero, toCall>0?{action:'fold'}:{action:'check'});
+  const d=toCall>0?{action:'fold'}:{action:'check'};
+  G.applyAction(hero,G.legalActionView?{...d,actionSeq:G.legalActionView(hero).actionSeq}:d);
   S.toAct=G.nextToAct(S.toAct);
   G.step();
 };

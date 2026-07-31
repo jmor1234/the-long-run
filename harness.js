@@ -12,15 +12,21 @@ function buildSrc(htmlText){
     'const _botDecide=function(ctx){ return botPolicyV1(ctx); };\nconst botDecide=function(ctx){ BOTFLAG(true); SETCTX(ctx); try{ return _botDecide(ctx); } finally { BOTFLAG(false); } };',
     'botDecide wrap');
   src=stripEngineBootstrap(src);
-  src+='\nreturn {newHand, newSession, get roster(){return roster}, botDecide, pctOf, strengthVsRandom, openThreshold, posName, behindCount, get S(){return S}, get session(){return session}, applyAction, nextToAct, step, buildPots, evaluate, cmpHand, handStr, START, BB, SB, clampFreq, freshReads, shrinkReads, readLabel, BOT_STYLES, sampleTier};';
+  src+='\nreturn {newHand, newSession, get roster(){return roster}, botDecide, pctOf, strengthVsRandom, openThreshold, posName, behindCount, get S(){return S}, get session(){return session}, legalActionView, policyActionForView, applyAction, nextToAct, step, renderActions, buildPots, evaluate, cmpHand, handStr, START, BB, SB, clampFreq, freshReads, shrinkReads, readLabel, BOT_STYLES, sampleTier};';
   return src;
 }
 
 const src=buildSrc(html);
 
-function fakeEl(){return{style:{},className:'',innerHTML:'',textContent:'',value:'',disabled:false,onclick:null,
- scrollTop:0,scrollHeight:0,classList:{add(){},remove(){},toggle(){}},appendChild(){},removeChild(){},
- querySelectorAll:()=>[],querySelector:()=>null,focus(){},select(){},setAttribute(){},remove(){}};}
+function fakeEl(){
+  const el={style:{},className:'',textContent:'',value:'',disabled:false,onclick:null,children:[],
+    scrollTop:0,scrollHeight:0,classList:{add(){},remove(){},toggle(){}},
+    appendChild(child){this.children.push(child);},removeChild(){},
+    querySelectorAll:()=>[],querySelector:()=>null,focus(){},select(){},setAttribute(){},remove(){}};
+  let html='';
+  Object.defineProperty(el,'innerHTML',{get(){return html;},set(v){html=v;if(v==='')el.children=[];}});
+  return el;
+}
 const els={};
 const document={getElementById:id=>els[id]||(els[id]=fakeEl()),createElement:()=>fakeEl(),
  body:{appendChild(){},removeChild(){}},execCommand:()=>true};
@@ -34,7 +40,7 @@ function make(heroPolicy){
   const G=new Function('document','navigator','setTimeout','HERO_ACT','BOTFLAG','SETCTX','window',
     '"use strict";'+src)(document,{},fn=>queue.push(fn),HERO_ACT,BOTFLAG,SETCTX,{});
   const drain=()=>{let n=0; while(queue.length && n++<500000) queue.shift()();};
-  return {G,drain,state,queue};
+  return {G,drain,state,queue,els};
 }
 make.buildSrc=buildSrc;
 module.exports=make;

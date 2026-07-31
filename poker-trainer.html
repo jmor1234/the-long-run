@@ -1180,7 +1180,7 @@ function newHand(){
       idx:i, seat:r.seat, name:r.name, isHero:r.isHero, stack:r.stack,
       cards:[deck.pop(),deck.pop()],
       folded:false, allIn:false, bet:0, invested:0,
-      acted:false, lastAct:'', inferredTier:100, aggr:0,
+      acted:false, actedAtBet:0, lastAct:'', inferredTier:100, aggr:0,
       pos, openThr:openThreshold(pos,behind,n)
     };
   });
@@ -1189,7 +1189,7 @@ function newHand(){
     deck, players, n, btnPos, board:[], pot:0, street:'preflop',
     currentBet:0, minRaise:BB, log:[], handNum:session.hands+1,
     raisedBefore:false, done:false, heroVpip:false, decisions:[],
-    streetBets:0, streetAggressor:null, preflopRaiser:null
+    streetBets:0, streetAggressor:null, preflopRaiser:null, actionSeq:0
   };
 
   const sbIdx = n===2 ? btnPos : (btnPos+1)%n;
@@ -1253,8 +1253,73 @@ function nextToAct(from){
   return -1;
 }
 
+function legalActionView(p){
+  const deny=code=>({ok:false,code,actions:[]});
+  if(!S || S.done) return deny('hand-closed');
+  if(!p || !S.players.includes(p)) return deny('unknown-actor');
+  if(S.players[S.toAct]!==p) return deny('out-of-turn');
+  if(p.folded) return deny('actor-folded');
+  if(p.allIn) return deny('actor-all-in');
+  if(activePlayers().length<=1 || bettingDone()) return deny('round-closed');
+  if(!Number.isInteger(p.bet) || !Number.isInteger(p.stack) || p.bet<0 || p.stack<0 ||
+      !Number.isInteger(S.currentBet) || !Number.isInteger(S.minRaise) ||
+      !Number.isInteger(S.actionSeq) || !Number.isInteger(p.actedAtBet) ||
+      S.currentBet<0 || S.minRaise<=0 || S.actionSeq<0 || p.actedAtBet<0 ||
+      p.bet>S.currentBet || p.actedAtBet>S.currentBet) return deny('invalid-betting-state');
+  if(p.acted && p.bet===S.currentBet) return deny('already-acted');
+
+  const toCall=S.currentBet-p.bet;
+  const effectiveCall=Math.min(toCall,p.stack);
+  const actions=toCall>0
+    ? [{action:'fold'},{action:'call',cost:effectiveCall,allIn:effectiveCall===p.stack}]
+    : [{action:'check'}];
+  const maxBetTo=p.bet+p.stack;
+  const raiseReopened=!p.acted || S.currentBet-p.actedAtBet>=S.minRaise;
+  const hasOpponentWhoCanAct=S.players.some(o=>o!==p && !o.folded && !o.allIn &&
+    o.bet+o.stack>S.currentBet);
+  let aggressive=null;
+  if(raiseReopened && hasOpponentWhoCanAct && maxBetTo>S.currentBet){
+    const fullRaiseMinBetTo=S.currentBet+S.minRaise;
+    const minBetTo=Math.min(fullRaiseMinBetTo,maxBetTo);
+    aggressive={
+      action:S.currentBet===0?'bet':'raise',
+      minBetTo, maxBetTo, fullRaiseMinBetTo,
+      shortAllInOnly:maxBetTo<fullRaiseMinBetTo
+    };
+    actions.push(aggressive);
+  }
+  return {ok:true,code:null,actionSeq:S.actionSeq,toCall,effectiveCall,raiseReopened,
+    minRaise:S.minRaise,currentBet:S.currentBet,myBet:p.bet,stack:p.stack,
+    aggressive,actions};
+}
+
+function fallbackAction(view){
+  if(!view.ok) return null;
+  if(view.actions.some(a=>a.action==='fold')) return {action:'fold',actionSeq:view.actionSeq};
+  if(view.actions.some(a=>a.action==='check')) return {action:'check',actionSeq:view.actionSeq};
+  return null;
+}
+
+function policyActionForView(view,d){
+  if(!view.ok || !view.aggressive || !d || typeof d!=='object' ||
+      d.action!==view.aggressive.action || !Number.isInteger(d.amount)) return d;
+  return {...d,amount:Math.max(view.aggressive.minBetTo,
+    Math.min(view.aggressive.maxBetTo,d.amount))};
+}
+
 function applyAction(p, d){
-  const toCall = S.currentBet - p.bet;
+  const view=legalActionView(p);
+  if(!view.ok) return {ok:false,code:view.code};
+  if(!d || typeof d!=='object' || Array.isArray(d) || typeof d.action!=='string')
+    return {ok:false,code:'malformed-action'};
+  if(d.actionSeq!==view.actionSeq) return {ok:false,code:'stale-action'};
+  const descriptor=view.actions.find(a=>a.action===d.action);
+  if(!descriptor) return {ok:false,code:'action-not-legal'};
+  if(view.aggressive && descriptor===view.aggressive &&
+      (!Number.isInteger(d.amount) || d.amount<descriptor.minBetTo || d.amount>descriptor.maxBetTo))
+    return {ok:false,code:'amount-out-of-range'};
+
+  const toCall=view.toCall;
   p.acted=true;
   const rd = rosterOf(p)?.reads;
 
@@ -1308,14 +1373,14 @@ function applyAction(p, d){
     p.inferredTier=Math.min(p.inferredTier, S.street==='preflop'?55:60);
   }
   else { // bet / raise
-    let target = d.amount;
-    target = Math.max(target, S.currentBet + S.minRaise);
-    const put = Math.min(target - p.bet, p.stack);
+    const target=d.amount;
+    const put=target-p.bet;
     p.stack-=put; p.bet+=put; p.invested+=put; S.pot+=put;
     if(p.stack===0) p.allIn=true;
+    let fullRaise=false;
     if(p.bet>S.currentBet){
       const inc = p.bet - S.currentBet;
-      const fullRaise = inc >= S.minRaise;
+      fullRaise = inc >= S.minRaise;
       S.currentBet = p.bet;
       S.raisedBefore = true;
       S.streetBets = (S.streetBets||0) + 1;
@@ -1328,8 +1393,10 @@ function applyAction(p, d){
       }
     }
     if(S.street!=='preflop') p.aggr++;
-    p.lastAct=(d.action==='bet'?'bet ':'raise ')+p.bet;
-    logLine(p.isHero?'hero':'', `${p.name} ${d.action}s to ${p.bet}`);
+    p.lastAct=(fullRaise?(d.action==='bet'?'bet ':'raise '):'all-in ')+p.bet;
+    logLine(p.isHero?'hero':'', fullRaise
+      ? `${p.name} ${d.action}s to ${p.bet}`
+      : `${p.name} goes all in to ${p.bet}`);
     if(!p.isHero){
       p.inferredTier = S.street==='preflop' ? Math.min(p.inferredTier, p.openThr||30) : Math.min(p.inferredTier,32);
     }
@@ -1340,6 +1407,9 @@ function applyAction(p, d){
     if(opts.reason) logReason(d.reason);
   }
   if(p.isHero && S.street==='preflop' && d.action!=='fold' && d.action!=='check') S.heroVpip=true;
+  p.actedAtBet=S.currentBet;
+  S.actionSeq++;
+  return {ok:true,code:null};
 }
 
 function step(){
@@ -1360,6 +1430,8 @@ function step(){
   clearActions();
   setTimeout(()=>{
     if(S.done) return;
+    const view=legalActionView(p);
+    if(!view.ok) return;
     const toCall=S.currentBet-p.bet;
     const agg=S.streetAggressor;
     const aggRoster=agg?rosterOf(agg):null;
@@ -1369,19 +1441,26 @@ function step(){
       position:p.pos, raisedBefore:S.raisedBefore, openThr:p.openThr, tableSize:S.n,
       inPosition:isInPosition(p.idx),
       streetBets:S.streetBets||0, myBet:p.bet,
+      legal:view,
       facingReads: (toCall>0 && aggRoster) ? aggRoster.reads : null,
       aggressorHadInitiative: !!(agg && S.preflopRaiser && agg.seat===S.preflopRaiser.seat),
       style: (r=>r&&r.style ? moodDials(r.style, r.mood) : {open:1, bet:1, fold:1, limp:0})(rosterOf(p)),
       mood: (r=>r&&r.style ? (r.mood||0) : 0)(rosterOf(p))
     });
-    applyAction(p,d);
+    const fitted=policyActionForView(view,d);
+    let result=applyAction(p,{...fitted,actionSeq:view.actionSeq});
+    if(!result.ok){
+      const safe=fallbackAction(legalActionView(p));
+      if(safe) result=applyAction(p,safe);
+    }
+    if(!result.ok) return;
     S.toAct=nextToAct(S.toAct);
     step();
   }, 620);
 }
 
 function advanceStreet(){
-  S.players.forEach(p=>{ p.bet=0; p.acted=false; p.lastAct=''; });
+  S.players.forEach(p=>{ p.bet=0; p.acted=false; p.actedAtBet=0; p.lastAct=''; });
   S.currentBet=0; S.minRaise=BB; S.raisedBefore=false;
   S.streetBets=0; S.streetAggressor=null;
 
@@ -1628,30 +1707,48 @@ function clearActions(){ document.getElementById('actions').innerHTML=''; }
 function renderActions(){
   updateStrip();
   const hero=S.players[0];
-  const toCall=S.currentBet-hero.bet;
+  const view=legalActionView(hero);
   const half=Math.max(BB, Math.round(S.pot*0.5));
   const full=Math.max(BB, Math.round(S.pot*0.9));
   const a=document.getElementById('actions');
   a.innerHTML='';
+  if(!view.ok) return;
 
-  const mk=(label,cls,amt,fn,dis)=>{
+  const mk=(label,cls,amt,d)=>{
     const b=document.createElement('button');
     b.className=cls;
     b.innerHTML=label+(amt!=null?`<span class="amt">${amt}</span>`:'');
-    b.disabled=!!dis;
-    b.onclick=()=>{ clearActions(); fn(); S.toAct=nextToAct(S.toAct); step(); };
+    b.onclick=()=>{
+      const result=applyAction(hero,d);
+      if(!result.ok){ renderActions(); return; }
+      clearActions();
+      S.toAct=nextToAct(S.toAct);
+      step();
+    };
     a.appendChild(b);
   };
 
-  if(toCall>0) mk('Fold','b-fold',null,()=>applyAction(hero,{action:'fold'}));
-  if(toCall>0) mk('Call','b-primary',toCall,()=>applyAction(hero,{action:'call'}), hero.stack<=0);
-  else mk('Check','b-primary',null,()=>applyAction(hero,{action:'check'}));
+  if(view.actions.some(x=>x.action==='fold')) mk('Fold','b-fold',null,{action:'fold',actionSeq:view.actionSeq});
+  if(view.actions.some(x=>x.action==='call')) mk('Call','b-primary',view.effectiveCall,{action:'call',actionSeq:view.actionSeq});
+  else mk('Check','b-primary',null,{action:'check',actionSeq:view.actionSeq});
 
-  if(hero.stack>toCall){
-    mk('Half pot','',half+toCall,()=>applyAction(hero,{action:'bet',amount:hero.bet+toCall+half}));
-    mk('Pot','',full+toCall,()=>applyAction(hero,{action:'bet',amount:hero.bet+toCall+full}));
+  if(view.aggressive){
+    const ag=view.aggressive;
+    if(ag.shortAllInOnly){
+      mk('All in','',ag.maxBetTo,{action:ag.action,amount:ag.maxBetTo,actionSeq:view.actionSeq});
+    } else {
+      const seen=new Set();
+      const add=(label,target)=>{
+        const amount=Math.max(ag.minBetTo,Math.min(ag.maxBetTo,target));
+        if(seen.has(amount)) return;
+        seen.add(amount);
+        mk(label,'',amount,{action:ag.action,amount,actionSeq:view.actionSeq});
+      };
+      add('Half pot',S.currentBet+half);
+      add('Pot',S.currentBet+full);
+      add('All in',ag.maxBetTo);
+    }
   }
-  mk('All in','',hero.stack+hero.bet,()=>applyAction(hero,{action:'bet',amount:hero.bet+hero.stack}));
 }
 
 function logLine(cls,text){
