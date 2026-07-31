@@ -45,5 +45,5 @@ Node >= 18, no dependencies. Any line starting `BUG` or `FAIL` is a regression.
 The harness reads `./poker-trainer.html` and rewrites three exact source anchors.
 Every rewrite must match exactly once or the harness throws; `t-harness.js` proves
 missing and duplicated anchors fail closed and that the injected hooks execute.
-Keep `function botDecide(ctx){` literal.
+Keep `const botDecide=function(ctx){` literal.
 See [ARCHITECTURE.md](ARCHITECTURE.md) §9.

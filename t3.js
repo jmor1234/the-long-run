@@ -4,11 +4,12 @@ console.log('TEST 3 — can a bot see your cards?\n');
 
 // (a) static: does the decision code mention the hero at all?
 const html=fs.readFileSync('./poker-trainer.html','utf8');
-const body=html.slice(html.indexOf('function _botDecide')>-1?html.indexOf('function _botDecide'):html.indexOf('function botDecide'),
-                      html.indexOf('/* ============================================================\n   GAME STATE'));
+const decisionStart=html.indexOf('const botDecide=function(ctx){');
+const body=html.slice(decisionStart,
+  html.indexOf('/* ============================================================\n   GAME STATE'));
 const banned=[/isHero/,/players\s*\[\s*0\s*\]/,/\bhero\b/i,/\bS\./];
 const hits=banned.filter(re=>re.test(body));
-console.log(`  ${hits.length?'FAIL':'ok  '} decision code contains no reference to you or to global game state`);
+console.log(`  ${decisionStart<0||hits.length?'FAIL':'ok  '} decision code contains no reference to you or to global game state`);
 if(hits.length) console.log('    offending patterns:',hits.map(String).join(', '));
 
 // (b) runtime: trap every OTHER seat's hole cards while a bot is deciding
@@ -61,4 +62,4 @@ const bot=G2.S.players[1];
 bot.cards=new Proxy(bot.cards,{get(t,k){ if(st2.inBot) ownReads++; return t[k]; }});
 drain2();
 console.log(`  ${ownReads>0?'ok  ':'FAIL'} control: a bot read its own cards ${ownReads} times, so the trap is live`);
-process.exitCode=(hits.length||peeks||ctxLeaks||!(ownReads>0))?1:0;
+process.exitCode=(decisionStart<0||hits.length||peeks||ctxLeaks||!(ownReads>0))?1:0;

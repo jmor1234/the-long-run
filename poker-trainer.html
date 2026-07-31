@@ -716,7 +716,11 @@ function facingNudge(facingReads, hadInitiative){
    Actions are drawn from frequencies, never fixed rules.
    Style + public reads arrive only via ctx (never via S).
    ============================================================ */
-function botDecide(ctx){
+const botDecide=function(ctx){
+  return botPolicyV1(ctx);
+};
+
+const botPolicyV1=function(ctx){
   const {myCards, board, street, toCall, pot, myStack, position, raisedBefore} = ctx;
   const myBet = ctx.myBet||0;
   const style = ctx.style || {open:1, bet:1, fold:1, limp:0};
@@ -863,7 +867,7 @@ function botDecide(ctx){
   }
   return {action:'fold', dbg:{cRoll, pCall, effPct:eq.eff, needPct:eq.need},
     reason:say(style,'edgeFold',eq,draw())+readTag()+moodTag()};
-}
+};
 
 /* ---- BOT VOICE ----------------------------------------------------------
    Persona phrase banks, v2. Truthfulness is structural: each slot is

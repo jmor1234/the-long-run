@@ -29,11 +29,20 @@ function buildSrc(htmlPath, expectedSites){
   if(srcCache.has(key)) return srcCache.get(key);
   const html=fs.readFileSync(htmlPath,'utf8');
   let src=extractEngineSource(html, 'exp-harness');
+  const hasPolicyV1=src.includes('const botPolicyV1=function(ctx){');
+  const policyArg=hasPolicyV1 ? ', botPolicyV1' : '';
   src=replaceExactlyOnce(src, 'if(p.isHero){ renderActions(); return; }',
     'if(p.isHero){ HERO_ACT(); return; }', 'hero hook', 'exp-harness');
-  src=replaceExactlyOnce(src, 'function botDecide(ctx){',
-    'function botDecide(ctx){ return __DECIDE(ctx, _botDecide); }\nfunction _botDecide(ctx){',
-    'botDecide wrap', 'exp-harness');
+  if(hasPolicyV1){
+    src=replaceExactlyOnce(src,
+      /const botDecide=function\(ctx\)\{\s*return botPolicyV1\(ctx\);\s*\};/,
+      `const _botDecide=function(ctx){ return botPolicyV1(ctx); };\nconst botDecide=function(ctx){ return __DECIDE(ctx, _botDecide${policyArg}); };`,
+      'botDecide wrap', 'exp-harness');
+  } else {
+    src=replaceExactlyOnce(src, 'function botDecide(ctx){',
+      'function botDecide(ctx){ return __DECIDE(ctx, _botDecide); }\nfunction _botDecide(ctx){',
+      'legacy botDecide wrap', 'exp-harness');
+  }
   src=stripEngineBootstrap(src, 'exp-harness');
   src=replaceExactlyOnce(src, 'function newSession(){', 'function newSession(){ __STREAM("session");',
     'newSession stream hook', 'exp-harness');
@@ -70,6 +79,7 @@ function fakeEl(){return{style:{},className:'',innerHTML:'',textContent:'',value
  querySelectorAll:()=>[],querySelector:()=>null,focus(){},select(){},setAttribute(){},remove(){}};}
 
 // opts: { seed, decide: null | (ctx, meta, fallthrough) => decision,
+//         policy?: 'dispatch' | 'v1', captureDecisions?,
 //         htmlPath?, expectedRandSites? (cross-version A/B only) }
 // decide=null runs the coded policy (baseline arm) under the decision stream.
 function make(heroPolicy, opts={}){
@@ -81,7 +91,11 @@ function make(heroPolicy, opts={}){
    body:{appendChild(){},removeChild(){}},execCommand:()=>true};
 
   const queue=[];
-  const state={hand:0, decision:0, sessions:0, strayDraws:0, lastBotCtx:null};
+  const policy=opts.policy||'dispatch';
+  if(policy!=='dispatch' && policy!=='v1') throw new Error('exp-harness: unknown policy '+policy);
+  if(policy==='v1' && opts.decide) throw new Error('exp-harness: policy v1 cannot be combined with decide override');
+  const state={hand:0, decision:0, sessions:0, strayDraws:0, lastBotCtx:null,
+    decisionTrace:[]};
 
   let strayGen=stream(seed+'|stray');
   let gen=strayGen;
@@ -93,14 +107,21 @@ function make(heroPolicy, opts={}){
     if(kind==='session'){ state.sessions++; state.hand=0; gen=stream(`${seed}|session|${state.sessions}`); }
     else if(kind==='deal'){ state.hand++; state.decision=0; gen=stream(`${seed}|deal|${state.hand}`); }
   };
-  const __DECIDE=(ctx, fall)=>{
+  const __DECIDE=(ctx, fall, policyV1)=>{
     const meta={hand:state.hand, index:state.decision++};
     state.lastBotCtx=ctx;
     state.lastDraws=[];
     const g=stream(`${seed}|dec|${meta.hand}|${meta.index}`);
     gen=()=>{ const v=g(); state.lastDraws.push(v); return v; };
     try{
-      return opts.decide ? opts.decide(ctx, meta, fall) : fall(ctx);
+      let result;
+      if(policy==='v1'){
+        if(!policyV1) throw new Error('exp-harness: Policy A unavailable in this engine');
+        result=policyV1(ctx);
+      } else result=opts.decide ? opts.decide(ctx, meta, fall) : fall(ctx);
+      if(opts.captureDecisions)
+        state.decisionTrace.push({meta,result,draws:state.lastDraws.slice()});
+      return result;
     } finally {
       gen=guard; // no engine draws are expected between decisions
     }

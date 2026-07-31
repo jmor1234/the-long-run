@@ -28,7 +28,7 @@ reads** model — not LLMs, not GTO solvers.
 
 | Goal | Touch |
 |---|---|
-| Bot decisions / frequencies | `botDecide` in `poker-trainer.html` (BOT POLICY) |
+| Bot decisions / frequencies | `botDecide` dispatches to versioned `botPolicyV1` in `poker-trainer.html` (BOT POLICY) |
 | Styles / limps / sizing / blurbs | `BOT_STYLES` (dials incl. `openSize`, `size`, `sizeJitter`, `callTemp`) |
 | What bots *say* | `VOICE` bank + `say()` (BOT VOICE section, §12) |
 | Tilt / heaters | `moodStep` + `moodDials` (MOOD section, §12) |
@@ -36,7 +36,7 @@ reads** model — not LLMs, not GTO solvers.
 | Table / pots / streets | GAME STATE (`step`, `applyAction`, `buildPots`, `endHand`) |
 | Seats, strip, export | RENDER |
 | Dossier text | `playerBrief` / `readsLiveLine` (GAME STATE) + seat tips (RENDER) |
-| Tests | root `t*.js` / `audit.js` (via `harness.js`) **and** `exp/t-exp.js` + the locks (via `exp/exp-harness.js`) — keep `function botDecide(ctx){` literal |
+| Tests | root `t*.js` / `audit.js` (via `harness.js`) **and** `exp/t-exp.js` + the locks (via `exp/exp-harness.js`) — keep `const botDecide=function(ctx){` literal |
 | Re-measuring "does this feel human" | `exp/run-ab.js` + the frozen protocol in `exp/ref/feel-panel.md` |
 
 ### Load-bearing decisions (do not casually reverse)
@@ -102,7 +102,7 @@ The script sections, in order (each has a banner comment):
 | `HAND RANKING` | all 169 starting hands as percentiles |
 | `EQUITY` | Monte Carlo, range inference |
 | `READS` | public-action memory, labels, facing nudges |
-| `BOT POLICY` | the single decision function |
+| `BOT POLICY` | stable `botDecide` dispatch seam + versioned policy implementations |
 | `BOT VOICE` | persona phrase banks + `say()` — what bots tell the player |
 | `MOOD` | `moodStep` / `moodDials` — tilt and heaters |
 | `GAME STATE` | table, positions, betting loop, pots, styles |
@@ -111,7 +111,7 @@ The script sections, in order (each has a banner comment):
 (`BOT VOICE` and `MOOD` are `/* ---- */` sub-banners inside the BOT POLICY span,
 not top-level sections.)
 
-⚠ **The fairness ban-scan is positional.** `t3.js` slices from `function botDecide`
+⚠ **The fairness ban-scan is positional.** `t3.js` slices from `const botDecide=function(ctx){`
 to the `GAME STATE` banner, so BOT VOICE and MOOD are inside it — deliberately, since
 they run during a decision. Everything above (READS' `facingNudge`, EQUITY, `pctOf`,
 `handName`) and everything below is outside it, which is correct for those: they are
@@ -496,7 +496,7 @@ replacements, and evaluates it as a function with a fake DOM:
 3. strips the bootstrap call so tests control when a session starts
 
 ⚠ **The transforms are string matches against the app source.** Keep the literal
-`function botDecide(ctx){` declaration line unchanged. `harness-transform.js`
+`const botDecide=function(ctx){` declaration line unchanged. `harness-transform.js`
 requires every anchor to match exactly once, so a missing or duplicated hero hook,
 bot wrapper, bootstrap strip, RNG stream hook, or experiment ctx extension throws
 before the engine runs. `t-harness.js` proves the root harness fails closed and that
@@ -510,6 +510,7 @@ first.**
 | File | Covers |
 |---|---|
 | `t-harness.js` | source-transform guards: current source builds, missing/duplicated anchors throw, bootstrap stays inert until explicitly started, hero and bot hooks execute |
+| `t-policy.js` | Policy A source hash + exact dispatcher lock; seeded direct-vs-dispatched traces include actions, reasons, RNG draws, deals, logs, stacks, reads, mood, and session state |
 | `t1b.js` | the **hand evaluator** (`evaluate`/`cmpHand`) vs hand-verified draw maths, via its own head-to-head Monte Carlo. ⚠ Despite the name it does **not** touch `equity()`, `betLikelihood()` or `strengthVsRandom()` — see the coverage gap below. It also bypasses `harness.js` and slices the source itself between `const SUITS` and `function drawInfo`; don't rename or reorder those |
 | `t2.js` | 3000 hands: no hangs, no negative stacks, pot = money in; winner check is a narrow log heuristic, not a full pot-award oracle |
 | `t3.js` | fairness — static scan + Proxy trap on **all other seats**, ctx leak check, control |
@@ -685,6 +686,15 @@ gated on evidence that it's worth the complexity (blind-panel score, or your own
 
 ## 12. Styles, reads, and seat dossiers
 
+### Policy A boundary
+
+`botDecide(ctx)` is the stable controller entry point. It currently delegates directly
+to `botPolicyV1(ctx)`, whose body is the coded policy preserved from commit `15dbbb4`.
+`t-policy.js` locks that source body and the exact one-line dispatcher, then runs both
+paths inside the guarded experiment harness over the same keyed decision streams and
+requires their complete traces to match. Shared engine helpers remain outside the
+policy version, so later correctness fixes apply equally to Policy A and any challenger.
+
 ### Fixed seat styles (recreational leaks)
 
 At `newSession`, each bot gets a permanent entry from `BOT_STYLES` aimed at
@@ -728,7 +738,7 @@ Added 2026-07-30 after a blind-panel measurement scored the original bots
 1–1.5/10 on "reads like a human" (evidence, verdicts, and the full design
 history live in `exp/ref/`). Four mechanisms, all dial-shaped:
 
-- **`humanSize(base)`** (inside `botDecide`) = base × jitter, integer-rounded,
+- **`humanSize(base)`** (inside `botPolicyV1`) = base × jitter, integer-rounded,
   floored at 2. The persona `size` multiplier is applied **by the caller** to
   postflop bets and 3-bets/re-raises; first-in opens skip it and are sized by
   `openSize` in **big blinds** (2.4–3.4×), because preflop the pot is just

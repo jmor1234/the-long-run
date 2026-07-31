@@ -7,8 +7,9 @@ function buildSrc(htmlText){
   src=replaceExactlyOnce(src, 'if(p.isHero){ renderActions(); return; }',
     'if(p.isHero){ HERO_ACT(); return; }', 'hero hook');
   // Wrap botDecide so tests can detect any hole-card read during a decision.
-  src=replaceExactlyOnce(src, 'function botDecide(ctx){',
-    'function botDecide(ctx){ BOTFLAG(true); SETCTX(ctx); try{ return _botDecide(ctx); } finally { BOTFLAG(false); } }\nfunction _botDecide(ctx){',
+  src=replaceExactlyOnce(src,
+    /const botDecide=function\(ctx\)\{\s*return botPolicyV1\(ctx\);\s*\};/,
+    'const _botDecide=function(ctx){ return botPolicyV1(ctx); };\nconst botDecide=function(ctx){ BOTFLAG(true); SETCTX(ctx); try{ return _botDecide(ctx); } finally { BOTFLAG(false); } };',
     'botDecide wrap');
   src=stripEngineBootstrap(src);
   src+='\nreturn {newHand, newSession, get roster(){return roster}, botDecide, pctOf, strengthVsRandom, openThreshold, posName, behindCount, get S(){return S}, get session(){return session}, applyAction, nextToAct, step, buildPots, evaluate, cmpHand, handStr, START, BB, SB, clampFreq, freshReads, shrinkReads, readLabel, BOT_STYLES, sampleTier};';
