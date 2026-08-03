@@ -320,6 +320,17 @@ Reply with a single JSON object: {"action": one of "fold","check","call","bet","
 "amount": the bet-to total for this street (required for bet and raise, omit otherwise),
 "reason": one or two sentences of this player's inner monologue}.`;
 
+const ACTION_RULES=`You are playing one seat in a 6-handed No-Limit Texas Hold'em home game.
+You are the specific recreational player described in YOUR PLAYER PROFILE below, not a coach or a
+solver. Treat that profile as stable tendencies, including its leaks. Use only your own cards and the
+public situation report. Choose the action this person would take now. The report states the actions
+currently available and the legal bet-to range. For a bet or raise, amount is the total chips wagered
+on this street after acting, not the additional chips added.`;
+
+const ACTION_OUTPUT_CONTRACT=`YOUR ANSWER
+Return a JSON object with exactly two fields: action and amount. Action is one of fold, check, call,
+bet, or raise. Amount is an integer bet-to total for bet or raise, and null for every other action.`;
+
 // ---------- volatile spot ----------
 const POS_WORD={UTG:'under the gun (first to act)', MP:'middle position', CO:'the cutoff',
   BTN:'the button (best position)', SB:'the small blind', BB:'the big blind'};
@@ -339,17 +350,21 @@ function readsLine(ctx){
   return base+init;
 }
 
-function buildSpot(ctx){
-  const potOdds=ctx.toCall>0? Math.round(ctx.toCall/(ctx.pot+ctx.toCall)*100) : 0;
-  const minTo=Math.min(ctx.currentBet+ctx.minRaise, ctx.myBet+ctx.myStack);
-  const maxTo=ctx.myBet+ctx.myStack;
-  const lines=[
+function spotHeader(ctx,potLine){
+  return [
     `THE SITUATION`,
     `Street: ${ctx.street}. You are in ${POS_WORD[ctx.position]||ctx.position}${ctx.street!=='preflop'?(ctx.inPosition?', acting after your opponent (in position)':', acting first (out of position)'):''}.`,
     `Your cards: ${cards(ctx.myCards)}.`,
     ctx.board.length? `Board: ${cards(ctx.board)}.` : `No community cards yet.`,
-    `Pot: ${ctx.pot}. Your stack: ${ctx.myStack}. You have ${ctx.myBet} in on this street.`,
+    potLine||`Pot: ${ctx.pot}. Your stack: ${ctx.myStack}. You have ${ctx.myBet} in on this street.`,
   ];
+}
+
+function buildSpot(ctx){
+  const potOdds=ctx.toCall>0? Math.round(ctx.toCall/(ctx.pot+ctx.toCall)*100) : 0;
+  const minTo=Math.min(ctx.currentBet+ctx.minRaise, ctx.myBet+ctx.myStack);
+  const maxTo=ctx.myBet+ctx.myStack;
+  const lines=spotHeader(ctx);
   if(ctx.toCall>0){
     lines.push(`It costs you ${ctx.toCall} to call (pot odds: ${potOdds}% - you need to win more often than that for a call to profit).`);
     lines.push(`To raise, the total must be between ${minTo} and ${maxTo} (all-in).`);
@@ -370,10 +385,63 @@ function buildSpot(ctx){
   return lines.join('\n');
 }
 
+function buildActionSpot(ctx){
+  const view=ctx && ctx.legal;
+  if(!view || view.ok!==true || !Array.isArray(view.actions) || !view.actions.length)
+    throw new Error('action prompt requires a current legal view');
+  const available=view.actions.map(item=>item&&item.action);
+  if(new Set(available).size!==available.length || available.some(a=>!ACTION_NAMES.includes(a)))
+    throw new Error('action prompt received invalid legal actions');
+  const aggressive=available.filter(a=>a==='bet'||a==='raise');
+  if(aggressive.length!==0 && aggressive.length!==1)
+    throw new Error('action prompt received ambiguous aggression');
+  if(aggressive.length!==Number(view.aggressive!==null) ||
+      (view.aggressive && view.aggressive.action!==aggressive[0]))
+    throw new Error('action prompt received an inconsistent legal view');
+
+  if(!Number.isInteger(view.contestablePot) || view.contestablePot<0 ||
+      !Number.isInteger(view.excludedPot) || view.excludedPot<0 ||
+      view.contestablePot+view.excludedPot!==ctx.pot)
+    throw new Error('action prompt received an invalid contestable pot');
+  const potLine=view.excludedPot>0
+    ? `Pot you can contest: ${view.contestablePot}. Another ${view.excludedPot} chips are in a deeper layer you cannot win. Your stack: ${ctx.myStack}. You have ${ctx.myBet} in on this street.`
+    : `Pot: ${view.contestablePot}. Your stack: ${ctx.myStack}. You have ${ctx.myBet} in on this street.`;
+  const lines=spotHeader(ctx,potLine);
+  lines.push(`Available actions: ${available.join(', ')}.`);
+  if(available.includes('call')){
+    if(!Number.isInteger(view.effectiveCall) || view.effectiveCall<=0 ||
+        typeof view.need!=='number' || !Number.isFinite(view.need) || view.need<=0 || view.need>1)
+      throw new Error('action prompt received an invalid call price');
+    const allIn=view.actions.find(a=>a.action==='call').allIn;
+    lines.push(allIn
+      ? `Calling puts your last ${view.effectiveCall} chips in. You need ${Math.round(view.need*100)}% equity to call profitably.`
+      : `Calling costs ${view.effectiveCall}. You need ${Math.round(view.need*100)}% equity to call profitably.`);
+  }
+  if(view.aggressive){
+    const a=view.aggressive;
+    if(!Number.isInteger(a.minBetTo) || !Number.isInteger(a.maxBetTo) ||
+        a.minBetTo<=0 || a.maxBetTo<a.minBetTo)
+      throw new Error('action prompt received invalid aggressive bounds');
+    lines.push(a.shortAllInOnly
+      ? `The only legal ${a.action} is all-in to ${a.maxBetTo}.`
+      : `To ${a.action}, the total must be between ${a.minBetTo} and ${a.maxBetTo} (all-in).`);
+  }
+  lines.push(`Bets/raises this street so far: ${ctx.streetBets}.${ctx.raisedBefore&&ctx.street==='preflop'?' Someone has already raised this hand.':''}`);
+  if(available.includes('call')) lines.push(readsLine(ctx));
+  lines.push(`What do you do?`);
+  return lines.join('\n');
+}
+
 function buildPrefix(tag){
   if(!Object.prototype.hasOwnProperty.call(PERSONAS, tag))
     throw new Error('unknown persona tag: '+tag);
   return [SHARED_RULES, WORKED_EXAMPLES, PERSONAS[tag], OUTPUT_CONTRACT].join('\n\n');
+}
+
+function buildActionPrefix(tag){
+  if(!Object.prototype.hasOwnProperty.call(PERSONAS, tag))
+    throw new Error('unknown persona tag: '+tag);
+  return [ACTION_RULES, PERSONAS[tag], ACTION_OUTPUT_CONTRACT].join('\n\n');
 }
 
 // The one entry point the arms use. Pure in ctx; throws on any foreign card.
@@ -384,14 +452,32 @@ function buildPrompt(ctx){
   return {prefix, spot};
 }
 
+function buildActionPrompt(ctx){
+  const prefix=buildActionPrefix(ctx.style && ctx.style.tag);
+  const spot=buildActionSpot(ctx);
+  assertNoForeignCards(spot, ctx);
+  return {prefix, spot};
+}
+
+const ACTION_NAMES=Object.freeze(['fold','check','call','bet','raise']);
 const OUTPUT_SCHEMA={
   type:'object',
   properties:{
-    action:{type:'string', enum:['fold','check','call','bet','raise']},
+    action:{type:'string', enum:ACTION_NAMES},
     amount:{type:'integer', description:'bet-to total for this street; only for bet/raise'},
     reason:{type:'string', description:'one or two sentences of inner monologue'},
   },
   required:['action','reason'],
+  additionalProperties:false,
+};
+
+const ACTION_OUTPUT_SCHEMA={
+  type:'object',
+  properties:{
+    action:{type:'string',enum:ACTION_NAMES},
+    amount:{type:['integer','null'],description:'bet-to total for bet/raise; null otherwise'},
+  },
+  required:['action','amount'],
   additionalProperties:false,
 };
 
@@ -400,6 +486,13 @@ Object.freeze(PERSONAS);
 Object.freeze(EXAMPLE_CARDS);
 Object.freeze(OUTPUT_SCHEMA);
 Object.freeze(OUTPUT_SCHEMA.properties);
+Object.freeze(ACTION_OUTPUT_SCHEMA);
+Object.freeze(ACTION_OUTPUT_SCHEMA.required);
+Object.freeze(ACTION_OUTPUT_SCHEMA.properties);
+Object.freeze(ACTION_OUTPUT_SCHEMA.properties.action);
+Object.freeze(ACTION_OUTPUT_SCHEMA.properties.amount.type);
+Object.freeze(ACTION_OUTPUT_SCHEMA.properties.amount);
 
-module.exports=Object.freeze({buildPrompt, buildPrefix, buildSpot, scanCards,
-  assertNoForeignCards, PERSONAS, EXAMPLE_CARDS, OUTPUT_SCHEMA});
+module.exports=Object.freeze({buildPrompt, buildPrefix, buildActionPrompt, buildActionPrefix,
+  buildSpot, buildActionSpot, scanCards, assertNoForeignCards, PERSONAS, EXAMPLE_CARDS, ACTION_NAMES,
+  OUTPUT_SCHEMA, ACTION_OUTPUT_SCHEMA});

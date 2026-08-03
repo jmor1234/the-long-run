@@ -519,11 +519,28 @@ function runBaseline(seed, hands, opts={}){
 // --- 7. prompt builder: purity, determinism, default-deny card scan ----
 {
   const fs=require('fs');
+  const crypto=require('crypto');
   const P=require('./prompt');
   const src=fs.readFileSync(require.resolve('./prompt'),'utf8');
   ok(!/Math\.random\s*\(|Date\.now\s*\(|new Date\s*\(|process\.|globalThis|\beval\s*\(|new Function|require\s*\(/.test(src),
     'prompt.js has no impurity markers (RNG, clock, env, eval, requires)');
   ok(/^'use strict';/.test(src), 'prompt.js is strict mode (frozen-ctx writes throw, not no-op)');
+
+  // These hashes were captured before the action-only boundary was added.
+  // They prevent new-provider work from silently changing the historical pilot.
+  const legacyHashes={
+    nit:'55e9a1ab384f962c479332a7483ee21af6c374644bcba432c6f52d5ade8ec797',
+    solid:'f4d3577f9745439e4cb17b3d6d9fe08db0713891e7a0054430f1d6d56483d32f',
+    maniac:'b667fb3c87a1385ab03004abc7f42fb2700c76104bd033c978d70f21672ee585',
+    selective:'e90a52b81f3782a1142d07c6f712326ca963f90a79f0054c9357858ab4288cb0',
+    station:'7d0b73b01c8e3dabe40af459d7e03e3fef8d4c8603d56dae8b7fd70254b79f53',
+  };
+  const sha=x=>crypto.createHash('sha256').update(x).digest('hex');
+  ok(Object.entries(legacyHashes).every(([tag,hash])=>sha(P.buildPrefix(tag))===hash),
+    'historical persona prefixes remain byte-for-byte stable');
+  ok(sha(JSON.stringify(P.OUTPUT_SCHEMA))===
+    'd9b80b01af3f38b936dca44fe6d145e3ad9d1064e8f3fd85d20552f8401a7c00',
+    'historical output schema remains byte-for-byte stable');
 
   // every persona prefix: exact two-way match with the declared example cards
   // (a superset-only check lets both the prose and the list drift), and
@@ -544,8 +561,72 @@ function runBaseline(seed, hands, opts={}){
   let protoThrew=0;
   for(const bad of ['constructor','__proto__','hasOwnProperty']){
     try{ P.buildPrefix(bad); }catch(e){ protoThrew++; }
+    try{ P.buildActionPrefix(bad); }catch(e){ protoThrew++; }
   }
-  ok(protoThrew===3, 'buildPrefix rejects prototype-chain persona tags');
+  ok(protoThrew===6, 'both prefix builders reject prototype-chain persona tags');
+  const actionPrefixes=Object.keys(P.PERSONAS).map(tag=>P.buildActionPrefix(tag));
+  ok(actionPrefixes.every(pre=>!(/WORKED EXAMPLES|"reason"|inner monologue|one or two sentences/i.test(pre))),
+    'action-only prefixes contain no examples or narration contract');
+  const actionHashes={
+    nit:'c312a5b97c9e5719f262335176a562b81a8ce766b4b25a541282de48066d5e82',
+    solid:'54278a889c928572b5f477294dc70524d96ac1482ca04be01d3c9daa9f67b1a9',
+    maniac:'07725a9d085c8be0314dec8a0bea27561d440fe239a5f9977da94b5f395f0f7b',
+    selective:'c23ec2e554f2555a05178ba0801bc502f5e157fb34e43e8413556e0a26902f78',
+    station:'d8849bbdb6fae22d947fbaa795b5807be5f0a35e59f2aa1373085280e8a716b0',
+  };
+  ok(Object.entries(actionHashes).every(([tag,hash])=>sha(P.buildActionPrefix(tag))===hash),
+    'action-only persona prefixes match their frozen contract');
+
+  // Production-shaped ctx has betting fields only inside legal. This literal
+  // oracle catches accidental fallback to the harness-only top-level copies.
+  const actionCtx={
+    style:{tag:'solid'},street:'flop',position:'BTN',inPosition:true,
+    myCards:[{r:14,s:'s'},{r:13,s:'s'}],
+    board:[{r:2,s:'h'},{r:7,s:'c'},{r:11,s:'d'}],
+    pot:40,myStack:90,myBet:10,toCall:10,streetBets:1,raisedBefore:false,
+    facingReads:null,aggressorHadInitiative:false,
+    legal:{ok:true,toCall:10,effectiveCall:10,contestablePot:40,excludedPot:0,
+      finalPot:50,need:0.2,actions:[
+      {action:'fold'},{action:'call',cost:10,allIn:false},
+      {action:'raise',minBetTo:30,maxBetTo:100,shortAllInOnly:false},
+    ],aggressive:{action:'raise',minBetTo:30,maxBetTo:100,shortAllInOnly:false}},
+  };
+  const openSpot=[
+    'THE SITUATION',
+    'Street: flop. You are in the button (best position), acting after your opponent (in position).',
+    'Your cards: A♠ K♠.',
+    'Board: 2♥ 7♣ J♦.',
+    'Pot: 40. Your stack: 90. You have 10 in on this street.',
+    'Available actions: fold, call, raise.',
+    'Calling costs 10. You need 20% equity to call profitably.',
+    'To raise, the total must be between 30 and 100 (all-in).',
+    'Bets/raises this street so far: 1.',
+    'You have no real read on the current aggressor yet.',
+    'What do you do?',
+  ].join('\n');
+  ok(P.buildActionSpot(actionCtx)===openSpot,
+    'action-only spot matches the production-shaped literal legal-view oracle');
+  const closedCtx={...actionCtx,legal:{...actionCtx.legal,
+    actions:[{action:'fold'},{action:'call',cost:10,allIn:false}],aggressive:null}};
+  const closedSpot=openSpot
+    .replace('Available actions: fold, call, raise.','Available actions: fold, call.')
+    .replace('To raise, the total must be between 30 and 100 (all-in).\n','');
+  ok(P.buildActionSpot(closedCtx)===closedSpot && !/NaN/.test(P.buildActionSpot(closedCtx)),
+    'action-only spot omits aggression when raising is not reopened');
+  const shortCtx={...actionCtx,myStack:7,pot:40,legal:{
+    ok:true,toCall:10,effectiveCall:7,contestablePot:33,excludedPot:7,
+    finalPot:40,need:0.175,actions:[
+      {action:'fold'},{action:'call',cost:7,allIn:true},
+    ],aggressive:null,
+  }};
+  const shortSpot=P.buildActionSpot(shortCtx);
+  ok(shortSpot.includes('Pot you can contest: 33. Another 7 chips are in a deeper layer you cannot win.') &&
+    shortSpot.includes('Calling puts your last 7 chips in. You need 18% equity') &&
+    !shortSpot.includes('Pot: 40.'),
+    'action-only spot prices a short call against only the contestable pot');
+  let noLegalThrew=false;
+  try{ P.buildActionSpot({...actionCtx,legal:null}); }catch(e){ noLegalThrew=true; }
+  ok(noLegalThrew, 'action-only spot fails closed without the engine legal view');
 
   // determinism + frozen-ctx purity + live scan across real decisions.
   // Two passes in OPPOSITE orders so module-level state or memoization keyed
@@ -556,19 +637,23 @@ function runBaseline(seed, hands, opts={}){
   const deepFreeze=(o)=>{Object.freeze(o); for(const v of Object.values(o)) if(v&&typeof v==='object') deepFreeze(v); return o;};
   let scanned=0, threw=0, mutated=0;
   const passA=[];
+  const actionPassA=[];
   for(const ctx of seen){
     const before=JSON.stringify(ctx);
     try{
       passA.push(P.buildPrompt(deepFreeze(ctx)));
+      actionPassA.push(P.buildActionPrompt(ctx));
       scanned++;
-    }catch(e){ threw++; passA.push(null); }
+    }catch(e){ threw++; passA.push(null); actionPassA.push(null); }
     if(JSON.stringify(ctx)!==before) mutated++;
   }
   let deterministic=true;
   for(let i=seen.length-1;i>=0;i--){ // reverse order
     if(!passA[i]) continue;
     const b=P.buildPrompt(seen[i]);
-    if(b.prefix!==passA[i].prefix || b.spot!==passA[i].spot) deterministic=false;
+    const a=P.buildActionPrompt(seen[i]);
+    if(b.prefix!==passA[i].prefix || b.spot!==passA[i].spot ||
+        a.prefix!==actionPassA[i].prefix || a.spot!==actionPassA[i].spot) deterministic=false;
   }
   ok(threw===0 && scanned>=200, 'buildPrompt runs clean on real frozen ctx across decisions',
     `${scanned} decisions, ${threw} threw`);
@@ -586,6 +671,90 @@ function runBaseline(seed, hands, opts={}){
   try{ P.assertNoForeignCards(P.buildSpot(realCtx)+` and he tabled ${foreign}`, realCtx); }
   catch(e){ if(/card leak/.test(e.message)) trip++; }
   ok(trip===2, 'foreign-card scan trips on literals and on a poisoned real spot');
+
+  // The OpenAI module is deliberately only a pure request/response boundary.
+  // No SDK, key, network call, fallback policy, or spend behavior belongs here.
+  const O=require('./openai-decision');
+  const req=O.buildRequest(realCtx);
+  const schema={
+    type:'object',
+    properties:{
+      action:{type:'string',enum:['fold','check','call','bet','raise']},
+      amount:{type:['integer','null'],description:'bet-to total for bet/raise; null otherwise'},
+    },
+    required:['action','amount'],
+    additionalProperties:false,
+  };
+  const requestContract=JSON.parse(JSON.stringify(req));
+  requestContract.instructions='<action prefix>';
+  requestContract.input='<spot>';
+  requestContract.text.format.schema='<schema>';
+  ok(JSON.stringify(requestContract)===JSON.stringify({
+    model:'gpt-5.6-terra',
+    reasoning:{effort:'low'},
+    max_output_tokens:128,
+    store:false,
+    instructions:'<action prefix>',
+    input:'<spot>',
+    text:{format:{type:'json_schema',name:'poker_action',strict:true,schema:'<schema>'}},
+  }), 'Terra request contract has the exact intended controls');
+  ok(req.instructions===P.buildActionPrefix(realCtx.style.tag) && req.input===P.buildActionSpot(realCtx),
+    'Terra request uses the action-only prefix and card-scanned live spot');
+  ok(JSON.stringify(req.text.format.schema)===JSON.stringify(schema),
+    'Terra structured-output schema matches an independent literal oracle');
+  const amountTypes=req.text.format.schema.properties.amount.type;
+  try{ amountTypes[0]='number'; req.text.format.schema.required.pop(); }
+  catch(e){}
+  const nextSchema=O.buildRequest(realCtx).text.format.schema;
+  ok(amountTypes[0]==='integer' && nextSchema.required.length===2,
+    'Terra schema is deeply immutable across requests');
+
+  const response=text=>({status:'completed',output:[
+    {type:'reasoning',summary:[]},
+    {type:'message',role:'assistant',status:'completed',content:[{type:'output_text',text}]},
+  ]});
+  const passive=O.parseResponse(response('{"action":"call","amount":null}'));
+  const aggressive=O.parseResponse(response('{"action":"raise","amount":19}'));
+  ok(JSON.stringify(passive)==='{"ok":true,"decision":{"action":"call"}}' &&
+    JSON.stringify(aggressive)==='{"ok":true,"decision":{"action":"raise","amount":19}}',
+    'Terra parser accepts strict actions and canonicalizes passive amount away');
+  const rejects=[
+    null,
+    {status:'incomplete',output:[]},
+    {status:'completed',output:[]},
+    {status:'completed',output:[{type:'tool_call'}]},
+    {status:'completed',output:[
+      {type:'message',role:'assistant',content:[{type:'output_text',text:'{"action":"call","amount":null}'}]},
+      {type:'message',role:'assistant',content:[{type:'output_text',text:'{"action":"call","amount":null}'}]},
+    ]},
+    {status:'completed',output:[{type:'message',role:'user',content:[]}]},
+    {status:'completed',output:[{type:'message',role:'assistant',content:[
+      {type:'output_text',text:'{"action":"call","amount":null}'},
+    ]}]},
+    {status:'completed',output:[{type:'message',role:'assistant',status:'incomplete',content:[]}]},
+    {status:'completed',output:[{type:'message',role:'assistant',content:[{type:'refusal',refusal:'no'}]}]},
+    response('{'),
+    response('null'),
+    response('{"action":"call","amount":null,"reason":"because"}'),
+    response('{"action":"shove","amount":12}'),
+    response('{"action":"raise","amount":"19"}'),
+    response('{"action":"call"}'),
+    response('{"action":"call","amount":19}'),
+    response('{"action":"raise","amount":null}'),
+    {status:'completed',output:[{type:'message',role:'assistant',content:[
+      {type:'output_text',text:'{"action":"call","amount":null}'},
+      {type:'output_text',text:'{"action":"fold","amount":null}'},
+    ]}]},
+  ];
+  let parserLeak=null;
+  rejects.forEach((candidate,i)=>{
+    try{
+      const result=O.parseResponse(candidate);
+      if(result.ok || result.decision || !result.error || !result.error.code) parserLeak=i;
+    }catch(e){ parserLeak=i+' threw '+e.message; }
+  });
+  ok(parserLeak===null, 'Terra parser fails closed on malformed, refused, or ambiguous output',
+    parserLeak===null?`${rejects.length} rejection cases`:String(parserLeak));
 }
 
 // --- 8. metric helpers vs hand-computed values --------------------------

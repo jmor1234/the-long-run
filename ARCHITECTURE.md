@@ -13,7 +13,8 @@ are not. They are marked ⚠ throughout.
 
 **Mental model in one line:** one HTML file deals fair 6-max NLHE; bots are
 **frequency policies** with fixed recreational styles and a shared **public-action
-reads** model — not LLMs, not GTO solvers.
+reads** model. An action-only LLM decision arm is being built in `exp/`, but it is not
+part of the app. These are not GTO solvers.
 
 ### Read in this order
 
@@ -45,7 +46,7 @@ reads** model — not LLMs, not GTO solvers.
 |---|---|
 | **Frequencies, not fixed rules** | A bot that always folds to 3-bets teaches a habit that dies at a real table (§3.4) |
 | **`botDecide` is ctx-only** | Fairness is structural: never read `S` or others’ hole cards; `t3.js` enforces it |
-| **Coded policy, not LLM decisions** | **Tested, not assumed** (2026-07-30, `exp/PLAN.md`): an LLM arm played legally and felt marginally more human — and *hallucinated its own reasoning* (claimed draws that weren't there, said "checking" while betting). Since the stated reason is the curriculum, fabricated narration is disqualifying. It also costs offline play, free instant tests, and ~1.6 s per decision |
+| **Coded Policy A remains the shipped default** | **Tested, not assumed** (2026-07-30, `exp/PLAN.md`): a narration-bearing LLM arm felt marginally more human but fabricated poker facts in its reasons. That result rejects LLM narration, not the distinct action-only hypothesis now isolated in `exp/OPENAI-PLAN.md`. No LLM reaches the app unless offline evidence first earns that complexity |
 | **Bots feel human via texture, not intelligence** | The humanize layer (§12) — varied sizing, real mistakes, five voices, mood — came from a blind panel telling us exactly which four things read as robotic. Measured, not guessed; every claim has archived evidence in `exp/ref/`. It improved every comparison and still missed its own target — see §10 |
 | **Recreational leaks, not GTO** | Target is beginner–intermediate opponents you can learn to read (limp, station, maniac), not solver-perfect play |
 | **One shared reads model** | UI dossiers, export, and bot nudges share one public counter set. If bots used a richer private model, the UI would lie — review becomes theatre |
@@ -143,8 +144,9 @@ is how any behavioral claim about the bots gets proven:
 | `run-baseline.js` | persona frequency bands + split-half + transcripts (produced the frozen bands) |
 | `run-feel.js` | the original LLM-vs-coded packet, superseded by `run-ab.js` for engine-vs-engine |
 | `ref/` | **frozen evidence** — panel verdicts, baselines, the LLM pilot's paid decisions, the judging protocol. Preserved history: never regenerate into it |
-| `PLAN.md` / `README.md` | the pre-registered experiment and its concluded verdict |
-| `prompt.js` `oracle.js` `legality.js` `spend.js` `run-pilot.js` `metrics.js` `prng.js` | LLM-arm machinery — the experiment concluded, kept as the record of how it was run |
+| `PLAN.md` / `README.md` | the historical pre-registration, its verdict, and measurement-toolkit handoff |
+| `OPENAI-PLAN.md` / `openai-decision.js` | current action-only Terra plan and offline request/response boundary |
+| `prompt.js` `oracle.js` `legality.js` `spend.js` `run-pilot.js` `metrics.js` `prng.js` | shared and historical LLM-arm machinery; `run-pilot.js` remains the old Anthropic runner |
 
 There is **no framework and no bundler.** Functions are hoisted and called directly.
 Global mutable state is documented in §5. This is deliberate: the file has to stay
@@ -726,6 +728,12 @@ used for modeling with prior shrinkage. They are not interchangeable.
 
 ## 11. Open work, roughly by value
 
+**Current experiment:** build and evaluate the action-only Terra arm in the staged,
+offline-first sequence in `exp/OPENAI-PLAN.md`. The prior result disqualified generated
+reasons. This experiment asks whether model decisions alone improve observed play. It
+does not change the shipped Policy A unless the full offline gate and blind comparison
+pass.
+
 1. **Decision-vs-baseline logging** — record, at each hero decision, what a fixed
    baseline strategy would have done and what the player chose, then measure which made
    more money. This was designed but not built. It is the only way to answer "does my
@@ -763,7 +771,7 @@ gated on evidence that it's worth the complexity (blind-panel score, or your own
 
 | Rejected | Why |
 |---|---|
-| LLM as decision maker *or* narrator | Measured and rejected: hallucinated reasoning (§0, `exp/PLAN.md`) |
+| LLM as narrator | Measured and rejected: it fabricated poker facts in player-facing reasons (§0, `exp/PLAN.md`) |
 | `style.misread` — bots holding false beliefs about their own hand | Violates truthful-reasons; that is why bot error comes from the soft boundary and mood, never from corrupting the strength estimate. Allowed *in principle* as item 6 above, but only with its own increment and measurement |
 | Splitting `READS_PRIOR`, or doubling `facingNudge`'s coefficients | Creates a second source of truth for "how much evidence counts as evidence"; "the bot's gut is looser than the UI admits" reintroduces exactly the fake certainty the shrinkage prior exists to prevent |
 | Narrating mood in the UI (`readsLiveLine`) | An explicit "steaming" label hands the learner the read the prose is meant to teach them to make |

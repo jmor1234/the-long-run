@@ -1,9 +1,16 @@
 # exp/ — measurement toolkit (offline, never deployed)
 
-**Two things live here.** First, the *current* job: proving behavioral claims about the
-bots — the seeded harness, the gate suite, the two locks that run in `run-all.sh`, and
-the blind A/B panel generator. Second, the *concluded* LLM-bots experiment this was all
-built for (verdict: rejected — [PLAN.md](PLAN.md) § Status).
+**Three things live here.** First, the measurement toolkit for behavioral claims: the
+seeded harness, gate suite, locks, and blind A/B generator. Second, the concluded 2026
+Haiku experiment, whose narration-bearing LLM arm was rejected ([PLAN.md](PLAN.md)
+§ Status). Third, a new action-only Terra experiment that tests LLM decisions without
+LLM narration ([OPENAI-PLAN.md](OPENAI-PLAN.md)).
+
+**Current action-only LLM work:** `openai-decision.js` is an offline-only boundary. It
+builds a `gpt-5.6-terra` Responses API request from the acting bot's fair `ctx` and
+strictly parses `{action, amount}`. It does not import an SDK, read credentials, make a
+network call, choose a fallback, or spend money. `t-exp.js` pins that boundary. The
+next increment is the separately guarded runner described in `OPENAI-PLAN.md`.
 
 **Policy A versus Policy B:**
 
@@ -75,7 +82,7 @@ acceptable.
 | File | Role |
 |---|---|
 | `exp-harness.js` | seeded harness: RNG stream injection, explicit `dispatch`/`v1`/`v2` policy selection, coded-policy fit/rejection observation, decision hook, and `htmlPath` for cross-version A/B; every source rewrite asserted |
-| `t-exp.js` | the gate suite — humanize gates (sizing, boundary blur, roll governance, short-stack raises, voice bans, mood) plus experiment infrastructure (determinism, deal identity, oracle replay, legality, prompt purity) |
+| `t-exp.js` | the gate suite — humanize gates (sizing, boundary blur, roll governance, short-stack raises, voice bans, mood) plus experiment infrastructure (determinism, deal identity, oracle replay, legality, prompt purity, provider request/response contracts) |
 | `t-policy-gate.js` | policy-runner routing/provenance, isolated outputs, fit-vs-rejection observation, and literal pass/fail oracle fixtures |
 | `run-policy-gate.js` | frozen Policy A/B staircase: persona fidelity first, then the existing exploitability and readability locks; exits on the first failed stage |
 | `run-probes.js` | exploitability LOCK — degenerate heroes must keep losing badly; fails the build otherwise. **Arms only at 30×200/`probe1`**; any other config prints `lock skipped` and exits 0. bb/100 here is a *floor*, not an estimate: no rebuys, so a busting strategy caps its loss at −200 per session — valid for relative comparison only |
@@ -84,15 +91,17 @@ acceptable.
 | `run-baseline.js` | persona frequency bands + pooled split-half + transcripts; `--policy` writes self-identifying arm outputs without replacing legacy scratch names |
 | `prng.js` / `metrics.js` | keyed deterministic streams; rate/pooling/bb100 helpers (unit-tested against hand-computed values) |
 
-**Concluded LLM experiment** — kept as the record of how the verdict was reached; not
-expected to run again (`run-pilot.js` bills real money and requires `--live`):
+**LLM experiment files:** the old narration-bearing pilot is preserved as history;
+the new action-only work is isolated from it:
 
 | File | Role |
 |---|---|
-| `PLAN.md` | the pre-registration: frozen criteria, baselines, staircase, and the final verdict |
+| `PLAN.md` | historical Haiku pre-registration: frozen criteria, staircase, and final verdict |
+| `OPENAI-PLAN.md` | current action-only Terra hypothesis, boundaries, build sequence, and status |
 | `oracle.js` | cache-or-abort decision oracle + session replay (kept the engine synchronous) |
 | `legality.js` | LLM action/amount normalizer + clamp accounting — also reused as the sizing gate's independent oracle |
-| `prompt.js` | pure prompt builder: shared rules + 5 persona prefixes, spot renderer, default-deny card scan |
+| `prompt.js` | pure historical and action-only prompt builders, 5 persona profiles, spot renderer, default-deny card scan |
+| `openai-decision.js` | pure Terra request builder and fail-closed response parser; no live API path |
 | `spend.js` / `run-pilot.js` | hard call/USD caps with cost math; the billed arm itself (opt-in, resumable, every decision persisted before it is cached) |
 | `run-feel.js` | the original LLM-vs-coded blind packet (superseded by `run-ab.js` for engine-vs-engine work) |
 
