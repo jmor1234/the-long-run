@@ -21,6 +21,14 @@ const DEFAULT_HTML=path.join(__dirname,'..','poker-trainer.html');
 // Current sites: deck shuffle, equity Monte Carlo, botDecide draw helper,
 // button seat. All decision draws land inside the decision stream window.
 const EXPECTED_RAND_SITES=4;
+const POLICIES=Object.freeze(['dispatch','v1','v2']);
+const resolvePolicy=(raw)=>{
+  const policy=raw==null?'dispatch':String(raw);
+  if(!POLICIES.includes(policy)) throw new Error('exp-harness: unknown policy '+policy);
+  return policy;
+};
+const isChallengerOwned=(policy,detail)=>policy==='v2' && detail &&
+  detail.street!=='preflop' && detail.view && !detail.view.layeredEquity;
 
 // Every rewrite must actually land; silent no-ops corrupt results (see ARCHITECTURE §9).
 const srcCache=new Map();
@@ -49,6 +57,18 @@ function buildSrc(htmlPath, expectedSites){
     'newSession stream hook', 'exp-harness');
   src=replaceExactlyOnce(src, 'function newHand(){', 'function newHand(){ __STREAM("deal");',
     'newHand stream hook', 'exp-harness');
+  // Observe the trusted coded-policy adapter without changing it. Size fitting
+  // is intentional; a rejected action or safe fallback is not.
+  if(src.includes('const fitted=policyActionForView(view,d);')){
+    src=replaceExactlyOnce(src,
+      /const fitted=policyActionForView\(view,d\);\s*let result=applyAction\(p,\{\.\.\.fitted,actionSeq:view\.actionSeq\}\);/,
+      'const fitted=policyActionForView(view,d);\n    __POLICY_ACTION("fit",d,fitted,{street:S.street,view});\n    let result=applyAction(p,{...fitted,actionSeq:view.actionSeq});',
+      'policy fit observer', 'exp-harness');
+    src=replaceExactlyOnce(src,
+      /if\(!result\.ok\)\{\s*const safe=fallbackAction\(legalActionView\(p\)\);\s*if\(safe\) result=applyAction\(p,safe\);\s*\}/,
+      'if(!result.ok){\n      __POLICY_ACTION("reject",d,fitted,{street:S.street,view,result});\n      const safe=fallbackAction(legalActionView(p));\n      if(safe){ __POLICY_ACTION("fallback",d,safe,{street:S.street,view}); result=applyAction(p,safe); }\n    }',
+      'policy fallback observer', 'exp-harness');
+  }
   // Extend ctx with the public betting state the legality normalizer needs.
   // Two anchor generations: post-all-in-cap files carry myBet themselves;
   // older builds (cross-version A/B arms) need it injected.
@@ -95,12 +115,15 @@ function make(heroPolicy, opts={}){
    body:{appendChild(){},removeChild(){}},execCommand:()=>true};
 
   const queue=[];
-  const policy=opts.policy||'dispatch';
-  if(!['dispatch','v1','v2'].includes(policy)) throw new Error('exp-harness: unknown policy '+policy);
+  const policy=resolvePolicy(opts.policy);
   if(policy!=='dispatch' && opts.decide)
     throw new Error('exp-harness: explicit policy cannot be combined with decide override');
+  if(policy!=='dispatch' && !src.includes('__POLICY_ACTION("fit"'))
+    throw new Error('exp-harness: explicit policy requires policy-action observation');
   const state={hand:0, decision:0, sessions:0, strayDraws:0, lastBotCtx:null,
-    decisionTrace:[]};
+    policy,
+    policyFits:0, policyRejects:0, policyFallbacks:0,
+    challengerRejects:0, challengerFallbacks:0, policyFailureSamples:[], decisionTrace:[]};
 
   let strayGen=stream(seed+'|stray');
   let gen=strayGen;
@@ -134,10 +157,24 @@ function make(heroPolicy, opts={}){
       gen=guard; // no engine draws are expected between decisions
     }
   };
+  const __POLICY_ACTION=(event,raw,fitted,detail)=>{
+    const challengerOwned=isChallengerOwned(policy,detail);
+    if(event==='fit' && raw && fitted && raw.amount!==fitted.amount) state.policyFits++;
+    else if(event==='reject'){
+      state.policyRejects++;
+      if(challengerOwned) state.challengerRejects++;
+      if(state.policyFailureSamples.length<10)
+        state.policyFailureSamples.push(JSON.parse(JSON.stringify({raw,fitted,detail})));
+    }
+    else if(event==='fallback'){
+      state.policyFallbacks++;
+      if(challengerOwned) state.challengerFallbacks++;
+    }
+  };
 
   const HERO_ACT=()=>heroPolicy(G,state);
-  const G=new Function('document','navigator','setTimeout','HERO_ACT','__RAND','__STREAM','__DECIDE','window',
-    '"use strict";'+src)(document,{},fn=>queue.push(fn),HERO_ACT,__RAND,__STREAM,__DECIDE,{});
+  const G=new Function('document','navigator','setTimeout','HERO_ACT','__RAND','__STREAM','__DECIDE','__POLICY_ACTION','window',
+    '"use strict";'+src)(document,{},fn=>queue.push(fn),HERO_ACT,__RAND,__STREAM,__DECIDE,__POLICY_ACTION,{});
   // A hand that cannot complete (e.g. an unnormalized `check` facing a bet)
   // loops forever; hitting the cap is a bug signal, never silent truncation.
   const drain=(stop)=>{
@@ -151,4 +188,7 @@ function make(heroPolicy, opts={}){
   return {G,drain,state,queue};
 }
 make.EXPECTED_RAND_SITES=EXPECTED_RAND_SITES;
+make.POLICIES=POLICIES;
+make.resolvePolicy=resolvePolicy;
+make.isChallengerOwned=isChallengerOwned;
 module.exports=make;

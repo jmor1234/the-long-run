@@ -20,7 +20,7 @@ const args={};
   const argv=process.argv.slice(2);
   for(let i=0;i<argv.length;i++){
     const a=argv[i];
-    if(!a.startsWith('--')||!['sessions','seed','html','sites'].includes(a.slice(2))) fatal('unknown arg '+a);
+    if(!a.startsWith('--')||!['sessions','seed','html','sites','policy','out'].includes(a.slice(2))) fatal('unknown arg '+a);
     const v=argv[i+1];
     if(v===undefined||v.startsWith('--')) fatal('flag '+a+' needs a value');
     args[a.slice(2)]=v; i++;
@@ -28,6 +28,12 @@ const args={};
 }
 const SESSIONS=args.sessions===undefined?90:+args.sessions;
 const SEED=args.seed||'label1';
+const OUT_DIR=args.out===undefined?path.join(__dirname,'out'):path.resolve(args.out);
+const OUT_LABEL=args.out===undefined?'exp/out':OUT_DIR;
+const POLICY_EXPLICIT=args.policy!==undefined;
+let POLICY;
+try{ POLICY=make.resolvePolicy(args.policy); }
+catch(e){ fatal(e.message); }
 const HAND_AT=31; // first hand at/after READS_MIN_HANDS(30)
 if(!Number.isInteger(SESSIONS)||SESSIONS<1) fatal('--sessions must be a positive integer');
 
@@ -49,12 +55,24 @@ const checkFoldHero=(G)=>{
 };
 
 const tally={}, classed={};
+let conservationErrors=0, strayDraws=0, policyFits=0, policyRejects=0, policyFallbacks=0;
+let challengerRejects=0, challengerFallbacks=0;
+const observedPolicies=new Set();
 for(let s=0;s<SESSIONS;s++){
   const h=make(checkFoldHero,{seed:`${SEED}|s${s}`,
+    policy:POLICY,
     htmlPath:args.html||undefined,
     expectedRandSites:args.sites===undefined?undefined:+args.sites});
+  observedPolicies.add(h.state.policy);
   h.G.newSession(); h.drain();
   while(h.G.session.hands<HAND_AT && !h.G.session.over){ h.G.newHand(); h.drain(); }
+  if(h.G.roster.reduce((a,p)=>a+p.stack,0)!==6*h.G.START) conservationErrors++;
+  strayDraws+=h.state.strayDraws;
+  policyFits+=h.state.policyFits;
+  policyRejects+=h.state.policyRejects;
+  policyFallbacks+=h.state.policyFallbacks;
+  challengerRejects+=h.state.challengerRejects;
+  challengerFallbacks+=h.state.challengerFallbacks;
   for(const r of h.G.roster.filter(r=>r.style)){
     const tag=r.style.tag;
     const lab=h.G.readLabel('', r.reads);
@@ -68,8 +86,16 @@ for(let s=0;s<SESSIONS;s++){
   }
 }
 
-const report={config:{sessions:SESSIONS, seed:SEED, handAt:HAND_AT}, mapping:MAPPING,
+const config={sessions:SESSIONS, seed:SEED, handAt:HAND_AT};
+if(POLICY_EXPLICIT) config.policy=POLICY;
+const report={config, mapping:MAPPING,
   labels:tally, rates:{}};
+if(POLICY_EXPLICIT){
+  report.invariants={conservationErrors,strayDraws};
+  report.policyActions={fits:policyFits,rejects:policyRejects,fallbacks:policyFallbacks,
+    challengerRejects,challengerFallbacks,
+    observedPolicy:observedPolicies.size===1?[...observedPolicies][0]:null};
+}
 console.log(`labels at hand ${HAND_AT}, ${SESSIONS} sessions, seed "${SEED}"\n`);
 console.log('persona      correct  contradiction  none  other');
 for(const [tag,c] of Object.entries(classed)){
@@ -77,10 +103,10 @@ for(const [tag,c] of Object.entries(classed)){
   report.rates[tag]={correctPct:pct(c.correct), contradictionPct:pct(c.contradiction)};
   console.log(`  ${tag.padEnd(11)} ${String(pct(c.correct)+'%').padEnd(8)} ${String(pct(c.contradiction)+'%').padEnd(14)} ${pct(c.none)}%   ${pct(c.other)}%`);
 }
-const outDir=path.join(__dirname,'out');
-fs.mkdirSync(outDir,{recursive:true});
-fs.writeFileSync(path.join(outDir,'labels-baseline.json'), JSON.stringify(report,null,2));
-console.log('\nwrote exp/out/labels-baseline.json');
+fs.mkdirSync(OUT_DIR,{recursive:true});
+const outputName=POLICY_EXPLICIT?`labels-${POLICY}.json`:'labels-baseline.json';
+fs.writeFileSync(path.join(OUT_DIR,outputName), JSON.stringify(report,null,2));
+console.log(`\nwrote ${OUT_LABEL}/${outputName}`);
 
 // Readability DRIFT DETECTOR: bots must stay within 10pp of the pre-humanize
 // engine's readability. RE-INSTRUMENTED 2026-07-30 at 90 sessions: at the
@@ -95,8 +121,20 @@ console.log('\nwrote exp/out/labels-baseline.json');
 // would (noisily) fail at HEAD, and two personas sit at/within 1pp of
 // their floors (solid 27 vs 26, selective 57 vs 57) — the contract line,
 // honored with zero spare.
-let locked=0;
-if(SESSIONS===90 && SEED==='label1'){
+let locked=0, bugs=0;
+if(POLICY_EXPLICIT){
+  if(observedPolicies.size!==1 || !observedPolicies.has(POLICY)){
+    console.log(`BUG runner requested ${POLICY} but harness observed ${[...observedPolicies].join(', ')||'none'}`); bugs++;
+  }
+  if(conservationErrors){ console.log(`BUG chips drifted in ${conservationErrors} sessions`); bugs++; }
+  if(strayDraws){ console.log(`BUG ${strayDraws} RNG draws outside expected windows`); bugs++; }
+  if(policyRejects) console.log(`NOTE: ${policyRejects} legacy/delegated policy actions were rejected`);
+  if(policyFallbacks) console.log(`NOTE: ${policyFallbacks} legacy/delegated policy actions used safe fallback`);
+  if(challengerRejects){ console.log(`BUG ${challengerRejects} Policy B-owned actions were rejected`); bugs++; }
+  if(challengerFallbacks){ console.log(`BUG ${challengerFallbacks} Policy B-owned actions used safe fallback`); bugs++; }
+}
+const lockArmed=SESSIONS===90 && SEED==='label1';
+if(lockArmed){
   const LOCK={nit:{minCorrect:64,maxContra:11}, solid:{minCorrect:26,maxContra:30},
     maniac:{minCorrect:17,maxContra:33}, selective:{minCorrect:57,maxContra:11},
     station:{minCorrect:31,maxContra:27}};
@@ -112,4 +150,8 @@ if(SESSIONS===90 && SEED==='label1'){
 } else {
   console.log('lock skipped: exploratory config');
 }
-process.exitCode=locked?1:0;
+if(POLICY_EXPLICIT){
+  report.lock={armed:lockArmed,passed:lockArmed && !locked && !bugs};
+  fs.writeFileSync(path.join(OUT_DIR,outputName), JSON.stringify(report,null,2));
+}
+process.exitCode=(locked||bugs)?1:0;

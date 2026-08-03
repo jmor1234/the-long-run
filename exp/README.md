@@ -5,6 +5,20 @@ bots — the seeded harness, the gate suite, the two locks that run in `run-all.
 the blind A/B panel generator. Second, the *concluded* LLM-bots experiment this was all
 built for (verdict: rejected — [PLAN.md](PLAN.md) § Status).
 
+**Policy A versus Policy B:**
+
+```bash
+node exp/run-policy-gate.js
+```
+
+This runs the explicit `v1` and `v2` arms through the frozen persona gate, then
+continues to the existing exploitability and readability locks only if the persona
+gate passes. Policy-qualified outputs are isolated under `exp/out/`; raw size fitting
+is counted, while a rejected or fallback action in Policy B's owned non-layered
+postflop path fails. The 2026-08-03 run stopped at persona fidelity, so Policy B was
+not promoted and no blind panel was run. Frozen result:
+[`ref/policy-b-objective.md`](ref/policy-b-objective.md).
+
 **How to re-measure whether the bots feel human** (the thing most likely to be needed):
 
 ```bash
@@ -60,12 +74,14 @@ acceptable.
 
 | File | Role |
 |---|---|
-| `exp-harness.js` | seeded harness: RNG stream injection, explicit `dispatch`/`v1`/`v2` policy selection, decision hook, and `htmlPath` for cross-version A/B; every source rewrite asserted |
+| `exp-harness.js` | seeded harness: RNG stream injection, explicit `dispatch`/`v1`/`v2` policy selection, coded-policy fit/rejection observation, decision hook, and `htmlPath` for cross-version A/B; every source rewrite asserted |
 | `t-exp.js` | the gate suite — humanize gates (sizing, boundary blur, roll governance, short-stack raises, voice bans, mood) plus experiment infrastructure (determinism, deal identity, oracle replay, legality, prompt purity) |
+| `t-policy-gate.js` | policy-runner routing/provenance, isolated outputs, fit-vs-rejection observation, and literal pass/fail oracle fixtures |
+| `run-policy-gate.js` | frozen Policy A/B staircase: persona fidelity first, then the existing exploitability and readability locks; exits on the first failed stage |
 | `run-probes.js` | exploitability LOCK — degenerate heroes must keep losing badly; fails the build otherwise. **Arms only at 30×200/`probe1`**; any other config prints `lock skipped` and exits 0. bb/100 here is a *floor*, not an estimate: no rebuys, so a busting strategy caps its loss at −200 per session — valid for relative comparison only |
 | `run-labels.js` | readability LOCK — bots must stay legible; `--html`/`--sites` re-measures another engine build (that is how the bounds were set). **Arms only at 90 sessions/`label1`** |
 | `run-ab.js` | blind A/B packet: 8 isolated 30-hand blocks, old engine vs current, shared deal seeds, key sequestered. `--action-only` emits the play log alone (the format behind the headline 3.00-vs-2.13); default emits full transcripts. Scores compare only within a format — use the matching judge prompt |
-| `run-baseline.js` | persona frequency bands + pooled split-half + transcripts |
+| `run-baseline.js` | persona frequency bands + pooled split-half + transcripts; `--policy` writes self-identifying arm outputs without replacing legacy scratch names |
 | `prng.js` / `metrics.js` | keyed deterministic streams; rate/pooling/bb100 helpers (unit-tested against hand-computed values) |
 
 **Concluded LLM experiment** — kept as the record of how the verdict was reached; not

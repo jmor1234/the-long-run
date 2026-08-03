@@ -28,7 +28,7 @@ reads** model — not LLMs, not GTO solvers.
 
 | Goal | Touch |
 |---|---|
-| Bot decisions / frequencies | `botDecide` still dispatches to frozen `botPolicyV1`; opt-in `botPolicyV2` is the line-aware challenger awaiting A/B evaluation |
+| Bot decisions / frequencies | `botDecide` still dispatches to frozen `botPolicyV1`; opt-in `botPolicyV2` failed its 2026-08-03 objective gate and remains experimental |
 | Styles / limps / sizing / blurbs | `BOT_STYLES` (dials incl. `openSize`, `size`, `sizeJitter`, `callTemp`) |
 | What bots *say* | `VOICE` bank + `say()` (BOT VOICE section, §12) |
 | Tilt / heaters | `moodStep` + `moodDials` (MOOD section, §12) |
@@ -601,6 +601,7 @@ first.**
 | `t-harness.js` | source-transform guards: current source builds, missing/duplicated anchors throw, bootstrap stays inert until explicitly started, hero, bot, and equity hooks execute |
 | `t-policy.js` | Policy A source hash + exact dispatcher lock; seeded direct-vs-dispatched traces include actions, reasons, RNG draws, deals, logs, stacks, reads, mood, and session state |
 | `t-policy-b.js` | Policy B preflop delegation, chronological line effect, live legal price, no draw double-count, all-live-opponent use, layered fallback, hero evidence, and opt-in seeded execution |
+| `exp/t-policy-gate.js` | explicit policy-runner routing and provenance, isolated artifacts, coded-policy fit/rejection observation, and literal gate pass/fail fixtures |
 | `t-legal.js` | independent legal-action oracle: complete call-price snapshot, exact min/max bet-to bounds, short and cumulative all-ins, raise rights, stale revisions, malformed input, and byte-identical state on rejection |
 | `t-teaching.js` | literal call-price oracle: full and short calls, total-investment caps across streets, folded dead money, deeper side-pot layers, layered-verdict suppression, rendered copy, purity, and RNG alignment |
 | `t-equity.js` | literal evaluator contract + exact heads-up river/turn oracle, capped heads-up and joint multiway sampling, chronological weighting, multiway inclusion and second-line weighting, purity, wrapper defaults, and live two-street range wiring |
@@ -673,13 +674,17 @@ full house). Verify by hand before "correcting" them.
   wrong. Action controls, execution, and the teaching strip now share the exact effective
   call; the strip also excludes deeper layers that hero cannot win. Opt-in Policy B uses
   that legal price in non-layered spots and explicitly defers layered spots, but Policy A
-  remains the shipped default until the A/B gate.
+  remains the shipped default. Policy B failed the 2026-08-03 objective gate on
+  persona drift before exploitability, readability, or blind feel were run; see
+  `exp/ref/policy-b-objective.md`.
 - **Policy A equity use:** `t-equity.js` now constrains `equity()`, `betLikelihood()`,
   range weighting, and the live strip wiring. Policy A still takes
   `strengthVsRandom()` after it has simulated the future runout, then adds flush- and
   straight-draw bonuses again. Opt-in Policy B instead consumes chronological public
   range records and uses range-conditioned runout equity exactly once. The baseline is
-  intentionally unchanged until paired evaluation establishes whether B should ship.
+  intentionally unchanged. The first paired objective evaluation rejected B because
+  solid, maniac, and station behavior moved outside the predeclared persona bands;
+  see `exp/ref/policy-b-objective.md`.
 - **Browser UX:** the decision strip is refreshed only when hero controls render, so old
   guidance can remain during review or early in the next hand. Training-wheel switches
   and seat dossiers are not keyboard controls, dynamic state has no live-region
@@ -784,7 +789,9 @@ policy version, so later correctness fixes apply equally to Policy A and any cha
 Policy A hash span. It delegates all preflop decisions to V1 and replaces only the
 postflop assessment. `exp/exp-harness.js` selects it explicitly with `policy:'v2'`;
 the shipped dispatcher remains byte-identical to Policy A. `t-policy-b.js` constrains
-the challenger before the paired evaluation decides whether the dispatcher should move.
+the challenger. `exp/run-policy-gate.js` then compares explicit V1/V2 arms without
+touching the dispatcher. Its first frozen run failed Policy B on persona fidelity, so
+the dispatcher did not move (`exp/ref/policy-b-objective.md`).
 
 ### Fixed seat styles (recreational leaks)
 
