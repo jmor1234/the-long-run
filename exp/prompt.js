@@ -320,7 +320,7 @@ Reply with a single JSON object: {"action": one of "fold","check","call","bet","
 "amount": the bet-to total for this street (required for bet and raise, omit otherwise),
 "reason": one or two sentences of this player's inner monologue}.`;
 
-const ACTION_RULES=`You are playing one seat in a 6-handed No-Limit Texas Hold'em home game.
+const ACTION_RULES=`You are playing one seat in a No-Limit Texas Hold'em home game.
 You are the specific recreational player described in YOUR PLAYER PROFILE below, not a coach or a
 solver. Treat that profile as stable tendencies, including its leaks. Use only your own cards and the
 public situation report. Choose the action this person would take now. The report states the actions
@@ -398,6 +398,14 @@ function buildActionSpot(ctx){
   if(aggressive.length!==Number(view.aggressive!==null) ||
       (view.aggressive && view.aggressive.action!==aggressive[0]))
     throw new Error('action prompt received an inconsistent legal view');
+  if(typeof ctx.playerName!=='string' || !ctx.playerName.length ||
+      !Number.isInteger(ctx.tableSize) || ctx.tableSize<2 || ctx.tableSize>6 ||
+      !Array.isArray(ctx.opponents) || ctx.opponents.length<1 ||
+      ctx.opponents.length>=ctx.tableSize)
+    throw new Error('action prompt received an invalid table view');
+  if(!Array.isArray(ctx.publicActions) || !ctx.publicActions.length ||
+      ctx.publicActions.some(line=>typeof line!=='string' || !line.length))
+    throw new Error('action prompt requires the public action line');
 
   if(!Number.isInteger(view.contestablePot) || view.contestablePot<0 ||
       !Number.isInteger(view.excludedPot) || view.excludedPot<0 ||
@@ -407,15 +415,26 @@ function buildActionSpot(ctx){
     ? `Pot you can contest: ${view.contestablePot}. Another ${view.excludedPot} chips are in a deeper layer you cannot win. Your stack: ${ctx.myStack}. You have ${ctx.myBet} in on this street.`
     : `Pot: ${view.contestablePot}. Your stack: ${ctx.myStack}. You have ${ctx.myBet} in on this street.`;
   const lines=spotHeader(ctx,potLine);
+  const position=POS_WORD[ctx.position]||ctx.position;
+  const actionPosition=ctx.street==='preflop'?position:position.replace(' (first to act)','');
+  lines[1]=`Street: ${ctx.street}. You are in ${actionPosition}.`;
+  lines.splice(2,0,
+    `Table: ${ctx.tableSize}-handed; ${ctx.opponents.length} live opponent${ctx.opponents.length===1?'':'s'} remain in this pot.`,
+    `Your table name: ${ctx.playerName}. In the public action line, "You" means the human player; actions under ${ctx.playerName} are yours.`);
+  lines.push(`Public action so far:\n${ctx.publicActions.map(line=>'- '+line).join('\n')}`);
   lines.push(`Available actions: ${available.join(', ')}.`);
   if(available.includes('call')){
     if(!Number.isInteger(view.effectiveCall) || view.effectiveCall<=0 ||
-        typeof view.need!=='number' || !Number.isFinite(view.need) || view.need<=0 || view.need>1)
+        typeof view.need!=='number' || !Number.isFinite(view.need) || view.need<=0 || view.need>1 ||
+        typeof view.layeredEquity!=='boolean')
       throw new Error('action prompt received an invalid call price');
     const allIn=view.actions.find(a=>a.action==='call').allIn;
-    lines.push(allIn
-      ? `Calling puts your last ${view.effectiveCall} chips in. You need ${Math.round(view.need*100)}% equity to call profitably.`
-      : `Calling costs ${view.effectiveCall}. You need ${Math.round(view.need*100)}% equity to call profitably.`);
+    const price=allIn
+      ? `Calling puts your last ${view.effectiveCall} chips in.`
+      : `Calling costs ${view.effectiveCall}.`;
+    lines.push(view.layeredEquity
+      ? `${price} Different opponents can win different pot layers, so no single equity percentage fully describes this call.`
+      : `${price} You need ${Math.round(view.need*100)}% equity to call profitably.`);
   }
   if(view.aggressive){
     const a=view.aggressive;
@@ -426,7 +445,6 @@ function buildActionSpot(ctx){
       ? `The only legal ${a.action} is all-in to ${a.maxBetTo}.`
       : `To ${a.action}, the total must be between ${a.minBetTo} and ${a.maxBetTo} (all-in).`);
   }
-  lines.push(`Bets/raises this street so far: ${ctx.streetBets}.${ctx.raisedBefore&&ctx.street==='preflop'?' Someone has already raised this hand.':''}`);
   if(available.includes('call')) lines.push(readsLine(ctx));
   lines.push(`What do you do?`);
   return lines.join('\n');

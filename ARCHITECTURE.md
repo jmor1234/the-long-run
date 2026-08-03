@@ -145,7 +145,7 @@ is how any behavioral claim about the bots gets proven:
 | `run-feel.js` | the original LLM-vs-coded packet, superseded by `run-ab.js` for engine-vs-engine |
 | `ref/` | **frozen evidence** — panel verdicts, baselines, the LLM pilot's paid decisions, the judging protocol. Preserved history: never regenerate into it |
 | `PLAN.md` / `README.md` | the historical pre-registration, its verdict, and measurement-toolkit handoff |
-| `OPENAI-PLAN.md` / `openai-decision.js` | current action-only Terra plan and offline request/response boundary |
+| `OPENAI-PLAN.md` / `openai-decision.js` / `openai-probes.js` | current action-only Terra plan, offline request/legality boundary, and frozen development spots |
 | `prompt.js` `oracle.js` `legality.js` `spend.js` `run-pilot.js` `metrics.js` `prng.js` | shared and historical LLM-arm machinery; `run-pilot.js` remains the old Anthropic runner |
 
 There is **no framework and no bundler.** Functions are hoisted and called directly.
@@ -165,7 +165,7 @@ but the suite may not catch it). Treat both as load-bearing.
 
 ```js
 { myCards, board, street, toCall, pot, myStack, myBet, position, raisedBefore, openThr,
-  tableSize, inPosition, streetBets, legal, opponents, facingReads,
+  tableSize, inPosition, streetBets, playerName, publicActions, legal, opponents, facingReads,
   aggressorHadInitiative, style, mood }
 ```
 
@@ -182,6 +182,13 @@ Hero's cards / other hole cards are **not** parameters (except the acting bot's 
 pre-shrunk, never a seat index into `S`). Shrinkage / nudge math runs inside
 `facingNudge`. The function never touches `S` — it is pure with respect to its
 arguments. That is what makes the guarantee structural rather than a promise.
+
+`playerName` is the acting bot's public table name. `publicActions` is a detached
+snapshot of the exact visible hand log at decision time. Together they let an external
+policy identify its own prior actions and distinguish the human seat, logged as `You`.
+Policy A reads neither field. `t3.js` captures engine state at the decision hook, proves
+the actor, table size, live-opponent count, and full action line match exactly, and
+proves that mutating the snapshot cannot mutate engine state.
 
 `legal` is the exact action and call-price snapshot returned by `legalActionView`.
 `opponents` contains only detached `{cap, bets}` range descriptors. Each `bets` entry
@@ -728,11 +735,12 @@ used for modeling with prior shrinkage. They are not interchangeable.
 
 ## 11. Open work, roughly by value
 
-**Current experiment:** build and evaluate the action-only Terra arm in the staged,
-offline-first sequence in `exp/OPENAI-PLAN.md`. The prior result disqualified generated
-reasons. This experiment asks whether model decisions alone improve observed play. It
-does not change the shipped Policy A unless the full offline gate and blind comparison
-pass.
+**Current experiment:** the action-only Terra offline diagnostic gate is complete.
+It now has fair public observation, exact semantic legality checks, and nine frozen
+development spots. The next step is a narrow fixture runner, followed by an explicitly
+approved tiny smoke. A full session runner is conditional on that smoke passing. The
+probe spots are burned and cannot count as evaluation evidence. This experiment does
+not change shipped Policy A unless the full gate and blind comparison pass.
 
 1. **Decision-vs-baseline logging** — record, at each hero decision, what a fixed
    baseline strategy would have done and what the player chose, then measure which made

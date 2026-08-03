@@ -568,11 +568,11 @@ function runBaseline(seed, hands, opts={}){
   ok(actionPrefixes.every(pre=>!(/WORKED EXAMPLES|"reason"|inner monologue|one or two sentences/i.test(pre))),
     'action-only prefixes contain no examples or narration contract');
   const actionHashes={
-    nit:'c312a5b97c9e5719f262335176a562b81a8ce766b4b25a541282de48066d5e82',
-    solid:'54278a889c928572b5f477294dc70524d96ac1482ca04be01d3c9daa9f67b1a9',
-    maniac:'07725a9d085c8be0314dec8a0bea27561d440fe239a5f9977da94b5f395f0f7b',
-    selective:'c23ec2e554f2555a05178ba0801bc502f5e157fb34e43e8413556e0a26902f78',
-    station:'d8849bbdb6fae22d947fbaa795b5807be5f0a35e59f2aa1373085280e8a716b0',
+    nit:'3826ef38c0c7620fa17012278bd6960cf4310c014fe006ff01cb8b9ab0a1300e',
+    solid:'96272e86ad01a5e4af81e445df794bb8bfb7bd7e7f8f6c15ab72b86718f77947',
+    maniac:'a4bf3c5f0b166c86cc42812d167bcd1b7afb9fac34cfa72fa8cc72e3e727b946',
+    selective:'918315489b8b169e30f705759acf3f8a3591e469e9c41369692c64472b5f9aa2',
+    station:'0379abef555d202d63273f88281c5cbe7cc78382787dfeb038916066bcfb1b73',
   };
   ok(Object.entries(actionHashes).every(([tag,hash])=>sha(P.buildActionPrefix(tag))===hash),
     'action-only persona prefixes match their frozen contract');
@@ -580,32 +580,42 @@ function runBaseline(seed, hands, opts={}){
   // Production-shaped ctx has betting fields only inside legal. This literal
   // oracle catches accidental fallback to the harness-only top-level copies.
   const actionCtx={
-    style:{tag:'solid'},street:'flop',position:'BTN',inPosition:true,
+    style:{tag:'solid'},street:'flop',position:'BTN',inPosition:true,tableSize:3,
+    playerName:'Oyelaran',
     myCards:[{r:14,s:'s'},{r:13,s:'s'}],
     board:[{r:2,s:'h'},{r:7,s:'c'},{r:11,s:'d'}],
     pot:40,myStack:90,myBet:10,toCall:10,streetBets:1,raisedBefore:false,
     facingReads:null,aggressorHadInitiative:false,
-    legal:{ok:true,toCall:10,effectiveCall:10,contestablePot:40,excludedPot:0,
-      finalPot:50,need:0.2,actions:[
+    opponents:[{cap:30,bets:[]},{cap:55,bets:[]}],
+    publicActions:['Hand 12 — 3-handed, preflop','Blinds Dunn 1 · Vera 2',
+      'Oyelaran raises to 8','Dunn calls 7','Vera folds','flop — 2♥ 7♣ J♦',
+      'Dunn checks','Oyelaran bets to 10'],
+    legal:{ok:true,actionSeq:7,toCall:10,effectiveCall:10,contestablePot:40,excludedPot:0,
+      finalPot:50,layeredEquity:false,need:0.2,actions:[
       {action:'fold'},{action:'call',cost:10,allIn:false},
       {action:'raise',minBetTo:30,maxBetTo:100,shortAllInOnly:false},
     ],aggressive:{action:'raise',minBetTo:30,maxBetTo:100,shortAllInOnly:false}},
   };
   const openSpot=[
     'THE SITUATION',
-    'Street: flop. You are in the button (best position), acting after your opponent (in position).',
+    'Street: flop. You are in the button (best position).',
+    'Table: 3-handed; 2 live opponents remain in this pot.',
+    'Your table name: Oyelaran. In the public action line, "You" means the human player; actions under Oyelaran are yours.',
     'Your cards: A♠ K♠.',
     'Board: 2♥ 7♣ J♦.',
     'Pot: 40. Your stack: 90. You have 10 in on this street.',
+    'Public action so far:\n- Hand 12 — 3-handed, preflop\n- Blinds Dunn 1 · Vera 2\n- Oyelaran raises to 8\n- Dunn calls 7\n- Vera folds\n- flop — 2♥ 7♣ J♦\n- Dunn checks\n- Oyelaran bets to 10',
     'Available actions: fold, call, raise.',
     'Calling costs 10. You need 20% equity to call profitably.',
     'To raise, the total must be between 30 and 100 (all-in).',
-    'Bets/raises this street so far: 1.',
     'You have no real read on the current aggressor yet.',
     'What do you do?',
   ].join('\n');
   ok(P.buildActionSpot(actionCtx)===openSpot,
     'action-only spot matches the production-shaped literal legal-view oracle');
+  const postflopUtg=P.buildActionSpot({...actionCtx,position:'UTG'}).split('\n')[1];
+  ok(postflopUtg==='Street: flop. You are in under the gun.',
+    'action-only spot does not call UTG first to act after the flop');
   const closedCtx={...actionCtx,legal:{...actionCtx.legal,
     actions:[{action:'fold'},{action:'call',cost:10,allIn:false}],aggressive:null}};
   const closedSpot=openSpot
@@ -615,7 +625,7 @@ function runBaseline(seed, hands, opts={}){
     'action-only spot omits aggression when raising is not reopened');
   const shortCtx={...actionCtx,myStack:7,pot:40,legal:{
     ok:true,toCall:10,effectiveCall:7,contestablePot:33,excludedPot:7,
-    finalPot:40,need:0.175,actions:[
+    finalPot:40,layeredEquity:false,need:0.175,actions:[
       {action:'fold'},{action:'call',cost:7,allIn:true},
     ],aggressive:null,
   }};
@@ -627,6 +637,9 @@ function runBaseline(seed, hands, opts={}){
   let noLegalThrew=false;
   try{ P.buildActionSpot({...actionCtx,legal:null}); }catch(e){ noLegalThrew=true; }
   ok(noLegalThrew, 'action-only spot fails closed without the engine legal view');
+  let noPublicLineThrew=false;
+  try{ P.buildActionSpot({...actionCtx,publicActions:null}); }catch(e){ noPublicLineThrew=true; }
+  ok(noPublicLineThrew, 'action-only spot fails closed without the public action line');
 
   // determinism + frozen-ctx purity + live scan across real decisions.
   // Two passes in OPPOSITE orders so module-level state or memoization keyed
@@ -713,11 +726,11 @@ function runBaseline(seed, hands, opts={}){
     {type:'reasoning',summary:[]},
     {type:'message',role:'assistant',status:'completed',content:[{type:'output_text',text}]},
   ]});
-  const passive=O.parseResponse(response('{"action":"call","amount":null}'));
-  const aggressive=O.parseResponse(response('{"action":"raise","amount":19}'));
+  const passive=O.parseResponse(response('{"action":"call","amount":null}'),actionCtx);
+  const aggressive=O.parseResponse(response('{"action":"raise","amount":40}'),actionCtx);
   ok(JSON.stringify(passive)==='{"ok":true,"decision":{"action":"call"}}' &&
-    JSON.stringify(aggressive)==='{"ok":true,"decision":{"action":"raise","amount":19}}',
-    'Terra parser accepts strict actions and canonicalizes passive amount away');
+    JSON.stringify(aggressive)==='{"ok":true,"decision":{"action":"raise","amount":40}}',
+    'Terra parser accepts only context-legal actions and canonicalizes passive amount away');
   const rejects=[
     null,
     {status:'incomplete',output:[]},
@@ -749,12 +762,74 @@ function runBaseline(seed, hands, opts={}){
   let parserLeak=null;
   rejects.forEach((candidate,i)=>{
     try{
-      const result=O.parseResponse(candidate);
+      const result=O.parseResponse(candidate,actionCtx);
       if(result.ok || result.decision || !result.error || !result.error.code) parserLeak=i;
     }catch(e){ parserLeak=i+' threw '+e.message; }
   });
   ok(parserLeak===null, 'Terra parser fails closed on malformed, refused, or ambiguous output',
     parserLeak===null?`${rejects.length} rejection cases`:String(parserLeak));
+  const semanticRejects=[
+    [response('{"action":"check","amount":null}'),actionCtx],
+    [response('{"action":"raise","amount":29}'),actionCtx],
+    [response('{"action":"raise","amount":101}'),actionCtx],
+    [response('{"action":"raise","amount":40}'),closedCtx],
+    [response('{"action":"call","amount":null}'),{...actionCtx,
+      legal:{...actionCtx.legal,actionSeq:null}}],
+    [response('{"action":"call","amount":null}'),{...actionCtx,
+      legal:{...actionCtx.legal,actions:[...actionCtx.legal.actions,{action:'call',cost:10}]}}],
+  ];
+  let semanticLeak=null;
+  semanticRejects.forEach(([candidate,ctx],i)=>{
+    const result=O.parseResponse(candidate,ctx);
+    if(result.ok || result.decision) semanticLeak=i;
+  });
+  ok(semanticLeak===null,
+    'Terra semantic gate rejects unavailable verbs, illegal sizes, and invalid legal views',
+    semanticLeak===null?`${semanticRejects.length} rejection cases`:String(semanticLeak));
+  const zeroAmount=O.validateDecision(actionCtx,{action:'raise',amount:0});
+  ok(!zeroAmount.ok && zeroAmount.error.code==='amount-not-legal' &&
+    zeroAmount.error.detail===0,
+    'Terra semantic rejection preserves a falsy illegal amount for diagnostics');
+
+  const {SPECS,collectProbes}=require('./openai-probes');
+  const probes=collectProbes();
+  const probeIds=['persona-nit','persona-solid','persona-maniac','persona-selective',
+    'persona-station','postflop-bet','raise-closed','short-layered-allin','heads-up'];
+  ok(JSON.stringify(probes.map(p=>p.id))===JSON.stringify(probeIds) &&
+    probes.length===SPECS.length,
+    'Terra development corpus resolves every frozen seeded decision in order');
+  const deeplyFrozen=value=>!value || typeof value!=='object' ||
+    (Object.isFrozen(value) && Object.values(value).every(deeplyFrozen));
+  const probeContracts=probes.every(probe=>{
+    const decision=O.validateDecision(probe.ctx,probe.policyA);
+    const request=O.buildRequest(probe.ctx);
+    return decision.ok && request.model==='gpt-5.6-terra' &&
+      !Object.prototype.hasOwnProperty.call(probe.ctx,'currentBet') &&
+      !Object.prototype.hasOwnProperty.call(probe.ctx,'minRaise') &&
+      deeplyFrozen(probe);
+  });
+  ok(probeContracts,
+    'every Terra probe is production-shaped, immutable, requestable, and legal');
+  const betProbe=probes.find(p=>p.id==='postflop-bet');
+  const betFloor=betProbe.ctx.legal.aggressive.minBetTo;
+  const betCeiling=betProbe.ctx.legal.aggressive.maxBetTo;
+  ok(O.validateDecision(betProbe.ctx,{action:'bet',amount:betFloor}).ok &&
+    O.validateDecision(betProbe.ctx,{action:'bet',amount:betCeiling}).ok &&
+    !O.validateDecision(betProbe.ctx,{action:'bet',amount:betFloor-1}).ok,
+    'Terra semantic gate accepts engine-bounded bets and rejects a below-floor bet');
+  const probeTags=new Set(probes.map(p=>p.ctx.style.tag));
+  const hasCoverage=probeTags.size===5 && probes.some(p=>p.ctx.tableSize===2) &&
+    probes.some(p=>p.ctx.street==='flop' && p.ctx.legal.aggressive?.action==='bet') &&
+    probes.some(p=>p.ctx.toCall>0 && p.ctx.legal.aggressive===null) &&
+    probes.some(p=>p.ctx.legal.layeredEquity &&
+      p.ctx.legal.effectiveCall<p.ctx.legal.toCall);
+  ok(hasCoverage,
+    'Terra probes cover five personas, heads-up, postflop betting, closed raises, and layered short calls');
+  const layeredProbe=probes.find(p=>p.id==='short-layered-allin');
+  const layeredSpot=P.buildActionSpot(layeredProbe.ctx);
+  ok(/no single equity percentage/.test(layeredSpot) &&
+    !/You need \d+% equity/.test(layeredSpot),
+    'layered-pot prompt does not claim one equity threshold can price every layer');
 }
 
 // --- 8. metric helpers vs hand-computed values --------------------------

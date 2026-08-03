@@ -1590,6 +1590,8 @@ function step(){
       position:p.pos, raisedBefore:S.raisedBefore, openThr:p.openThr, tableSize:S.n,
       inPosition:isInPosition(p.idx),
       streetBets:S.streetBets||0, myBet:p.bet,
+      playerName:p.name,
+      publicActions:S.log.map(l=>l.text),
       legal:view,
       opponents:S.players.filter(o=>o!==p && !o.folded).map(rangeSnapshot),
       facingReads: (toCall>0 && aggRoster) ? aggRoster.reads : null,

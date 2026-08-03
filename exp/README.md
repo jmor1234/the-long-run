@@ -6,11 +6,13 @@ Haiku experiment, whose narration-bearing LLM arm was rejected ([PLAN.md](PLAN.m
 § Status). Third, a new action-only Terra experiment that tests LLM decisions without
 LLM narration ([OPENAI-PLAN.md](OPENAI-PLAN.md)).
 
-**Current action-only LLM work:** `openai-decision.js` is an offline-only boundary. It
-builds a `gpt-5.6-terra` Responses API request from the acting bot's fair `ctx` and
-strictly parses `{action, amount}`. It does not import an SDK, read credentials, make a
-network call, choose a fallback, or spend money. `t-exp.js` pins that boundary. The
-next increment is the separately guarded runner described in `OPENAI-PLAN.md`.
+**Current action-only LLM work:** the offline diagnostic gate is complete.
+`openai-decision.js` builds a `gpt-5.6-terra` Responses API request from the acting
+bot's fair `ctx`, strictly parses `{action, amount}`, and rejects any decision that is
+not valid under that context's exact `legal` descriptor. `openai-probes.js` freezes
+nine real Policy A spots for development checks. It does not import an SDK, read
+credentials, make a network call, choose a fallback, or spend money. The next
+increment is the narrow fixture runner in `OPENAI-PLAN.md`, not a full session runner.
 
 **Policy A versus Policy B:**
 
@@ -62,10 +64,11 @@ Key design calls, with independent-assessment findings folded in:
   deck per hand index, policy rolls + equity Monte Carlo per (hand, decision). Deals are identical
   across arms at the same seed (duplicate-poker variance reduction); draws outside the
   expected windows are counted and must be zero.
-- **The shipped engine has a strict legal-action boundary.** External decision sources
-  still pass through `normalize()` so malformed model output becomes a measured,
-  deterministic fallback before it reaches that boundary. Every `amount` is a
-  bet-**to** total for the street, never an increment.
+- **The shipped engine has a strict legal-action boundary.** Historical LLM arms pass
+  through `normalize()` and measure any deterministic fallback. The Terra boundary is
+  stricter: malformed or context-illegal output is a terminal rejected decision, not
+  a fitted action or fallback. Every `amount` is a bet-**to** total for the street,
+  never an increment.
 - **Legality normalizer** (`legality.js`) runs before `applyAction` for LLM arms.
   Historical engines accepted malformed actions that could stall the loop, while the
   current boundary rejects them. Every coercion is counted;
@@ -101,7 +104,8 @@ the new action-only work is isolated from it:
 | `oracle.js` | cache-or-abort decision oracle + session replay (kept the engine synchronous) |
 | `legality.js` | LLM action/amount normalizer + clamp accounting — also reused as the sizing gate's independent oracle |
 | `prompt.js` | pure historical and action-only prompt builders, 5 persona profiles, spot renderer, default-deny card scan |
-| `openai-decision.js` | pure Terra request builder and fail-closed response parser; no live API path |
+| `openai-decision.js` | pure Terra request builder, fail-closed response parser, and exact `ctx.legal` semantic validator; no live API path |
+| `openai-probes.js` | nine hash-locked real Policy A contexts for development and provider smoke checks; excluded from humanness evidence |
 | `spend.js` / `run-pilot.js` | hard call/USD caps with cost math; the billed arm itself (opt-in, resumable, every decision persisted before it is cached) |
 | `run-feel.js` | the original LLM-vs-coded blind packet (superseded by `run-ab.js` for engine-vs-engine work) |
 

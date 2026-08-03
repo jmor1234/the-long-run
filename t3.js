@@ -25,12 +25,17 @@ const heroPolicy=(G)=>{
 };
 const {G,drain,state}=make(heroPolicy);
 let peeks=0, policyBPeeks=0, handsWatched=0, contextsChecked=0,
-  ctxLeaks=0, descriptorLeaks=0;
+  ctxLeaks=0, descriptorLeaks=0, publicProjectionLeaks=0;
 let policyBWatch=false, policyBCtx=null,detachCase=null;
+let publicDetachCase=null;
 G.newSession(); drain();
 
 for(let i=0;i<1200;i++){
-  if(G.session.over){ G.newSession(); drain(); state.botContexts.length=0; }
+  if(G.session.over){
+    G.newSession(); drain();
+    state.botContexts.length=0;
+    state.botObservations.length=0;
+  }
   const ctxStart=state.botContexts.length;
   G.newHand();
   if(G.session.over) continue;
@@ -50,7 +55,8 @@ for(let i=0;i<1200;i++){
     });
   }
   drain();
-  for(const ctx of state.botContexts.slice(ctxStart)){
+  for(const observation of state.botObservations.slice(ctxStart)){
+    const {ctx}=observation;
     contextsChecked++;
     if(ctx.street!=='preflop' && !ctx.legal.layeredEquity) policyBCtx=ctx;
     if(!detachCase && ctx.opponents.some(o=>o.bets.length)) detachCase={ctx,
@@ -63,6 +69,14 @@ for(let i=0;i<1200;i++){
     if(foreign.length) ctxLeaks++;
     const boardKey=c=>`${c.r}${c.s}`;
     const publicBoard=G.S.board.map(boardKey);
+    const validPublicLine=Array.isArray(ctx.publicActions) &&
+      JSON.stringify(ctx.publicActions)===JSON.stringify(observation.publicActions);
+    const validPublicCounts=ctx.tableSize===observation.tableSize &&
+      ctx.opponents.length===observation.liveOpponents &&
+      ctx.playerName===observation.playerName;
+    if(!validPublicLine || !validPublicCounts) publicProjectionLeaks++;
+    if(!publicDetachCase && validPublicLine) publicDetachCase={ctx,log:G.S.log,
+      before:JSON.stringify(G.S.log)};
     const valid=Array.isArray(ctx.opponents) && ctx.opponents.every(o=>
       o && Object.keys(o).sort().join(',')==='bets,cap' &&
       typeof o.cap==='number' && Array.isArray(o.bets) && o.bets.every(eventBoard=>
@@ -77,6 +91,7 @@ for(let i=0;i<1200;i++){
 console.log(`  ${peeks?'FAIL':'ok  '} ${handsWatched} hands watched live — other seats' cards were read ${peeks} times during a bot's decision`);
 console.log(`  ${ctxLeaks?'FAIL':'ok  '} botDecide ctx never carried another player's hole cards (${ctxLeaks} leaks)`);
 console.log(`  ${descriptorLeaks?'FAIL':'ok  '} ${contextsChecked} bot contexts contain only cap and cloned public board prefixes (${descriptorLeaks} leaks)`);
+console.log(`  ${publicProjectionLeaks?'FAIL':'ok  '} public action, actor, table, and opponent snapshots exactly match the decision-time view (${publicProjectionLeaks} leaks)`);
 
 policyBWatch=true;
 G.botPolicyV2(policyBCtx);
@@ -88,6 +103,9 @@ detachedOpponent.cap=-1;
 detachedOpponent.bets[0][0].r=-1;
 const detached=detachCase.before===JSON.stringify(detachCase.players.map(p=>p.range));
 console.log(`  ${detached?'ok  ':'FAIL'} opponent descriptors are detached from engine range records`);
+publicDetachCase.ctx.publicActions[0]='poisoned';
+const publicDetached=publicDetachCase.before===JSON.stringify(publicDetachCase.log);
+console.log(`  ${publicDetached?'ok  ':'FAIL'} public action snapshots are detached from the visible hand log`);
 
 // (c) the bots must still be reading their OWN cards (proves the trap works)
 const {G:G2,drain:drain2,state:st2}=make(heroPolicy);
@@ -98,4 +116,4 @@ bot.cards=new Proxy(bot.cards,{get(t,k){ if(st2.inBot) ownReads++; return t[k]; 
 drain2();
 console.log(`  ${ownReads>0?'ok  ':'FAIL'} control: a bot read its own cards ${ownReads} times, so the trap is live`);
 process.exitCode=(decisionStart<0||hits.length||peeks||policyBPeeks||ctxLeaks||
-  descriptorLeaks||!detached||!(ownReads>0))?1:0;
+  descriptorLeaks||publicProjectionLeaks||!detached||!publicDetached||!(ownReads>0))?1:0;

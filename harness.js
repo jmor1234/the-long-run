@@ -37,9 +37,16 @@ const document={getElementById:id=>els[id]||(els[id]=fakeEl()),createElement:()=
 
 function make(heroPolicy){
   const queue=[];
-  const state={inBot:false, leaks:[], lastBotCtx:null, botContexts:[], lastEquityOpps:null};
+  const state={inBot:false, leaks:[], lastBotCtx:null, botContexts:[],
+    botObservations:[],lastEquityOpps:null};
   const BOTFLAG=v=>{state.inBot=v;};
-  const SETCTX=c=>{state.lastBotCtx=c;state.botContexts.push(c);};
+  const SETCTX=c=>{
+    state.lastBotCtx=c;
+    state.botContexts.push(c);
+    state.botObservations.push({ctx:c,publicActions:G.S.log.map(l=>l.text),
+      tableSize:G.S.n,liveOpponents:G.S.players.filter(p=>p!==G.S.players[G.S.toAct]&&!p.folded).length,
+      playerName:G.S.players[G.S.toAct].name});
+  };
   const EQUITY_CTX=opps=>{state.lastEquityOpps=opps.map(o=>typeof o==='number'?o:{
     cap:o.cap,bets:(o.bets||[]).map(board=>board.map(c=>({r:c.r,s:c.s})))
   });};
