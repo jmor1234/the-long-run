@@ -6,13 +6,15 @@ Haiku experiment, whose narration-bearing LLM arm was rejected ([PLAN.md](PLAN.m
 § Status). Third, a new action-only Terra experiment that tests LLM decisions without
 LLM narration ([OPENAI-PLAN.md](OPENAI-PLAN.md)).
 
-**Current action-only LLM work:** the offline diagnostic gate is complete.
+**Current action-only LLM work:** the offline diagnostic gate and fixture executor are complete.
 `openai-decision.js` builds a `gpt-5.6-terra` Responses API request from the acting
 bot's fair `ctx`, strictly parses `{action, amount}`, and rejects any decision that is
 not valid under that context's exact `legal` descriptor. `openai-probes.js` freezes
-nine real Policy A spots for development checks. It does not import an SDK, read
+nine real Policy A spots for development checks. `openai-fixture-runner.js` fixes a
+two-spot, $0.05 maximum provider smoke behind exact fingerprint approval, an exclusive
+canonical journal claim, and fsynced records. It still does not import an SDK, read
 credentials, make a network call, choose a fallback, or spend money. The next
-increment is the narrow fixture runner in `OPENAI-PLAN.md`, not a full session runner.
+increment is the thin live adapter in `OPENAI-PLAN.md`, not a full session runner.
 
 **Policy A versus Policy B:**
 
@@ -82,6 +84,11 @@ the probe and label locks overwrite their matching files under `exp/out/`. Those
 are disposable and gitignored, but run the suite only when replacing scratch state is
 acceptable.
 
+`exp/terra-state/` is different. It is ignored local audit state for the one-time
+Terra smoke, not disposable output. Never delete it after approving or starting the
+smoke. If it is lost, the prior approval is spent; reconcile provider usage and obtain
+fresh explicit owner approval before any further call.
+
 | File | Role |
 |---|---|
 | `exp-harness.js` | seeded harness: RNG stream injection, explicit `dispatch`/`v1`/`v2` policy selection, coded-policy fit/rejection observation, decision hook, and `htmlPath` for cross-version A/B; every source rewrite asserted |
@@ -106,11 +113,15 @@ the new action-only work is isolated from it:
 | `prompt.js` | pure historical and action-only prompt builders, 5 persona profiles, spot renderer, default-deny card scan |
 | `openai-decision.js` | pure Terra request builder, fail-closed response parser, and exact `ctx.legal` semantic validator; no live API path |
 | `openai-probes.js` | nine hash-locked real Policy A contexts for development and provider smoke checks; excluded from humanness evidence |
-| `spend.js` / `run-pilot.js` | hard call/USD caps with cost math; the billed arm itself (opt-in, resumable, every decision persisted before it is cached) |
+| `openai-fixture-runner.js` | offline two-probe manifest and executor: exact approval fingerprint, immutable requests, fixed cap, one exclusive allowlisted journal, and no resume |
+| `t-openai-fixture.js` | fake-provider, fsync, abrupt-exit, journal, and barrier-controlled competing-process proof for the Terra executor |
+| `terra-state/` | ignored retained audit state for the one-time Terra smoke; never scratch, never delete after approval |
+| `spend.js` / `run-pilot.js` | historical Haiku spend and billed runner; resumable semantics are not reused by the Terra path |
 | `run-feel.js` | the original LLM-vs-coded blind packet (superseded by `run-ab.js` for engine-vs-engine work) |
 
 Outputs land in `exp/out/` (gitignored scratch; also excluded from Vercel
-deploys via `.vercelignore` along with all of `exp/`). Frozen evidence lives in
+deploys via `.vercelignore` along with all of `exp/`). This does not include the
+retained `exp/terra-state/` journal. Frozen evidence lives in
 tracked `exp/ref/`, in two kinds — don't conflate them:
 
 - **Pre-humanize measurements** (engine 8f0bada and earlier): `baseline-metrics`,

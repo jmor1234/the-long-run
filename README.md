@@ -40,6 +40,7 @@ bash run-all.sh     # everything; POSIX/WSL; see ARCHITECTURE.md §9 for Windows
 node t3.js          # fairness only — run this after touching botDecide
 node t-policy-b.js  # opt-in Policy B public-line and pricing oracle
 node exp/run-policy-gate.js # frozen Policy A/B objective gate; currently fails B
+node exp/t-openai-fixture.js # offline Terra budget, journal, crash, and concurrency proof
 node t-legal.js     # legal-action boundary and no-mutation rejection oracle
 node t-teaching.js  # exact full-call and short-all-in teaching price
 node t-equity.js    # exact heads-up equity and live range-wiring oracle

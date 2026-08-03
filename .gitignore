@@ -6,4 +6,5 @@ Thumbs.db
 .env.*
 
 exp/out/
+exp/terra-state/
 node_modules/

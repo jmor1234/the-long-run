@@ -5,6 +5,7 @@ const {buildActionPrompt,ACTION_OUTPUT_SCHEMA,ACTION_NAMES}=require('./prompt');
 const MODEL='gpt-5.6-terra';
 const REASONING_EFFORT='low';
 const MAX_OUTPUT_TOKENS=128;
+const SERVICE_TIER='default';
 const ACTIONS=new Set(ACTION_NAMES);
 const AGGRESSIVE=new Set(['bet','raise']);
 
@@ -14,6 +15,7 @@ function buildRequest(ctx){
     model:MODEL,
     reasoning:{effort:REASONING_EFFORT},
     max_output_tokens:MAX_OUTPUT_TOKENS,
+    service_tier:SERVICE_TIER,
     store:false,
     instructions:prefix,
     input:spot,
@@ -104,5 +106,5 @@ function parseResponse(response,ctx){
   return parsed.ok?validateDecision(ctx,parsed.decision):parsed;
 }
 
-module.exports=Object.freeze({MODEL,REASONING_EFFORT,MAX_OUTPUT_TOKENS,
+module.exports=Object.freeze({MODEL,REASONING_EFFORT,MAX_OUTPUT_TOKENS,SERVICE_TIER,
   buildRequest,parseResponse,validateDecision});

@@ -30,46 +30,62 @@ The shipped game is unchanged. Its default remains the coded Policy A.
 - Execution: keep the engine synchronous. Use the existing cache-or-abort oracle so
   an external decision is resolved between deterministic replays, not during a hand.
 
-The offline diagnostic gate is complete. `openai-decision.js` implements the pure
-request boundary, strict wire parser, and semantic legality check against `ctx.legal`.
-`openai-probes.js` freezes nine real Policy A decisions spanning all five personas,
-heads-up play, postflop betting, closed raising, and a layered short-stack call. The
-probe contexts and Policy A answers are hash-locked. They are development fixtures,
-not evaluation evidence.
+The offline diagnostic gate and offline fixture executor are complete.
+`openai-decision.js` implements the pure request boundary, strict wire parser, and
+semantic legality check against `ctx.legal`. `openai-probes.js` freezes nine real
+Policy A decisions spanning all five personas, heads-up play, postflop betting, closed
+raising, and a layered short-stack call. The probe contexts and Policy A answers are
+hash-locked. They are development fixtures, not evaluation evidence.
 
-There is still no SDK, credential access, network call, retry, spend, persistence, or
-fallback behavior. `t-exp.js` locks the request shape, structured-output schema,
-historical prompt compatibility, prompt purity, semantic legality, and probe corpus.
-`t3.js` proves the actor identity, table size, live-opponent count, and full public
-action snapshot exactly match engine state at the decision hook. It also proves the
-snapshot is detached and that no foreign private cards enter the context.
+`openai-fixture-runner.js` narrows the future provider smoke to two of those burned
+spots. One immutable manifest fixes their request hashes, Terra, the official endpoint,
+standard service tier, two-call ceiling, and $0.05 maximum. An exact fingerprint must
+be approved before the executor creates output. The executor then owns one exclusive
+append-only journal under `exp/terra-state/`. Each record is fsynced before the next
+external boundary. A completed, failed, or interrupted identity cannot be resumed or
+repeated automatically while that journal claim exists. Persisted provider data is an
+explicit allowlist. `t-openai-fixture.js` proves these properties with fake responses,
+six abrupt child-process exits, and a barrier-controlled two-process race.
+
+The process-crash proof does not claim that a newly created directory entry survives
+host power loss on every filesystem. A power loss after approval is indeterminate and
+must never trigger an automatic retry. The owner must first reconcile the journal and
+provider usage before deciding whether any further call is acceptable.
+
+There is still no OpenAI SDK, credential access, network call, provider retry, live
+spend, cache, gameplay path, or fallback behavior. The older `run-pilot.js`,
+`spend.js`, and `legality.js` implement the concluded Haiku experiment and are not
+authoritative for this Terra path. `t-exp.js` locks the request shape,
+structured-output schema, historical prompt compatibility, prompt purity, semantic
+legality, and probe corpus. `t3.js` proves the fair observation boundary at the
+engine decision hook.
 
 ## Build sequence
 
 1. **Offline diagnostic gate, complete.** Fair public observation, action-only prompt,
    Terra request contract, strict semantic validation, and nine frozen real spots.
    Historical Anthropic prefixes and schema remain hash-locked.
-2. **Narrow fixture runner.** Exercise only the frozen spots through an injected fake
-   transport first, then make the live transport available behind an explicit flag,
-   credential check, hard call cap, and hard USD cap. Give each run an exclusive lease
-   and identity fingerprint. Before egress, durably reserve the attempt's maximum cost.
-   Disable provider retries. Persist the allowlisted request, response, usage, model,
-   and terminal failure before accepting or caching a decision. An unresolved attempt
-   is indeterminate and blocks automatic replay. Keep all records under ignored
-   `exp/out/`. Check the current SDK contract, service tier, and pricing when this step
-   is implemented.
-3. **Tiny live smoke.** This requires explicit owner approval after the fixture runner
-   and its High-tier verification are complete. Use only the frozen development spots.
-   Its purpose is to validate the provider contract, persistence, real usage, latency,
-   and caps. These burned spots never count toward a humanness result.
-4. **Full oracle session runner, conditional.** Build the cache-or-abort replay path
+2. **Offline fixture executor, complete.** It runs exactly two frozen spots through an
+   injected transport, reserves the whole run below $0.05, freezes the approved request,
+   and proves exclusive, non-resumable journal semantics without credentials or egress.
+3. **Thin live adapter.** Check the current official SDK, Responses API contract,
+   service-tier behavior, and pricing again before implementation. The adapter may only
+   read the API key, call the official endpoint with retries disabled, and return the
+   raw response to the verified executor. Reject endpoint overrides. It must not own
+   policy, persistence, resumption, caching, or gameplay.
+4. **Tiny live smoke.** This requires explicit owner approval of the exact manifest
+   fingerprint after the adapter and its High-tier verification are complete. Use only
+   the two burned development spots, at most two calls and $0.05. Its purpose is to
+   validate the real provider envelope, model and tier identity, usage, latency, and
+   journal. It does not test humanness.
+5. **Full oracle session runner, conditional.** Build the cache-or-abort replay path
    only if the smoke passes. Provider, parse, and legality failures remain terminal
    recorded outcomes, never silent fallbacks.
-5. **Pre-register the comparison.** Compare Terra with a fresh run of the current
+6. **Pre-register the comparison.** Compare Terra with a fresh run of the current
    Policy A on the same engine, seeds, and public observations. Freeze volume, cost
    ceiling, legality and fairness gates, persona/readability bounds, exploitability
    floor, and blind action-only judging before collecting comparison data.
-6. **Run only the cheapest decisive stage.** Stop on a failed gate. Do not integrate
+7. **Run only the cheapest decisive stage.** Stop on a failed gate. Do not integrate
    an LLM into the browser unless the offline experiment first shows a meaningful,
    repeatable improvement in observed play.
 

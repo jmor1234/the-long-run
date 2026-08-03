@@ -138,6 +138,10 @@ is how any behavioral claim about the bots gets proven:
 |---|---|
 | `exp-harness.js` | seeded harness: keyed RNG streams, `htmlPath` to load *another* engine build (cross-version A/B), asserted source rewrites |
 | `t-exp.js` | the behavior gate suite (sizing, boundary blur, roll governance, voice bans, mood, oracle, determinism) |
+| `openai-decision.js` / `openai-probes.js` | pure Terra request and legality boundary plus nine frozen development spots; no live API path |
+| `openai-fixture-runner.js` | offline two-probe smoke manifest and non-resumable executor; exact approval, immutable requests, fixed cap, canonical exclusive journal |
+| `t-openai-fixture.js` | fake-provider and real child-process proof for crash boundaries and concurrency |
+| `terra-state/` | ignored retained audit state for the one-time Terra smoke; loss burns the prior approval and requires provider reconciliation |
 | `run-probes.js` | exploitability LOCK — degenerate heroes must keep losing badly |
 | `run-labels.js` | readability LOCK — bots must stay as legible as before |
 | `run-ab.js` | blind A/B packets, old engine vs current; `--action-only` for play-only blocks (the headline instrument), default for full transcripts |
@@ -145,7 +149,7 @@ is how any behavioral claim about the bots gets proven:
 | `run-feel.js` | the original LLM-vs-coded packet, superseded by `run-ab.js` for engine-vs-engine |
 | `ref/` | **frozen evidence** — panel verdicts, baselines, the LLM pilot's paid decisions, the judging protocol. Preserved history: never regenerate into it |
 | `PLAN.md` / `README.md` | the historical pre-registration, its verdict, and measurement-toolkit handoff |
-| `OPENAI-PLAN.md` / `openai-decision.js` / `openai-probes.js` | current action-only Terra plan, offline request/legality boundary, and frozen development spots |
+| `OPENAI-PLAN.md` | current action-only Terra hypothesis, boundaries, build sequence, and status |
 | `prompt.js` `oracle.js` `legality.js` `spend.js` `run-pilot.js` `metrics.js` `prng.js` | shared and historical LLM-arm machinery; `run-pilot.js` remains the old Anthropic runner |
 
 There is **no framework and no bundler.** Functions are hoisted and called directly.
@@ -621,6 +625,7 @@ first.**
 | `t6.js` | elimination, table shrinking 6→2, chip conservation, heads-up blind rules |
 | `audit.js` | VPIP scope, session bb, incomplete raises, styles/limps, forced 3-bet & fold-to-cbet spots |
 | `exp/t-exp.js` | seeded-harness gate suite, two halves: **humanize** (sizing spread + raw coded-policy sizes observed through the independent legality normalizer, boundary blur persona-shaped by *rate*, dbg-roll drawn-and-governs, short-stack never raises, exhaustive VOICE text-ban scan, mood arithmetic vs a hand-computed table + call-site fidelity) and **experiment infrastructure** (determinism, stream isolation, cross-arm deal identity, oracle replay, legality unit + engine integration, prompt purity) |
+| `exp/t-openai-fixture.js` | Terra manifest goldens, independent budget arithmetic, fsync ordering, allowlisted journal, six abrupt child-process boundaries, and barrier-controlled process exclusion |
 | `exp/run-probes.js` | exploitability LOCK: degenerate heroes must lose ≥ hardcoded bb/100 thresholds (see §3.4 for the numbers and their baseline), nonzero exit |
 | `exp/run-labels.js` | readability LOCK: per-persona dossier labels at hand 31 within 10pp of the pre-humanize engine, measured at 90 sessions (at 30, one label = 3.3pp against ~8pp of noise, so the lock bounced personas across its own line). Two personas sit within 1pp of their bound **by construction** — a marginal failure here is expected sensitivity, not automatically a regression; re-measure the old engine with `--html`/`--sites` before assuming |
 
@@ -735,12 +740,17 @@ used for modeling with prior shrinkage. They are not interchangeable.
 
 ## 11. Open work, roughly by value
 
-**Current experiment:** the action-only Terra offline diagnostic gate is complete.
-It now has fair public observation, exact semantic legality checks, and nine frozen
-development spots. The next step is a narrow fixture runner, followed by an explicitly
-approved tiny smoke. A full session runner is conditional on that smoke passing. The
-probe spots are burned and cannot count as evaluation evidence. This experiment does
-not change shipped Policy A unless the full gate and blind comparison pass.
+**Current experiment:** the action-only Terra offline diagnostic gate and fixture
+executor are complete. The executor fixes two burned probes, Terra, the official
+endpoint, standard tier, two calls, and $0.05 behind exact fingerprint approval. Its
+canonical exclusive journal makes completed, failed, and process-interrupted identities
+non-resumable while the claim exists. It still has no SDK, credential access, network
+path, cache, fallback, or gameplay integration. The retained journal lives under
+`exp/terra-state/`, never disposable `exp/out/`. The next step is a thin live adapter,
+followed by a separately approved tiny smoke. A full session runner remains conditional
+on that smoke passing.
+This experiment does not change shipped Policy A unless the full gate and blind
+comparison pass.
 
 1. **Decision-vs-baseline logging** — record, at each hero decision, what a fixed
    baseline strategy would have done and what the player chose, then measure which made

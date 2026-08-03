@@ -706,6 +706,7 @@ function runBaseline(seed, hands, opts={}){
     model:'gpt-5.6-terra',
     reasoning:{effort:'low'},
     max_output_tokens:128,
+    service_tier:'default',
     store:false,
     instructions:'<action prefix>',
     input:'<spot>',
